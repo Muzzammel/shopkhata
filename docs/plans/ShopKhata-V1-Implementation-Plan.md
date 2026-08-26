@@ -232,8 +232,8 @@ shopkhata/
 ### Task 3: Create the PostgreSQL schema, constraints, and seed data
 
 **Files:**
-- Create: `supabase/migrations/0001_core_schema.sql`
-- Create: `supabase/migrations/0002_financial_schema.sql`
+- Create: `supabase/migrations/20260826095752_core_schema.sql`
+- Create: `supabase/migrations/20260826095753_financial_schema.sql`
 - Create: `supabase/seed.sql`
 - Create: `supabase/tests/schema.test.sql`
 - Create: `lib/supabase/database.types.ts`
