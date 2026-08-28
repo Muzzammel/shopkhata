@@ -295,44 +295,79 @@ shopkhata/
 ### Task 4: Implement authentication, roles, and row-level security
 
 **Files:**
-- Create: `lib/supabase/browser.ts`, `lib/supabase/server.ts`, `lib/auth/permissions.ts`, `middleware.ts`
+- Create: `lib/supabase/browser.ts`, `lib/supabase/server.ts`, `lib/auth/permissions.ts`, `proxy.ts`
 - Create: `app/(auth)/login/page.tsx`, `app/(app)/layout.tsx`
-- Create: `supabase/migrations/0003_rls.sql`, `supabase/tests/rls.test.sql`
+- Create: `supabase/migrations/20260828164246_rls.sql`, `supabase/tests/rls.test.sql`
 - Create: `tests/unit/auth/permissions.test.ts`, `tests/e2e/auth.spec.ts`
+- Modify `supabase/seed.sql` only as necessary to establish a deterministic, explicitly local-only E2E login credential for the existing seeded local users. The credential is for local testing only and must never be presented as suitable for production; do not add production users, emails, keys, tokens, or credentials.
+- Regenerate `lib/supabase/database.types.ts` after the RLS migration is GREEN; commit it only if the generated output changes.
 
 **Interfaces:**
 - Produces: `getCurrentActor(): Promise<Actor>`
 - Produces: `can(actor: Actor, action: Permission, shopId?: string): boolean`
-- RLS exposes only assigned-shop records except Owner/Admin.
+- The Product Specification's `Owner/Admin` is one product persona whose database role is exactly `owner`; do not introduce a separate `admin` role. The complete database role set is `owner`, `manager`, and `staff`.
+- `owner` can access both shops. `manager` and `staff` can access only shops assigned through `user_shop_assignments`. Deactivated profiles cannot mutate records.
+
+Authorization authority is server-side profile and assignment data. Never accept application roles or assigned shop IDs from untrusted client input or ordinary custom claims. Resolve role, active status, and shop assignments from the authenticated user's server-side `profiles` and `user_shop_assignments` records. Interface hiding is not authorization; both server-side permission checks and PostgreSQL RLS must enforce access.
 
 - [ ] **Step 1: Write failing permission matrix and RLS tests**
 
-  Assert staff cannot read Shop 2 when assigned only to Shop 1, Manager sees assigned shops, Owner sees both, and deactivated users cannot mutate.
+  Write permission, RLS, and browser-authorization tests before implementation. Assert the complete role matrix: staff cannot read Shop 2 when assigned only to Shop 1, managers see only assigned shops, owners see both shops, and deactivated users cannot mutate. Keep these tests as `supabase/tests/rls.test.sql`, `tests/unit/auth/permissions.test.ts`, and `tests/e2e/auth.spec.ts`.
 
 - [ ] **Step 2: Verify failure**
 
-  Run: `pnpm vitest run tests/unit/auth && supabase test db`  
-  Expected: FAIL because policies and permission functions do not exist.
+  Run the relevant project-pinned checks against a working local database and browser environment:
+
+  ```bash
+  pnpm test --run tests/unit/auth/permissions.test.ts
+  pnpm exec supabase db reset --local
+  pnpm exec supabase test db --local
+  pnpm test:e2e --grep auth
+  ```
+
+  Expected: genuine assertion failures for missing permission, RLS, or browser authorization behavior. Environment, local-stack, relation-resolution, SQL-abort, or browser-startup failures do not count as RED evidence. Do not weaken tests to make implementation pass.
 
 - [ ] **Step 3: Implement SSR authentication and permission helpers**
 
-  Do not accept role or shop IDs from untrusted client claims. Resolve them from server-side profile and assignment tables.
+  Implement SSR authentication using Next.js 16.3.2's `proxy.ts` file convention. Preserve `getCurrentActor(): Promise<Actor>` and `can(actor: Actor, action: Permission, shopId?: string): boolean`. Resolve role, active status, and assignments from server-side profile and assignment tables; do not trust client input, ordinary custom claims, or user-editable metadata.
+
+  A `.env.local` file may be created outside Git from the running local Supabase instance for local SSR and E2E testing. It remains ignored and must never be staged or committed. Never print keys or local credentials in reports. Leave `.env.example` unchanged unless a separately approved deficiency is found.
 
 - [ ] **Step 4: Implement RLS and security-definer helper functions with locked search paths**
 
-  Every exposed table must enable RLS. Financial command functions are the only write route for authoritative financial tables.
+  Enable RLS on every exposed public ShopKhata table. Staff and managers can read only records belonging to assigned shops; owners can read both shops. Deactivated users cannot mutate. Direct client writes to authoritative financial-event tables remain denied. Phase 3 financial command functions will become the only authorized financial write route; do not implement those Phase 3 functions in Task 4.
+
+  Put RLS helper functions in a non-exposed private schema where practical. Every `SECURITY DEFINER` function must use `SET search_path = ''`. Fully schema-qualify every referenced function, table, operator-sensitive object, and sequence as appropriate. Apply explicit `EXECUTE` grants and revokes. Do not trust user-editable metadata.
 
 - [ ] **Step 5: Verify unit, database, and browser authorization tests**
 
-  Run: `pnpm test --run && supabase test db && pnpm test:e2e --grep auth`  
-  Expected: PASS.
+  Run the complete project-pinned GREEN verification matrix:
+
+  ```bash
+  pnpm exec supabase db reset --local
+  pnpm exec supabase test db --local
+  pnpm exec supabase db lint --local --level warning --fail-on error
+  pnpm lint
+  pnpm exec tsc --noEmit
+  pnpm test --run
+  pnpm build
+  pnpm test:e2e
+  pnpm audit
+  git diff --check
+  ```
+
+  Expected: every command passes with complete test summaries. Regenerate `lib/supabase/database.types.ts` after the RLS migration is GREEN and include it only when its generated output changes.
 
 - [ ] **Step 6: Commit**
 
+  Stage only the exact Task 4 paths that actually changed; do not stage broad directories. The possible Task 4 paths are `lib/supabase/browser.ts`, `lib/supabase/server.ts`, `lib/auth/permissions.ts`, `proxy.ts`, `app/(auth)/login/page.tsx`, `app/(app)/layout.tsx`, `supabase/migrations/20260828164246_rls.sql`, `supabase/tests/rls.test.sql`, `tests/unit/auth/permissions.test.ts`, and `tests/e2e/auth.spec.ts`, plus `supabase/seed.sql` only if the approved local-only seed adjustment changed it and `lib/supabase/database.types.ts` only if regeneration changed it.
+
   ```bash
-  git add app lib middleware.ts supabase tests
+  git add -- <only the exact changed Task 4 paths from the approved list above>
   git commit -m "feat: enforce individual and shop-scoped access"
   ```
+
+  Stop immediately after Task 4 verification and commit. Do not begin Phase 3 atomic financial commands, add financial command functions, or add unrelated UI, offline synchronization, imports, reports, or business workflows.
 
 ---
 
