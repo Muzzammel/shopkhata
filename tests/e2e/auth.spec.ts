@@ -58,6 +58,9 @@ test.describe("browser authentication and authorization", () => {
     await expect(
       page.getByRole("heading", { name: "ShopKhata" }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Shop 1", exact: true }),
+    ).toBeVisible();
   });
 
   test("preserves the authenticated session after refreshing the protected page", async ({
@@ -75,6 +78,9 @@ test.describe("browser authentication and authorization", () => {
     await expect(
       page.getByRole("heading", { name: "ShopKhata" }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Shop 1", exact: true }),
+    ).toBeVisible();
   });
 
   test("does not grant Shop 2 authority through client-controlled URL state", async ({
@@ -89,6 +95,11 @@ test.describe("browser authentication and authorization", () => {
     await page.goto(`/?shopId=${SHOP_2}`);
 
     await expect(page).toHaveURL(/shopId=/);
-    await expect(page.getByText(/Shop 2/i)).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Shop 1", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Shop 2", exact: true }),
+    ).toHaveCount(0);
   });
 });

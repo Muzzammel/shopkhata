@@ -267,12 +267,16 @@ begin
     on conflict (id) do nothing
   $sql$);
   perform pg_temp.try_exec($sql$
-    insert into public.daily_closes (id, shop_id, business_date)
+    insert into public.daily_closes (
+      id, shop_id, business_date, event_type, actor_id, reason
+    )
     values
       ('a0000000-0000-4000-8000-000000000001',
-       '10000000-0000-4000-8000-000000000001', current_date),
+       '10000000-0000-4000-8000-000000000001', current_date, 'closed',
+       '10000000-0000-4000-8000-000000000101', null),
       ('a0000000-0000-4000-8000-000000000002',
-       '10000000-0000-4000-8000-000000000002', current_date)
+       '10000000-0000-4000-8000-000000000002', current_date, 'closed',
+       '10000000-0000-4000-8000-000000000101', null)
     on conflict (id) do nothing
   $sql$);
   perform pg_temp.try_exec($sql$

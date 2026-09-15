@@ -41,4 +41,66 @@ jobs:
         run: pnpm build
 
       - name: Run Playwright smoke tests
-        run: pnpm test:e2e
+        run: pnpm exec playwright test tests/e2e/smoke.spec.ts
+
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: verify
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Start local Supabase
+        run: pnpm exec supabase start > /dev/null
+
+      - name: Run migration upgrade integration tests
+        run: pnpm test:migration-upgrade
+
+      - name: Reset the complete database
+        run: pnpm exec supabase db reset --local
+
+      - name: Run pgTAP
+        run: pnpm exec supabase test db --local
+
+      - name: Run database lint
+        run: pnpm exec supabase db lint --local --level warning --fail-on error
+
+      - name: Create local-only SSR environment configuration
+        run: |
+          supabase_env="$(pnpm exec supabase status -o env 2>/dev/null)"
+          API_URL="$(printf '%s\n' "$supabase_env" | sed -n 's/^API_URL=//p' | head -n 1)"
+          PUBLISHABLE_KEY="$(printf '%s\n' "$supabase_env" | sed -n 's/^PUBLISHABLE_KEY=//p' | head -n 1)"
+          if [ -z "$PUBLISHABLE_KEY" ]; then
+            PUBLISHABLE_KEY="$(printf '%s\n' "$supabase_env" | sed -n 's/^ANON_KEY=//p' | head -n 1)"
+          fi
+          if [ -z "$API_URL" ] || [ -z "$PUBLISHABLE_KEY" ]; then
+            echo 'Supabase status did not provide API_URL and a public key.' >&2
+            exit 1
+          fi
+          printf 'NEXT_PUBLIC_SUPABASE_URL=%s\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=%s\n' "$API_URL" "$PUBLISHABLE_KEY" > .env.local
+          grep -qx 'NEXT_PUBLIC_SUPABASE_URL=.*' .env.local
+          grep -qx 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=.*' .env.local
+
+      - name: Run auth E2E tests
+        run: pnpm exec playwright test tests/e2e/auth.spec.ts
+
+      - name: Stop local Supabase
+        if: always()
+        run: pnpm exec supabase stop

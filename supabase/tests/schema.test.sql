@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(64);
+select plan(99);
 
 create function pg_temp.query_returns_true(query text)
 returns boolean
@@ -14,7 +14,7 @@ begin
   execute query into query_result;
   return coalesce(query_result, false);
 exception
-  when undefined_table then
+  when undefined_table or undefined_column then
     return false;
 end;
 $$;
@@ -121,6 +121,240 @@ select ok(
    from information_schema.columns
    where table_schema = 'public' and table_name = 'audit_events' and column_name = 'recorded_at'),
   'audit-event recorded_at is server-generated timestamptz'
+);
+
+select ok(
+  exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'daily_closes'
+      and column_name = 'event_sequence'
+      and is_identity = 'YES'
+      and identity_generation = 'ALWAYS'
+  ),
+  'daily_closes event_sequence is generated always as identity'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'daily_closes_event_sequence_uq'
+      and conrelid = to_regclass('public.daily_closes')
+      and contype = 'u'
+  ),
+  'daily_closes has named unique constraint daily_closes_event_sequence_uq'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'daily_closes_event_type_check'
+      and conrelid = to_regclass('public.daily_closes')
+      and contype = 'c'
+  ),
+  'daily_closes has named check constraint daily_closes_event_type_check'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'daily_closes_event_reason_check'
+      and conrelid = to_regclass('public.daily_closes')
+      and contype = 'c'
+  ),
+  'daily_closes has named check constraint daily_closes_event_reason_check'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'batches_shop_id_id_uq'
+      and conrelid = to_regclass('public.batches')
+      and contype = 'u'
+      and pg_get_constraintdef(oid) = 'UNIQUE (shop_id, id)'
+  ),
+  'batches has named candidate key batches_shop_id_id_uq on (shop_id, id)'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'customers_shop_id_id_uq'
+      and conrelid = to_regclass('public.customers')
+      and contype = 'u'
+      and pg_get_constraintdef(oid) = 'UNIQUE (shop_id, id)'
+  ),
+  'customers has named candidate key customers_shop_id_id_uq on (shop_id, id)'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'invoices_shop_id_id_uq'
+      and conrelid = to_regclass('public.invoices')
+      and contype = 'u'
+      and pg_get_constraintdef(oid) = 'UNIQUE (shop_id, id)'
+  ),
+  'invoices has named candidate key invoices_shop_id_id_uq on (shop_id, id)'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'payments_shop_id_id_uq'
+      and conrelid = to_regclass('public.payments')
+      and contype = 'u'
+      and pg_get_constraintdef(oid) = 'UNIQUE (shop_id, id)'
+  ),
+  'payments has named candidate key payments_shop_id_id_uq on (shop_id, id)'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'invoices_shop_id_batch_id_fkey'
+      and conrelid = to_regclass('public.invoices')
+      and confrelid = to_regclass('public.batches')
+      and contype = 'f'
+      and confdeltype = 'r'
+      and pg_get_constraintdef(oid) = 'FOREIGN KEY (shop_id, batch_id) REFERENCES batches(shop_id, id) ON DELETE RESTRICT'
+  ),
+  'invoices has composite foreign key invoices_shop_id_batch_id_fkey referencing batches(shop_id, id) ON DELETE RESTRICT'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'invoices_shop_id_customer_id_fkey'
+      and conrelid = to_regclass('public.invoices')
+      and confrelid = to_regclass('public.customers')
+      and contype = 'f'
+      and confdeltype = 'r'
+      and pg_get_constraintdef(oid) = 'FOREIGN KEY (shop_id, customer_id) REFERENCES customers(shop_id, id) ON DELETE RESTRICT'
+  ),
+  'invoices has composite foreign key invoices_shop_id_customer_id_fkey referencing customers(shop_id, id) ON DELETE RESTRICT'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'payments_shop_id_batch_id_fkey'
+      and conrelid = to_regclass('public.payments')
+      and confrelid = to_regclass('public.batches')
+      and contype = 'f'
+      and confdeltype = 'r'
+      and pg_get_constraintdef(oid) = 'FOREIGN KEY (shop_id, batch_id) REFERENCES batches(shop_id, id) ON DELETE RESTRICT'
+  ),
+  'payments has composite foreign key payments_shop_id_batch_id_fkey referencing batches(shop_id, id) ON DELETE RESTRICT'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'payments_shop_id_invoice_id_fkey'
+      and conrelid = to_regclass('public.payments')
+      and confrelid = to_regclass('public.invoices')
+      and contype = 'f'
+      and confdeltype = 'r'
+      and pg_get_constraintdef(oid) = 'FOREIGN KEY (shop_id, invoice_id) REFERENCES invoices(shop_id, id) ON DELETE RESTRICT'
+  ),
+  'payments has composite foreign key payments_shop_id_invoice_id_fkey referencing invoices(shop_id, id) ON DELETE RESTRICT'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'customer_credits_shop_id_customer_id_fkey'
+      and conrelid = to_regclass('public.customer_credits')
+      and confrelid = to_regclass('public.customers')
+      and contype = 'f'
+      and confdeltype = 'r'
+      and pg_get_constraintdef(oid) = 'FOREIGN KEY (shop_id, customer_id) REFERENCES customers(shop_id, id) ON DELETE RESTRICT'
+  ),
+  'customer_credits has composite foreign key customer_credits_shop_id_customer_id_fkey referencing customers(shop_id, id) ON DELETE RESTRICT'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'customer_credits_shop_id_invoice_id_fkey'
+      and conrelid = to_regclass('public.customer_credits')
+      and confrelid = to_regclass('public.invoices')
+      and contype = 'f'
+      and confdeltype = 'r'
+      and pg_get_constraintdef(oid) = 'FOREIGN KEY (shop_id, invoice_id) REFERENCES invoices(shop_id, id) ON DELETE RESTRICT'
+  ),
+  'customer_credits has composite foreign key customer_credits_shop_id_invoice_id_fkey referencing invoices(shop_id, id) ON DELETE RESTRICT'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'attachments_shop_id_batch_id_fkey'
+      and conrelid = to_regclass('public.attachments')
+      and confrelid = to_regclass('public.batches')
+      and contype = 'f'
+      and confdeltype = 'r'
+      and pg_get_constraintdef(oid) = 'FOREIGN KEY (shop_id, batch_id) REFERENCES batches(shop_id, id) ON DELETE RESTRICT'
+  ),
+  'attachments has composite foreign key attachments_shop_id_batch_id_fkey referencing batches(shop_id, id) ON DELETE RESTRICT'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'attachments_shop_id_invoice_id_fkey'
+      and conrelid = to_regclass('public.attachments')
+      and confrelid = to_regclass('public.invoices')
+      and contype = 'f'
+      and confdeltype = 'r'
+      and pg_get_constraintdef(oid) = 'FOREIGN KEY (shop_id, invoice_id) REFERENCES invoices(shop_id, id) ON DELETE RESTRICT'
+  ),
+  'attachments has composite foreign key attachments_shop_id_invoice_id_fkey referencing invoices(shop_id, id) ON DELETE RESTRICT'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'corrections_shop_id_invoice_id_fkey'
+      and conrelid = to_regclass('public.corrections')
+      and confrelid = to_regclass('public.invoices')
+      and contype = 'f'
+      and confdeltype = 'r'
+      and pg_get_constraintdef(oid) = 'FOREIGN KEY (shop_id, invoice_id) REFERENCES invoices(shop_id, id) ON DELETE RESTRICT'
+  ),
+  'corrections has composite foreign key corrections_shop_id_invoice_id_fkey referencing invoices(shop_id, id) ON DELETE RESTRICT'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conname = 'corrections_shop_id_payment_id_fkey'
+      and conrelid = to_regclass('public.corrections')
+      and confrelid = to_regclass('public.payments')
+      and contype = 'f'
+      and confdeltype = 'r'
+      and pg_get_constraintdef(oid) = 'FOREIGN KEY (shop_id, payment_id) REFERENCES payments(shop_id, id) ON DELETE RESTRICT'
+  ),
+  'corrections has composite foreign key corrections_shop_id_payment_id_fkey referencing payments(shop_id, id) ON DELETE RESTRICT'
 );
 
 select col_not_null('public', 'shops', 'name', 'shop name is required');
@@ -262,6 +496,314 @@ select throws_ok(
   '23514',
   null,
   'ordinary financial amounts reject negative values'
+);
+
+insert into public.customers (id, shop_id, public_id, created_by)
+values
+  (
+    '31000000-0000-4000-8000-000000000001',
+    '10000000-0000-4000-8000-000000000001',
+    'CUS-TENANT-1',
+    '10000000-0000-4000-8000-000000000101'
+  ),
+  (
+    '31000000-0000-4000-8000-000000000002',
+    '10000000-0000-4000-8000-000000000002',
+    'CUS-TENANT-2',
+    '10000000-0000-4000-8000-000000000101'
+  );
+
+insert into public.payments (
+  id, shop_id, batch_id, invoice_id, amount_dirham, business_date, created_by
+)
+values (
+  '51000000-0000-4000-8000-000000000002',
+  '10000000-0000-4000-8000-000000000002',
+  '10000000-0000-4000-8000-000000000002',
+  '20000000-0000-4000-8000-000000000002',
+  100,
+  current_date,
+  '10000000-0000-4000-8000-000000000101'
+);
+
+select throws_ok(
+  $$
+  insert into public.invoices (
+    id, shop_id, batch_id, invoice_id, total_amount_dirham, business_date
+  ) values (
+    '41000000-0000-4000-8000-000000000001',
+    '10000000-0000-4000-8000-000000000001',
+    '10000000-0000-4000-8000-000000000002',
+    'CROSS-SHOP-BATCH', 100, current_date
+  );
+  $$,
+  '23503',
+  null,
+  'an invoice cannot reference a batch from another shop'
+);
+
+select throws_ok(
+  $$
+  insert into public.invoices (
+    id, shop_id, batch_id, customer_id, invoice_id,
+    total_amount_dirham, business_date
+  ) values (
+    '41000000-0000-4000-8000-000000000002',
+    '10000000-0000-4000-8000-000000000001',
+    '10000000-0000-4000-8000-000000000001',
+    '31000000-0000-4000-8000-000000000002',
+    'CROSS-SHOP-CUSTOMER', 100, current_date
+  );
+  $$,
+  '23503',
+  null,
+  'an invoice cannot reference a customer from another shop'
+);
+
+select throws_ok(
+  $$
+  insert into public.payments (
+    id, shop_id, batch_id, invoice_id, amount_dirham, business_date
+  ) values (
+    '51000000-0000-4000-8000-000000000011',
+    '10000000-0000-4000-8000-000000000001',
+    '10000000-0000-4000-8000-000000000002',
+    '20000000-0000-4000-8000-000000000001',
+    100, current_date
+  );
+  $$,
+  '23503',
+  null,
+  'a payment cannot reference a batch from another shop'
+);
+
+select throws_ok(
+  $$
+  insert into public.payments (
+    id, shop_id, batch_id, invoice_id, amount_dirham, business_date
+  ) values (
+    '51000000-0000-4000-8000-000000000012',
+    '10000000-0000-4000-8000-000000000001',
+    '10000000-0000-4000-8000-000000000001',
+    '20000000-0000-4000-8000-000000000002',
+    100, current_date
+  );
+  $$,
+  '23503',
+  null,
+  'a payment cannot reference an invoice from another shop'
+);
+
+select throws_ok(
+  $$
+  insert into public.customer_credits (
+    id, shop_id, customer_id, amount_dirham, business_date
+  ) values (
+    '61000000-0000-4000-8000-000000000011',
+    '10000000-0000-4000-8000-000000000001',
+    '31000000-0000-4000-8000-000000000002',
+    100, current_date
+  );
+  $$,
+  '23503',
+  null,
+  'a customer credit cannot reference a customer from another shop'
+);
+
+select throws_ok(
+  $$
+  insert into public.customer_credits (
+    id, shop_id, customer_id, invoice_id, amount_dirham, business_date
+  ) values (
+    '61000000-0000-4000-8000-000000000012',
+    '10000000-0000-4000-8000-000000000001',
+    '31000000-0000-4000-8000-000000000001',
+    '20000000-0000-4000-8000-000000000002',
+    100, current_date
+  );
+  $$,
+  '23503',
+  null,
+  'a customer credit cannot reference an invoice from another shop'
+);
+
+select throws_ok(
+  $$
+  insert into public.attachments (
+    id, shop_id, batch_id, file_path, file_name
+  ) values (
+    '81000000-0000-4000-8000-000000000011',
+    '10000000-0000-4000-8000-000000000001',
+    '10000000-0000-4000-8000-000000000002',
+    'tenant-test/cross-batch', 'cross-batch.txt'
+  );
+  $$,
+  '23503',
+  null,
+  'an attachment cannot reference a batch from another shop'
+);
+
+select throws_ok(
+  $$
+  insert into public.attachments (
+    id, shop_id, invoice_id, file_path, file_name
+  ) values (
+    '81000000-0000-4000-8000-000000000012',
+    '10000000-0000-4000-8000-000000000001',
+    '20000000-0000-4000-8000-000000000002',
+    'tenant-test/cross-invoice', 'cross-invoice.txt'
+  );
+  $$,
+  '23503',
+  null,
+  'an attachment cannot reference an invoice from another shop'
+);
+
+select throws_ok(
+  $$
+  insert into public.corrections (
+    id, shop_id, invoice_id, amount_delta_dirham, reason, business_date
+  ) values (
+    '91000000-0000-4000-8000-000000000011',
+    '10000000-0000-4000-8000-000000000001',
+    '20000000-0000-4000-8000-000000000002',
+    10, 'cross-shop invoice probe', current_date
+  );
+  $$,
+  '23503',
+  null,
+  'a correction cannot reference an invoice from another shop'
+);
+
+select throws_ok(
+  $$
+  insert into public.corrections (
+    id, shop_id, payment_id, amount_delta_dirham, reason, business_date
+  ) values (
+    '91000000-0000-4000-8000-000000000012',
+    '10000000-0000-4000-8000-000000000001',
+    '51000000-0000-4000-8000-000000000002',
+    10, 'cross-shop payment probe', current_date
+  );
+  $$,
+  '23503',
+  null,
+  'a correction cannot reference a payment from another shop'
+);
+
+select lives_ok(
+  $$
+  insert into public.daily_closes (
+    id, shop_id, business_date, event_type, actor_id, reason
+  ) values
+    (
+      'd1000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000001',
+      current_date, 'closed', '10000000-0000-4000-8000-000000000101', null
+    ),
+    (
+      'd1000000-0000-4000-8000-000000000002',
+      '10000000-0000-4000-8000-000000000001',
+      current_date, 'reopened', '10000000-0000-4000-8000-000000000101',
+      'late entry approved for schema test'
+    ),
+    (
+      'd1000000-0000-4000-8000-000000000003',
+      '10000000-0000-4000-8000-000000000001',
+      current_date, 'closed', '10000000-0000-4000-8000-000000000101', null
+    );
+  $$,
+  'close, reopen with reason, and close again are immutable events'
+);
+
+select is(
+  (
+    select count(*)
+    from public.daily_closes
+    where id in (
+      'd1000000-0000-4000-8000-000000000001',
+      'd1000000-0000-4000-8000-000000000002',
+      'd1000000-0000-4000-8000-000000000003'
+    )
+  ),
+  3::bigint,
+  'the daily-close lifecycle preserves all three events'
+);
+
+select ok(
+  pg_temp.query_returns_true(
+    $$select count(*) = 3
+        and count(distinct event_sequence) = 3
+        and (array_agg(event_type order by event_sequence desc))[1] = 'closed'
+      from public.daily_closes
+      where id in (
+        'd1000000-0000-4000-8000-000000000001',
+        'd1000000-0000-4000-8000-000000000002',
+        'd1000000-0000-4000-8000-000000000003'
+      )$$
+  ),
+  'daily-close event sequence deterministically identifies the latest event'
+);
+
+select throws_ok(
+  $$
+  insert into public.daily_closes (
+    id, shop_id, business_date, event_type, actor_id, reason
+  ) values (
+    'd1000000-0000-4000-8000-000000000004',
+    '10000000-0000-4000-8000-000000000001',
+    current_date, 'reopened', '10000000-0000-4000-8000-000000000101', '   '
+  );
+  $$,
+  '23514',
+  null,
+  'a reopen event requires a non-blank reason'
+);
+
+select throws_ok(
+  $$
+  insert into public.daily_closes (
+    id, shop_id, business_date, event_type, actor_id
+  ) values (
+    'd1000000-0000-4000-8000-000000000005',
+    '10000000-0000-4000-8000-000000000001',
+    current_date, 'invalid-event', '10000000-0000-4000-8000-000000000101'
+  );
+  $$,
+  '23514',
+  null,
+  'daily-close events accept only closed or reopened types'
+);
+
+select throws_ok(
+  $$
+  insert into public.daily_closes (
+    id, shop_id, business_date, event_type, actor_id, reason
+  ) values (
+    'd1000000-0000-4000-8000-000000000006',
+    '10000000-0000-4000-8000-000000000001',
+    current_date, 'reopened', '10000000-0000-4000-8000-000000000101', null
+  );
+  $$,
+  '23514',
+  null,
+  'a reopen event requires a non-null reason'
+);
+
+select throws_ok(
+  $$
+  insert into public.daily_closes (
+    id, shop_id, business_date, event_type, actor_id, reason
+  ) values (
+    'd1000000-0000-4000-8000-000000000007',
+    '10000000-0000-4000-8000-000000000001',
+    current_date, 'closed', '10000000-0000-4000-8000-000000000101',
+    'a close event should not carry a reason'
+  );
+  $$,
+  '23514',
+  null,
+  'a close event rejects a non-null reason'
 );
 
 select ok(

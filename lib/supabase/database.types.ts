@@ -76,13 +76,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "attachments_batch_id_fkey"
-            columns: ["batch_id"]
-            isOneToOne: false
-            referencedRelation: "batches"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "attachments_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -90,11 +83,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "attachments_invoice_id_fkey"
-            columns: ["invoice_id"]
+            foreignKeyName: "attachments_shop_id_batch_id_fkey"
+            columns: ["shop_id", "batch_id"]
             isOneToOne: false
-            referencedRelation: "invoices"
-            referencedColumns: ["id"]
+            referencedRelation: "batches"
+            referencedColumns: ["shop_id", "id"]
           },
           {
             foreignKeyName: "attachments_shop_id_fkey"
@@ -102,6 +95,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "shops"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attachments_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["shop_id", "id"]
           },
         ]
       }
@@ -266,25 +266,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "corrections_invoice_id_fkey"
-            columns: ["invoice_id"]
-            isOneToOne: false
-            referencedRelation: "invoices"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "corrections_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "payments"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "corrections_shop_id_fkey"
             columns: ["shop_id"]
             isOneToOne: false
             referencedRelation: "shops"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corrections_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["shop_id", "id"]
+          },
+          {
+            foreignKeyName: "corrections_shop_id_payment_id_fkey"
+            columns: ["shop_id", "payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["shop_id", "id"]
           },
         ]
       }
@@ -344,18 +344,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "customer_credits_customer_id_fkey"
-            columns: ["customer_id"]
+            foreignKeyName: "customer_credits_shop_id_customer_id_fkey"
+            columns: ["shop_id", "customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "customer_credits_invoice_id_fkey"
-            columns: ["invoice_id"]
-            isOneToOne: false
-            referencedRelation: "invoices"
-            referencedColumns: ["id"]
+            referencedColumns: ["shop_id", "id"]
           },
           {
             foreignKeyName: "customer_credits_shop_id_fkey"
@@ -363,6 +356,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "shops"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_credits_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["shop_id", "id"]
           },
         ]
       }
@@ -416,52 +416,42 @@ export type Database = {
       }
       daily_closes: {
         Row: {
+          actor_id: string | null
           business_date: string
-          closed_at: string
-          closed_by: string | null
           created_at: string
+          event_sequence: number
+          event_type: string
           id: string
-          is_reopened: boolean
-          reopen_reason: string | null
-          reopened_at: string | null
-          reopened_by: string | null
+          reason: string | null
+          recorded_at: string
           shop_id: string
         }
         Insert: {
+          actor_id?: string | null
           business_date: string
-          closed_at?: string
-          closed_by?: string | null
           created_at?: string
+          event_sequence?: never
+          event_type?: string
           id?: string
-          is_reopened?: boolean
-          reopen_reason?: string | null
-          reopened_at?: string | null
-          reopened_by?: string | null
+          reason?: string | null
+          recorded_at?: string
           shop_id: string
         }
         Update: {
+          actor_id?: string | null
           business_date?: string
-          closed_at?: string
-          closed_by?: string | null
           created_at?: string
+          event_sequence?: never
+          event_type?: string
           id?: string
-          is_reopened?: boolean
-          reopen_reason?: string | null
-          reopened_at?: string | null
-          reopened_by?: string | null
+          reason?: string | null
+          recorded_at?: string
           shop_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "daily_closes_closed_by_fkey"
-            columns: ["closed_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "daily_closes_reopened_by_fkey"
-            columns: ["reopened_by"]
+            foreignKeyName: "daily_closes_actor_id_fkey"
+            columns: ["actor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -568,13 +558,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "invoices_batch_id_fkey"
-            columns: ["batch_id"]
-            isOneToOne: false
-            referencedRelation: "batches"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "invoices_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -582,11 +565,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "invoices_customer_id_fkey"
-            columns: ["customer_id"]
+            foreignKeyName: "invoices_shop_id_batch_id_fkey"
+            columns: ["shop_id", "batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["shop_id", "id"]
+          },
+          {
+            foreignKeyName: "invoices_shop_id_customer_id_fkey"
+            columns: ["shop_id", "customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
-            referencedColumns: ["id"]
+            referencedColumns: ["shop_id", "id"]
           },
           {
             foreignKeyName: "invoices_shop_id_fkey"
@@ -636,13 +626,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "payments_batch_id_fkey"
-            columns: ["batch_id"]
-            isOneToOne: false
-            referencedRelation: "batches"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "payments_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -650,11 +633,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "payments_invoice_id_fkey"
-            columns: ["invoice_id"]
+            foreignKeyName: "payments_shop_id_batch_id_fkey"
+            columns: ["shop_id", "batch_id"]
             isOneToOne: false
-            referencedRelation: "invoices"
-            referencedColumns: ["id"]
+            referencedRelation: "batches"
+            referencedColumns: ["shop_id", "id"]
           },
           {
             foreignKeyName: "payments_shop_id_fkey"
@@ -662,6 +645,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "shops"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["shop_id", "id"]
           },
         ]
       }
