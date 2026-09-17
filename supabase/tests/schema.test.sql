@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(102);
+select plan(111);
 
 create function pg_temp.query_returns_true(query text)
 returns boolean
@@ -103,6 +103,90 @@ select throws_ok(
   '23514',
   null,
   'a zero invoice total is rejected'
+);
+
+select ok(
+  exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'batches'
+      and column_name = 'idempotency_key' and data_type = 'text' and is_nullable = 'YES'
+  ),
+  'batches.idempotency_key remains nullable to preserve pre-fingerprint legacy rows'
+);
+
+select ok(
+  exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'batches'
+      and column_name = 'fingerprint' and data_type = 'text' and is_nullable = 'YES'
+  ),
+  'batches.fingerprint is a nullable text column'
+);
+
+select ok(
+  exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'batches'
+      and column_name = 'idempotency_result' and data_type = 'jsonb' and is_nullable = 'YES'
+  ),
+  'batches.idempotency_result is a nullable jsonb column'
+);
+
+select ok(
+  exists (
+    select 1 from pg_constraint
+    where conname = 'batches_idempotency_fields_all_or_none'
+      and conrelid = to_regclass('public.batches')
+      and pg_get_constraintdef(oid) = 'CHECK ((((idempotency_key IS NULL) AND (fingerprint IS NULL) AND (idempotency_result IS NULL)) OR ((idempotency_key IS NOT NULL) AND (fingerprint IS NOT NULL) AND (idempotency_result IS NOT NULL)))) NOT VALID'
+  ),
+  'batches enforces idempotency_key/fingerprint/idempotency_result as all-null or all-non-null'
+);
+
+select ok(
+  exists (
+    select 1 from pg_constraint
+    where conname = 'batches_shop_id_idempotency_key_uq'
+      and conrelid = to_regclass('public.batches')
+      and contype = 'u'
+      and pg_get_constraintdef(oid) = 'UNIQUE (shop_id, idempotency_key)'
+  ),
+  'batches has a named unique constraint on (shop_id, idempotency_key)'
+);
+
+select lives_ok(
+  $$
+  insert into public.batches (id, shop_id, business_date, created_by)
+  values ('c0000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', current_date, '10000000-0000-4000-8000-000000000101');
+  $$,
+  'a legacy-shaped batch with all three idempotency fields null is accepted'
+);
+
+select lives_ok(
+  $$
+  insert into public.batches (id, shop_id, business_date, created_by, idempotency_key, fingerprint, idempotency_result)
+  values ('c0000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', current_date, '10000000-0000-4000-8000-000000000101', 'schema-test-full-1', 'fp', '{}'::jsonb);
+  $$,
+  'a batch with all three idempotency fields populated is accepted'
+);
+
+select throws_ok(
+  $$
+  insert into public.batches (id, shop_id, business_date, created_by, idempotency_key)
+  values ('c0000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', current_date, '10000000-0000-4000-8000-000000000101', 'schema-test-partial');
+  $$,
+  '23514',
+  null,
+  'an idempotency_key with no fingerprint or result is rejected'
+);
+
+select throws_ok(
+  $$
+  insert into public.batches (id, shop_id, business_date, created_by, idempotency_key, fingerprint, idempotency_result)
+  values ('c0000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001', current_date, '10000000-0000-4000-8000-000000000101', 'schema-test-full-1', 'fp-2', '{}'::jsonb);
+  $$,
+  '23505',
+  null,
+  'reusing (shop_id, idempotency_key) across two batch rows is rejected'
 );
 select ok(
   exists (
@@ -449,10 +533,10 @@ select ok(
 
 select lives_ok(
   $$
-  insert into public.batches (id, shop_id, business_date, created_by, idempotency_key)
+  insert into public.batches (id, shop_id, business_date, created_by)
   values
-    ('10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', current_date, '10000000-0000-4000-8000-000000000101', 'schema-test-shop-1'),
-    ('10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000002', current_date, '10000000-0000-4000-8000-000000000101', 'schema-test-shop-2');
+    ('10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', current_date, '10000000-0000-4000-8000-000000000101'),
+    ('10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000002', current_date, '10000000-0000-4000-8000-000000000101');
   insert into public.invoices (
     id, shop_id, batch_id, invoice_id, invoice_type, quantity,
     total_amount_dirham, business_date, created_by
