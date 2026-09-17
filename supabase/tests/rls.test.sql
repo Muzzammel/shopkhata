@@ -584,14 +584,19 @@ select ok(
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.proname = 'submit_batch'
   )
+  and exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'record_payment'
+  )
   and not exists (
     select 1 from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname in ('public', 'private')
       and p.prokind = 'f'
-      and p.proname in ('record_payment', 'approve_overpayment', 'create_expense')
+      and p.proname in ('approve_overpayment', 'create_expense')
   ),
-  'Phase 3A implements submit_batch only, not later financial commands'
+  'Phase 3B implements submit_batch and record_payment only, not overpayment/expense commands'
 );
 select ok(
   exists (select 1 from pg_namespace where nspname = 'private'),
