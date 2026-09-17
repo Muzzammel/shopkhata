@@ -82,6 +82,9 @@ jobs:
       - name: Run database lint
         run: pnpm exec supabase db lint --local --level warning --fail-on error
 
+      - name: Run submit_batch integration tests
+        run: pnpm test:integration:batches
+
       - name: Create local-only SSR environment configuration
         run: |
           supabase_env="$(pnpm exec supabase status -o env 2>/dev/null)"
