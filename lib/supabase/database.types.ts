@@ -648,7 +648,10 @@ export type Database = {
           business_date: string
           created_at: string
           created_by: string | null
+          fingerprint: string | null
           id: string
+          idempotency_key: string | null
+          idempotency_result: Json | null
           invoice_id: string
           payment_method: string
           recorded_at: string
@@ -660,7 +663,10 @@ export type Database = {
           business_date: string
           created_at?: string
           created_by?: string | null
+          fingerprint?: string | null
           id?: string
+          idempotency_key?: string | null
+          idempotency_result?: Json | null
           invoice_id: string
           payment_method?: string
           recorded_at?: string
@@ -672,7 +678,10 @@ export type Database = {
           business_date?: string
           created_at?: string
           created_by?: string | null
+          fingerprint?: string | null
           id?: string
+          idempotency_key?: string | null
+          idempotency_result?: Json | null
           invoice_id?: string
           payment_method?: string
           recorded_at?: string
@@ -804,6 +813,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      record_payment: { Args: { command: Json }; Returns: Json }
       submit_batch: { Args: { command: Json }; Returns: Json }
     }
     Enums: {
