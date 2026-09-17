@@ -85,6 +85,9 @@ jobs:
       - name: Run submit_batch integration tests
         run: pnpm test:integration:batches
 
+      - name: Run record_payment integration tests
+        run: pnpm test:integration:payments
+
       - name: Create local-only SSR environment configuration
         run: |
           supabase_env="$(pnpm exec supabase status -o env 2>/dev/null)"
