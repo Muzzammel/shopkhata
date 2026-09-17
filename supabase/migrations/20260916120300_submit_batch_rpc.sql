@@ -496,18 +496,18 @@ begin
       );
     end if;
 
-    insert into public.invoices (
-      id, shop_id, batch_id, customer_id, invoice_id, delivered, note,
-      total_amount_dirham, business_date, created_by, recorded_at
-    ) values (
-      (v_prepared_row ->> 'invoice_id')::uuid, v_shop_id, v_batch_id,
-      nullif(v_prepared_row ->> 'customer_id', '')::uuid,
-      v_prepared_row ->> 'invoice_number', (v_prepared_row ->> 'delivered')::boolean,
-      v_prepared_row ->> 'note', (v_prepared_row ->> 'total')::bigint,
-      v_business_date, v_actor_id, v_recorded_at
-    );
-
     begin
+      insert into public.invoices (
+        id, shop_id, batch_id, customer_id, invoice_id, delivered, note,
+        total_amount_dirham, business_date, created_by, recorded_at
+      ) values (
+        (v_prepared_row ->> 'invoice_id')::uuid, v_shop_id, v_batch_id,
+        nullif(v_prepared_row ->> 'customer_id', '')::uuid,
+        v_prepared_row ->> 'invoice_number', (v_prepared_row ->> 'delivered')::boolean,
+        v_prepared_row ->> 'note', (v_prepared_row ->> 'total')::bigint,
+        v_business_date, v_actor_id, v_recorded_at
+      );
+
       insert into public.invoice_number_registry (shop_id, invoice_number, canonical_invoice_id)
       values (v_shop_id, v_prepared_row ->> 'invoice_number', (v_prepared_row ->> 'invoice_id')::uuid);
     exception

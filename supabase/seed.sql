@@ -24,7 +24,7 @@ insert into auth.users (
     'authenticated',
     'authenticated',
     'owner@shopkhata.local',
-    '',
+    crypt('ShopKhata-Local-Owner-E2E-Only-2026!', gen_salt('bf')),
     now(),
     '',
     '',
@@ -72,13 +72,17 @@ insert into auth.users (
 on conflict (id) do update set
   instance_id = excluded.instance_id,
   encrypted_password = case
-    when auth.users.id = '10000000-0000-4000-8000-000000000102'
-      then excluded.encrypted_password
+    when auth.users.id in (
+      '10000000-0000-4000-8000-000000000101',
+      '10000000-0000-4000-8000-000000000102'
+    ) then excluded.encrypted_password
     else auth.users.encrypted_password
   end,
   email_confirmed_at = case
-    when auth.users.id = '10000000-0000-4000-8000-000000000102'
-      then excluded.email_confirmed_at
+    when auth.users.id in (
+      '10000000-0000-4000-8000-000000000101',
+      '10000000-0000-4000-8000-000000000102'
+    ) then excluded.email_confirmed_at
     else auth.users.email_confirmed_at
   end,
   confirmation_token = excluded.confirmation_token,
@@ -113,6 +117,19 @@ on conflict (provider_id, provider) do update set
   created_at = excluded.created_at,
   updated_at = excluded.updated_at,
   last_sign_in_at = excluded.last_sign_in_at;
+
+-- 1b. Seed the explicitly local-only email identity for the E2E owner user
+insert into auth.identities (
+  id, user_id, identity_data, provider, provider_id, created_at, updated_at, last_sign_in_at
+) values (
+  '20000000-0000-4000-8000-000000000101',
+  '10000000-0000-4000-8000-000000000101',
+  '{"sub":"10000000-0000-4000-8000-000000000101","email":"owner@shopkhata.local"}',
+  'email', '10000000-0000-4000-8000-000000000101', now(), now(), now()
+)
+on conflict (provider_id, provider) do update set
+  id = excluded.id, user_id = excluded.user_id, identity_data = excluded.identity_data,
+  created_at = excluded.created_at, updated_at = excluded.updated_at, last_sign_in_at = excluded.last_sign_in_at;
 
 -- 2. Seed Shops
 insert into public.shops (id, name, is_active)
