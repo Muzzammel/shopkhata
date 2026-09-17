@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(99);
+select plan(102);
 
 create function pg_temp.query_returns_true(query text)
 returns boolean
@@ -55,10 +55,11 @@ select col_type_is('public', 'corrections', 'amount_delta_dirham', 'bigint', 'co
 select ok(
   exists (
     select 1 from pg_constraint
-    where conname = 'invoices_total_amount_nonnegative'
+    where conname = 'invoices_total_amount_positive'
       and conrelid = to_regclass('public.invoices')
+      and pg_get_constraintdef(oid) = 'CHECK ((total_amount_dirham > 0))'
   ),
-  'invoice totals have a named non-negative constraint'
+  'invoice totals have a named strictly-positive constraint'
 );
 select ok(
   exists (
@@ -67,6 +68,41 @@ select ok(
       and conrelid = to_regclass('public.payments')
   ),
   'payment amounts have a named non-negative constraint'
+);
+
+select ok(
+  exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public' and table_name = 'invoices'
+      and column_name = 'delivered' and data_type = 'boolean'
+      and is_nullable = 'NO' and column_default = 'false'
+  ),
+  'invoices.delivered is a required boolean defaulting to false'
+);
+
+select ok(
+  exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public' and table_name = 'invoices'
+      and column_name = 'note' and data_type = 'text' and is_nullable = 'YES'
+  ),
+  'invoices.note is an optional text column'
+);
+
+select throws_ok(
+  $$
+  insert into public.invoices (
+    shop_id, batch_id, invoice_id, total_amount_dirham, business_date
+  ) values (
+    '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001',
+    'ZERO-TOTAL', 0, current_date
+  );
+  $$,
+  '23514',
+  null,
+  'a zero invoice total is rejected'
 );
 select ok(
   exists (
