@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(111);
+select plan(120);
 
 create function pg_temp.query_returns_true(query text)
 returns boolean
@@ -547,6 +547,105 @@ select lives_ok(
   'the same invoice ID is accepted in different shops'
 );
 
+select has_table('public', 'invoice_number_registry', 'invoice_number_registry table exists');
+
+select ok(
+  exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'invoice_number_registry'
+      and column_name = 'normalized_invoice_number' and data_type = 'text'
+      and is_generated = 'ALWAYS'
+  ),
+  'invoice_number_registry.normalized_invoice_number is a generated column'
+);
+
+select ok(
+  exists (
+    select 1 from pg_constraint
+    where conname = 'invoice_number_registry_shop_id_normalized_number_uq'
+      and conrelid = to_regclass('public.invoice_number_registry')
+      and contype = 'u'
+      and pg_get_constraintdef(oid) = 'UNIQUE (shop_id, normalized_invoice_number)'
+  ),
+  'invoice_number_registry enforces unique (shop_id, normalized_invoice_number)'
+);
+
+select ok(
+  exists (
+    select 1 from pg_constraint
+    where conname = 'invoice_number_registry_shop_id_canonical_invoice_id_fkey'
+      and conrelid = to_regclass('public.invoice_number_registry')
+      and confrelid = to_regclass('public.invoices')
+      and contype = 'f'
+      and pg_get_constraintdef(oid) = 'FOREIGN KEY (shop_id, canonical_invoice_id) REFERENCES invoices(shop_id, id) ON DELETE RESTRICT'
+  ),
+  'invoice_number_registry has composite foreign key to invoices(shop_id, id)'
+);
+
+select throws_ok(
+  $$
+  insert into public.invoice_number_registry (shop_id, invoice_number, canonical_invoice_id)
+  values (
+    '10000000-0000-4000-8000-000000000001',
+    'CROSS-SHOP-REGISTRY',
+    '20000000-0000-4000-8000-000000000002'
+  );
+  $$,
+  '23503',
+  null,
+  'a registry entry cannot reference a canonical invoice from another shop'
+);
+
+select lives_ok(
+  $$
+  insert into public.invoice_number_registry (shop_id, invoice_number, canonical_invoice_id)
+  values (
+    '10000000-0000-4000-8000-000000000001',
+    'CASE-VARIANT-1',
+    '20000000-0000-4000-8000-000000000001'
+  );
+  $$,
+  'the first casing of a normalized invoice number is accepted'
+);
+
+select throws_ok(
+  $$
+  insert into public.invoice_number_registry (shop_id, invoice_number, canonical_invoice_id)
+  values (
+    '10000000-0000-4000-8000-000000000001',
+    ' case-variant-1 ',
+    '20000000-0000-4000-8000-000000000001'
+  );
+  $$,
+  '23505',
+  null,
+  'a case- and whitespace-variant of an already-registered number is rejected as a duplicate'
+);
+
+select ok(
+  exists (
+    select 1 from pg_constraint
+    where conname = 'invoice_number_registry_invoice_number_not_blank'
+      and conrelid = to_regclass('public.invoice_number_registry')
+      and pg_get_constraintdef(oid) = 'CHECK ((btrim(invoice_number) <> ''''::text))'
+  ),
+  'invoice_number_registry rejects a null-equivalent (blank-after-trim) invoice_number'
+);
+
+select throws_ok(
+  $$
+  insert into public.invoice_number_registry (shop_id, invoice_number, canonical_invoice_id)
+  values (
+    '10000000-0000-4000-8000-000000000001',
+    '   ',
+    '20000000-0000-4000-8000-000000000001'
+  );
+  $$,
+  '23514',
+  null,
+  'a blank-after-trim invoice_number is rejected'
+);
+
 select throws_ok(
   $$
   insert into public.invoices (
@@ -931,7 +1030,7 @@ select ok(
     select 1
     from unnest(array[
       'batches', 'invoices', 'payments', 'customer_credits', 'expenses',
-      'corrections', 'daily_closes', 'audit_events'
+      'corrections', 'daily_closes', 'audit_events', 'invoice_number_registry'
     ]) as protected(table_name)
     cross join unnest(array['anon', 'authenticated']) as app(role_name)
     where to_regclass(format('public.%I', protected.table_name)) is null
@@ -953,7 +1052,7 @@ select ok(
     select 1
     from unnest(array[
       'batches', 'invoices', 'payments', 'customer_credits', 'expenses',
-      'corrections', 'daily_closes', 'audit_events'
+      'corrections', 'daily_closes', 'audit_events', 'invoice_number_registry'
     ]) as protected(table_name)
     where not exists (
       select 1

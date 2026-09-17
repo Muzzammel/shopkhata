@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(39);
+select plan(40);
 
 create or replace function pg_temp.try_exec(command text)
 returns boolean
@@ -130,6 +130,16 @@ begin
         'direct.insert', 'rls_test'
       )
     $sql$)
+    when 'invoice_number_registry' then pg_temp.try_exec($sql$
+      insert into public.invoice_number_registry (
+        id, shop_id, invoice_number, canonical_invoice_id
+      ) values (
+        'd0000000-0000-4000-8000-000000000003',
+        '10000000-0000-4000-8000-000000000001',
+        'RLS-DIRECT-INSERT-REG',
+        '40000000-0000-4000-8000-000000000001'
+      )
+    $sql$)
     else false
   end;
 end;
@@ -153,6 +163,7 @@ begin
       when 'corrections' then '90000000-0000-4000-8000-000000000001'
       when 'daily_closes' then 'a0000000-0000-4000-8000-000000000001'
       when 'audit_events' then 'b0000000-0000-4000-8000-000000000001'
+      when 'invoice_number_registry' then 'd0000000-0000-4000-8000-000000000001'
     end
   ));
 end;
@@ -176,6 +187,7 @@ begin
       when 'corrections' then '90000000-0000-4000-8000-000000000001'
       when 'daily_closes' then 'a0000000-0000-4000-8000-000000000001'
       when 'audit_events' then 'b0000000-0000-4000-8000-000000000001'
+      when 'invoice_number_registry' then 'd0000000-0000-4000-8000-000000000001'
     end
   ));
 end;
@@ -288,6 +300,17 @@ begin
        '10000000-0000-4000-8000-000000000002', 'rls.shop-2', 'test')
     on conflict (id) do nothing
   $sql$);
+  perform pg_temp.try_exec($sql$
+    insert into public.invoice_number_registry (id, shop_id, invoice_number, canonical_invoice_id)
+    values
+      ('d0000000-0000-4000-8000-000000000001',
+       '10000000-0000-4000-8000-000000000001', 'RLS-SHOP-1',
+       '40000000-0000-4000-8000-000000000001'),
+      ('d0000000-0000-4000-8000-000000000002',
+       '10000000-0000-4000-8000-000000000002', 'RLS-SHOP-2',
+       '40000000-0000-4000-8000-000000000002')
+    on conflict (id) do nothing
+  $sql$);
 end
 $setup$;
 
@@ -356,6 +379,11 @@ select ok(
           where n.nspname = 'public' and c.relname = 'audit_events' and c.relrowsecurity),
   'RLS is enabled on public.audit_events'
 );
+select ok(
+  exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname = 'public' and c.relname = 'invoice_number_registry' and c.relrowsecurity),
+  'RLS is enabled on public.invoice_number_registry'
+);
 
 select ok(
   not exists (
@@ -363,7 +391,7 @@ select ok(
     from unnest(array[
       'shops', 'profiles', 'user_shop_assignments', 'customers', 'batches',
       'invoices', 'payments', 'customer_credits', 'expenses', 'attachments',
-      'corrections', 'daily_closes', 'audit_events'
+      'corrections', 'daily_closes', 'audit_events', 'invoice_number_registry'
     ]) as required(table_name)
     where not exists (
       select 1 from pg_policies p
@@ -381,7 +409,7 @@ select ok(
     from unnest(array[
       'shops', 'profiles', 'user_shop_assignments', 'customers', 'batches',
       'invoices', 'payments', 'customer_credits', 'expenses', 'attachments',
-      'corrections', 'daily_closes', 'audit_events'
+      'corrections', 'daily_closes', 'audit_events', 'invoice_number_registry'
     ]) as required(table_name)
     where pg_temp.total_count(required.table_name) > 0
   ),
@@ -395,7 +423,8 @@ select ok(
   not exists (
     select 1 from unnest(array[
       'customers', 'batches', 'invoices', 'payments', 'customer_credits',
-      'expenses', 'attachments', 'corrections', 'daily_closes', 'audit_events'
+      'expenses', 'attachments', 'corrections', 'daily_closes', 'audit_events',
+      'invoice_number_registry'
     ]) as business(table_name)
     where pg_temp.visible_count(
       business.table_name, '10000000-0000-4000-8000-000000000001'
@@ -407,7 +436,8 @@ select ok(
   not exists (
     select 1 from unnest(array[
       'customers', 'batches', 'invoices', 'payments', 'customer_credits',
-      'expenses', 'attachments', 'corrections', 'daily_closes', 'audit_events'
+      'expenses', 'attachments', 'corrections', 'daily_closes', 'audit_events',
+      'invoice_number_registry'
     ]) as business(table_name)
     where pg_temp.visible_count(
       business.table_name, '10000000-0000-4000-8000-000000000002'
@@ -426,7 +456,8 @@ select ok(
   not exists (
     select 1 from unnest(array[
       'customers', 'batches', 'invoices', 'payments', 'customer_credits',
-      'expenses', 'attachments', 'corrections', 'daily_closes', 'audit_events'
+      'expenses', 'attachments', 'corrections', 'daily_closes', 'audit_events',
+      'invoice_number_registry'
     ]) as business(table_name)
     where pg_temp.visible_count(
       business.table_name, '10000000-0000-4000-8000-000000000001'
@@ -438,7 +469,8 @@ select ok(
   not exists (
     select 1 from unnest(array[
       'customers', 'batches', 'invoices', 'payments', 'customer_credits',
-      'expenses', 'attachments', 'corrections', 'daily_closes', 'audit_events'
+      'expenses', 'attachments', 'corrections', 'daily_closes', 'audit_events',
+      'invoice_number_registry'
     ]) as business(table_name)
     where pg_temp.visible_count(
       business.table_name, '10000000-0000-4000-8000-000000000002'
@@ -456,7 +488,8 @@ select ok(
   not exists (
     select 1 from unnest(array[
       'customers', 'batches', 'invoices', 'payments', 'customer_credits',
-      'expenses', 'attachments', 'corrections', 'daily_closes', 'audit_events'
+      'expenses', 'attachments', 'corrections', 'daily_closes', 'audit_events',
+      'invoice_number_registry'
     ]) as business(table_name)
     where pg_temp.visible_count(
       business.table_name, '10000000-0000-4000-8000-000000000001'
@@ -468,7 +501,8 @@ select ok(
   not exists (
     select 1 from unnest(array[
       'customers', 'batches', 'invoices', 'payments', 'customer_credits',
-      'expenses', 'attachments', 'corrections', 'daily_closes', 'audit_events'
+      'expenses', 'attachments', 'corrections', 'daily_closes', 'audit_events',
+      'invoice_number_registry'
     ]) as business(table_name)
     where pg_temp.visible_count(
       business.table_name, '10000000-0000-4000-8000-000000000002'
@@ -516,7 +550,7 @@ select ok(
   not exists (
     select 1 from unnest(array[
       'batches', 'invoices', 'payments', 'customer_credits', 'expenses',
-      'corrections', 'daily_closes', 'audit_events'
+      'corrections', 'daily_closes', 'audit_events', 'invoice_number_registry'
     ]) as financial(table_name)
     where pg_temp.try_financial_insert(financial.table_name)
   ),
@@ -526,7 +560,7 @@ select ok(
   not exists (
     select 1 from unnest(array[
       'batches', 'invoices', 'payments', 'customer_credits', 'expenses',
-      'corrections', 'daily_closes', 'audit_events'
+      'corrections', 'daily_closes', 'audit_events', 'invoice_number_registry'
     ]) as financial(table_name)
     where pg_temp.try_financial_update(financial.table_name)
   ),
@@ -536,7 +570,7 @@ select ok(
   not exists (
     select 1 from unnest(array[
       'batches', 'invoices', 'payments', 'customer_credits', 'expenses',
-      'corrections', 'daily_closes', 'audit_events'
+      'corrections', 'daily_closes', 'audit_events', 'invoice_number_registry'
     ]) as financial(table_name)
     where pg_temp.try_financial_delete(financial.table_name)
   ),
@@ -664,7 +698,8 @@ select ok(
   not exists (
     select 1 from unnest(array[
       'customers', 'batches', 'invoices', 'payments', 'customer_credits',
-      'expenses', 'attachments', 'corrections', 'daily_closes', 'audit_events'
+      'expenses', 'attachments', 'corrections', 'daily_closes', 'audit_events',
+      'invoice_number_registry'
     ]) as business(table_name)
     where pg_temp.visible_count(
       business.table_name, '10000000-0000-4000-8000-000000000001'
@@ -679,7 +714,8 @@ select ok(
   not exists (
     select 1 from unnest(array[
       'customers', 'batches', 'invoices', 'payments', 'customer_credits',
-      'expenses', 'attachments', 'corrections', 'daily_closes', 'audit_events'
+      'expenses', 'attachments', 'corrections', 'daily_closes', 'audit_events',
+      'invoice_number_registry'
     ]) as business(table_name)
     where pg_temp.visible_count(
       business.table_name, '10000000-0000-4000-8000-000000000001'
@@ -694,7 +730,7 @@ select ok(
     select 1
     from unnest(array[
       'batches', 'invoices', 'payments', 'customer_credits', 'expenses',
-      'corrections', 'daily_closes', 'audit_events'
+      'corrections', 'daily_closes', 'audit_events', 'invoice_number_registry'
     ]) as financial(table_name)
     where not exists (
       select 1 from pg_class c
