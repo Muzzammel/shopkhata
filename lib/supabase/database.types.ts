@@ -165,8 +165,10 @@ export type Database = {
           business_date: string
           created_at: string
           created_by: string | null
+          fingerprint: string | null
           id: string
           idempotency_key: string | null
+          idempotency_result: Json | null
           is_backdated: boolean
           recorded_at: string
           shop_id: string
@@ -176,8 +178,10 @@ export type Database = {
           business_date: string
           created_at?: string
           created_by?: string | null
+          fingerprint?: string | null
           id?: string
           idempotency_key?: string | null
+          idempotency_result?: Json | null
           is_backdated?: boolean
           recorded_at?: string
           shop_id: string
@@ -187,8 +191,10 @@ export type Database = {
           business_date?: string
           created_at?: string
           created_by?: string | null
+          fingerprint?: string | null
           id?: string
           idempotency_key?: string | null
+          idempotency_result?: Json | null
           is_backdated?: boolean
           recorded_at?: string
           shop_id?: string
@@ -513,6 +519,48 @@ export type Database = {
           },
         ]
       }
+      invoice_number_registry: {
+        Row: {
+          canonical_invoice_id: string
+          created_at: string
+          id: string
+          invoice_number: string
+          normalized_invoice_number: string | null
+          shop_id: string
+        }
+        Insert: {
+          canonical_invoice_id: string
+          created_at?: string
+          id?: string
+          invoice_number: string
+          normalized_invoice_number?: string | null
+          shop_id: string
+        }
+        Update: {
+          canonical_invoice_id?: string
+          created_at?: string
+          id?: string
+          invoice_number?: string
+          normalized_invoice_number?: string | null
+          shop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_number_registry_shop_id_canonical_invoice_id_fkey"
+            columns: ["shop_id", "canonical_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["shop_id", "id"]
+          },
+          {
+            foreignKeyName: "invoice_number_registry_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           batch_id: string | null
@@ -520,9 +568,11 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer_id: string | null
+          delivered: boolean
           id: string
           invoice_id: string
           invoice_type: string
+          note: string | null
           quantity: number
           recorded_at: string
           shop_id: string
@@ -534,9 +584,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
+          delivered?: boolean
           id?: string
           invoice_id: string
           invoice_type?: string
+          note?: string | null
           quantity?: number
           recorded_at?: string
           shop_id: string
@@ -548,9 +600,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
+          delivered?: boolean
           id?: string
           invoice_id?: string
           invoice_type?: string
+          note?: string | null
           quantity?: number
           recorded_at?: string
           shop_id?: string
@@ -750,7 +804,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      submit_batch: { Args: { command: Json }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
