@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(120);
+select plan(126);
 
 create function pg_temp.query_returns_true(query text)
 returns boolean
@@ -545,6 +545,89 @@ select lives_ok(
     ('20000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000002', 'SAME-ID', 'advance', 1, 1000, current_date, '10000000-0000-4000-8000-000000000101');
   $$,
   'the same invoice ID is accepted in different shops'
+);
+
+select ok(
+  exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public' and table_name = 'payments'
+      and column_name = 'idempotency_key' and data_type = 'text' and is_nullable = 'YES'
+  ),
+  'payments.idempotency_key is a nullable text column'
+);
+
+select ok(
+  exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public' and table_name = 'payments'
+      and column_name = 'fingerprint' and data_type = 'text' and is_nullable = 'YES'
+  ),
+  'payments.fingerprint is a nullable text column'
+);
+
+select ok(
+  exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public' and table_name = 'payments'
+      and column_name = 'idempotency_result' and data_type = 'jsonb' and is_nullable = 'YES'
+  ),
+  'payments.idempotency_result is a nullable jsonb column'
+);
+
+select ok(
+  exists (
+    select 1 from pg_constraint
+    where conname = 'payments_idempotency_fields_all_or_none'
+      and conrelid = to_regclass('public.payments')
+      and pg_get_constraintdef(oid) = 'CHECK ((((idempotency_key IS NULL) AND (fingerprint IS NULL) AND (idempotency_result IS NULL)) OR ((idempotency_key IS NOT NULL) AND (fingerprint IS NOT NULL) AND (idempotency_result IS NOT NULL)))) NOT VALID'
+  ),
+  'payments enforces idempotency_key/fingerprint/idempotency_result as all-null or all-non-null'
+);
+
+select ok(
+  exists (
+    select 1 from pg_constraint
+    where conname = 'payments_shop_id_idempotency_key_uq'
+      and conrelid = to_regclass('public.payments')
+      and contype = 'u'
+      and pg_get_constraintdef(oid) = 'UNIQUE (shop_id, idempotency_key)'
+  ),
+  'payments has a named unique constraint on (shop_id, idempotency_key)'
+);
+
+insert into public.payments (
+  id, shop_id, batch_id, invoice_id, amount_dirham, business_date, created_by,
+  idempotency_key, fingerprint, idempotency_result
+)
+values (
+  '51000000-0000-4000-8000-000000000020',
+  '10000000-0000-4000-8000-000000000002',
+  '10000000-0000-4000-8000-000000000002',
+  '20000000-0000-4000-8000-000000000002',
+  50, current_date, '10000000-0000-4000-8000-000000000101',
+  'schema-test-payment-key-1', 'fp', '{}'::jsonb
+);
+
+select throws_ok(
+  $$
+  insert into public.payments (
+    id, shop_id, batch_id, invoice_id, amount_dirham, business_date, created_by,
+    idempotency_key, fingerprint, idempotency_result
+  ) values (
+    '51000000-0000-4000-8000-000000000021',
+    '10000000-0000-4000-8000-000000000002',
+    '10000000-0000-4000-8000-000000000002',
+    '20000000-0000-4000-8000-000000000002',
+    50, current_date, '10000000-0000-4000-8000-000000000101',
+    'schema-test-payment-key-1', 'fp-2', '{}'::jsonb
+  );
+  $$,
+  '23505',
+  null,
+  'reusing (shop_id, idempotency_key) across two payment rows is rejected'
 );
 
 select has_table('public', 'invoice_number_registry', 'invoice_number_registry table exists');
