@@ -135,10 +135,15 @@ begin
     raise exception 'CLOSED_DATE' using errcode = 'P0001';
   end if;
 
+  -- Locked for update: without this, two concurrent calls against the same
+  -- invoice can both read the pre-payment effective_due and both pass the
+  -- overpayment check, double-booking the invoice. The lock forces the
+  -- second call to wait and re-read the first call's committed payment.
   select i.id, i.shop_id, i.total_amount_dirham
   into v_invoice
   from public.invoices i
-  where i.id = v_invoice_id and i.shop_id = v_shop_id;
+  where i.id = v_invoice_id and i.shop_id = v_shop_id
+  for update;
 
   if not found then
     raise exception 'PAYMENT_VALIDATION_FAILED' using errcode = 'P0001',
