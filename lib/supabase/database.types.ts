@@ -297,6 +297,7 @@ export type Database = {
       customer_credits: {
         Row: {
           amount_dirham: number
+          approved_at: string | null
           approved_by: string | null
           business_date: string
           created_at: string
@@ -310,6 +311,7 @@ export type Database = {
         }
         Insert: {
           amount_dirham: number
+          approved_at?: string | null
           approved_by?: string | null
           business_date: string
           created_at?: string
@@ -323,6 +325,7 @@ export type Database = {
         }
         Update: {
           amount_dirham?: number
+          approved_at?: string | null
           approved_by?: string | null
           business_date?: string
           created_at?: string
@@ -813,6 +816,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_overpayment: { Args: { command: Json }; Returns: Json }
       record_payment: { Args: { command: Json }; Returns: Json }
       submit_batch: { Args: { command: Json }; Returns: Json }
     }
