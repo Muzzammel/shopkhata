@@ -68,20 +68,39 @@ insert into auth.users (
     '{"display_name":"Local Shop 2 Staff"}',
     now(),
     now()
+  ),
+  (
+    '10000000-0000-4000-8000-000000000104',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated',
+    'authenticated',
+    'manager@shopkhata.local',
+    crypt('ShopKhata-Local-Manager-E2E-Only-2026!', gen_salt('bf')),
+    now(),
+    '',
+    '',
+    '',
+    '',
+    '{"provider":"email","providers":["email"]}',
+    '{"display_name":"Local Shop 1 Manager"}',
+    now(),
+    now()
   )
 on conflict (id) do update set
   instance_id = excluded.instance_id,
   encrypted_password = case
     when auth.users.id in (
       '10000000-0000-4000-8000-000000000101',
-      '10000000-0000-4000-8000-000000000102'
+      '10000000-0000-4000-8000-000000000102',
+      '10000000-0000-4000-8000-000000000104'
     ) then excluded.encrypted_password
     else auth.users.encrypted_password
   end,
   email_confirmed_at = case
     when auth.users.id in (
       '10000000-0000-4000-8000-000000000101',
-      '10000000-0000-4000-8000-000000000102'
+      '10000000-0000-4000-8000-000000000102',
+      '10000000-0000-4000-8000-000000000104'
     ) then excluded.email_confirmed_at
     else auth.users.email_confirmed_at
   end,
@@ -131,6 +150,19 @@ on conflict (provider_id, provider) do update set
   id = excluded.id, user_id = excluded.user_id, identity_data = excluded.identity_data,
   created_at = excluded.created_at, updated_at = excluded.updated_at, last_sign_in_at = excluded.last_sign_in_at;
 
+-- 1c. Seed the explicitly local-only email identity for the E2E manager user
+insert into auth.identities (
+  id, user_id, identity_data, provider, provider_id, created_at, updated_at, last_sign_in_at
+) values (
+  '20000000-0000-4000-8000-000000000104',
+  '10000000-0000-4000-8000-000000000104',
+  '{"sub":"10000000-0000-4000-8000-000000000104","email":"manager@shopkhata.local"}',
+  'email', '10000000-0000-4000-8000-000000000104', now(), now(), now()
+)
+on conflict (provider_id, provider) do update set
+  id = excluded.id, user_id = excluded.user_id, identity_data = excluded.identity_data,
+  created_at = excluded.created_at, updated_at = excluded.updated_at, last_sign_in_at = excluded.last_sign_in_at;
+
 -- 2. Seed Shops
 insert into public.shops (id, name, is_active)
 values
@@ -145,7 +177,8 @@ insert into public.profiles (id, email, display_name, role, is_active)
 values
   ('10000000-0000-4000-8000-000000000101', 'owner@shopkhata.local', 'Local Owner', 'owner', true),
   ('10000000-0000-4000-8000-000000000102', 'staff1@shopkhata.local', 'Local Shop 1 Staff', 'staff', true),
-  ('10000000-0000-4000-8000-000000000103', 'staff2@shopkhata.local', 'Local Shop 2 Staff', 'staff', true)
+  ('10000000-0000-4000-8000-000000000103', 'staff2@shopkhata.local', 'Local Shop 2 Staff', 'staff', true),
+  ('10000000-0000-4000-8000-000000000104', 'manager@shopkhata.local', 'Local Shop 1 Manager', 'manager', true)
 on conflict (id) do update set
   email = excluded.email,
   display_name = excluded.display_name,
@@ -158,5 +191,6 @@ values
   ('10000000-0000-4000-8000-000000000101', '10000000-0000-4000-8000-000000000001'),
   ('10000000-0000-4000-8000-000000000101', '10000000-0000-4000-8000-000000000002'),
   ('10000000-0000-4000-8000-000000000102', '10000000-0000-4000-8000-000000000001'),
-  ('10000000-0000-4000-8000-000000000103', '10000000-0000-4000-8000-000000000002')
+  ('10000000-0000-4000-8000-000000000103', '10000000-0000-4000-8000-000000000002'),
+  ('10000000-0000-4000-8000-000000000104', '10000000-0000-4000-8000-000000000001')
 on conflict (user_id, shop_id) do nothing;

@@ -515,6 +515,7 @@ select ok(
   pg_temp.query_returns_true(
     $$select array_agg(display_name order by display_name) = array[
         'Local Owner'::text,
+        'Local Shop 1 Manager'::text,
         'Local Shop 1 Staff'::text,
         'Local Shop 2 Staff'::text
       ]
