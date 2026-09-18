@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(126);
+select plan(128);
 
 create function pg_temp.query_returns_true(query text)
 returns boolean
@@ -927,6 +927,31 @@ select throws_ok(
   '23503',
   null,
   'a customer credit cannot reference an invoice from another shop'
+);
+
+select ok(
+  exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public' and table_name = 'customer_credits'
+      and column_name = 'approved_at' and data_type = 'timestamp with time zone' and is_nullable = 'YES'
+  ),
+  'customer_credits.approved_at is a nullable timestamptz column'
+);
+
+select lives_ok(
+  $$
+  insert into public.customer_credits (
+    id, shop_id, customer_id, invoice_id, amount_dirham, business_date
+  ) values (
+    '61000000-0000-4000-8000-000000000013',
+    '10000000-0000-4000-8000-000000000001',
+    '31000000-0000-4000-8000-000000000001',
+    '20000000-0000-4000-8000-000000000001',
+    100, current_date
+  );
+  $$,
+  'a legacy-shaped customer credit with approved_at omitted is accepted'
 );
 
 select throws_ok(
