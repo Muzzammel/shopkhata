@@ -21,6 +21,27 @@ function validate(
 }
 
 describe("batch invoice identity", () => {
+  it("blocks an existing shop invoice number despite different casing and surrounding spaces", () => {
+    const result = validate(
+      [{ rowId: "row-1", invoiceId: " inv-7 ", type: "ADVANCE", total: 10000, received: 10000 }],
+      "shop-1",
+      { existingInvoiceKeys: new Set([invoiceKey("shop-1", "INV-7")]) },
+    );
+
+    expect(result.canSubmit).toBe(false);
+    expect(result.rowErrors).toContainEqual(expect.objectContaining({ rowId: "row-1", code: "DUPLICATE_INVOICE" }));
+  });
+
+  it("blocks case and space variants within the same new batch", () => {
+    const result = validate([
+      { rowId: "row-1", invoiceId: "INV-7", type: "ADVANCE", total: 10000, received: 10000 },
+      { rowId: "row-2", invoiceId: " inv-7 ", type: "ADVANCE", total: 10000, received: 10000 },
+    ]);
+
+    expect(result.canSubmit).toBe(false);
+    expect(result.rowErrors).toContainEqual(expect.objectContaining({ rowId: "row-2", code: "DUPLICATE_INVOICE" }));
+  });
+
   it("allows the same invoice ID in different shops", () => {
     const result = validate(
       [
