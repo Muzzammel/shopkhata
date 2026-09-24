@@ -7,6 +7,7 @@ import { formatQar } from "@/lib/domain/money";
 import { prepareInvoiceBatch, qatarBusinessDate, selectInvoiceAttempt, type EntryError, type EntryRow, type InvoiceEntryInput } from "@/lib/invoice-entry";
 
 import { saveInvoiceBatch, type SaveResult } from "./invoice-actions";
+import { InvoicePayment } from "./invoice-payment";
 import styles from "./invoice-entry.module.css";
 
 type Customer = { id: string; name: string | null; mobile: string | null; public_id: string };
@@ -128,5 +129,6 @@ export function InvoiceEntry({ appName, shop, actorName, actorRole, customers, i
         <strong>{invoice.invoice_id}</strong><span>{invoice.business_date}</span><span>{invoice.delivered ? invoice.effective_due_dirham <= 0 ? "Delivered · paid" : "Delivered · due" : "Advance"}</span><span>QAR {formatQar(invoice.effective_total_dirham)}</span><span>Due QAR {formatQar(invoice.effective_due_dirham)}</span>
       </div>)}</div>}
     </section>
+    <InvoicePayment shopId={shop.id} />
   </main>;
 }

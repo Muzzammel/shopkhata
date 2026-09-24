@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { delimiter, join } from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { qatarBusinessDate } from "@/lib/invoice-entry";
 
 const SUITE_TIMEOUT = 120_000;
 const RESET_TIMEOUT = 90_000;
@@ -125,7 +126,7 @@ describe("record_payment RPC (real network, real sessions)", () => {
     const { data, error } = await client.rpc("submit_batch", {
       command: {
         shop_id: SHOP_1,
-        business_date: new Date().toISOString().slice(0, 10),
+        business_date: qatarBusinessDate(new Date()),
         idempotency_key: `it-invoice-${invoiceNumber}`,
         rows: [
           {
@@ -154,7 +155,7 @@ describe("record_payment RPC (real network, real sessions)", () => {
         invoice_id: invoiceId,
         amount_dirham: 400,
         payment_method: "cash",
-        business_date: new Date().toISOString().slice(0, 10),
+        business_date: qatarBusinessDate(new Date()),
         idempotency_key: `it-${invoiceId}-p1`,
       },
     });
@@ -184,7 +185,7 @@ describe("record_payment RPC (real network, real sessions)", () => {
         invoice_id: invoiceId,
         amount_dirham: 600,
         payment_method: "cash",
-        business_date: new Date().toISOString().slice(0, 10),
+        business_date: qatarBusinessDate(new Date()),
         idempotency_key: `it-${invoiceId}-overpay`,
       },
     });
@@ -195,7 +196,7 @@ describe("record_payment RPC (real network, real sessions)", () => {
   it("rejects a backdated payment from staff and accepts it from the owner", async () => {
     const staffClient = await signIn(STAFF1_EMAIL, STAFF1_PASSWORD);
     const invoiceId = await createInvoice(staffClient, "backdate", 1000);
-    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const yesterday = qatarBusinessDate(new Date(Date.now() - 86_400_000));
 
     const { error: staffError } = await staffClient.rpc("record_payment", {
       command: {
@@ -233,7 +234,7 @@ describe("record_payment RPC (real network, real sessions)", () => {
       invoice_id: invoiceId,
       amount_dirham: 300,
       payment_method: "cash",
-      business_date: new Date().toISOString().slice(0, 10),
+      business_date: qatarBusinessDate(new Date()),
       idempotency_key: `it-${invoiceId}-replay`,
     };
 
@@ -255,7 +256,7 @@ describe("record_payment RPC (real network, real sessions)", () => {
     const clientA = await signIn(STAFF1_EMAIL, STAFF1_PASSWORD);
     const clientB = await signIn(STAFF1_EMAIL, STAFF1_PASSWORD);
     const invoiceId = await createInvoice(clientA, "race", 1000);
-    const businessDate = new Date().toISOString().slice(0, 10);
+    const businessDate = qatarBusinessDate(new Date());
 
     const [resultA, resultB] = await Promise.all([
       clientA.rpc("record_payment", {

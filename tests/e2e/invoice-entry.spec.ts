@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
 
 // These tests write to the same seeded shop; the 30-invoice batch can displace
@@ -12,6 +12,32 @@ function localDbQuery(sql: string) {
     join(process.cwd(), "node_modules", "supabase", "dist", "supabase.js"),
     "--agent", "no", "db", "query", "--local", sql,
   ], { encoding: "utf8", timeout: 30_000 });
+}
+
+async function loginStaff(page: Page) {
+  await page.goto("/login");
+  await page.getByLabel(/email/i).fill("staff1@shopkhata.local");
+  await page.getByLabel(/password/i).fill("ShopKhata-Local-E2E-Only-2026!");
+  await page.getByRole("button", { name: /sign in|log in/i }).click();
+  await expect(page.getByRole("heading", { name: "Shop 1" })).toBeVisible();
+}
+
+async function createDueInvoice(page: Page, invoiceNumber: string, total: string, received = "0.00") {
+  const row = page.locator("[data-entry-row]").first();
+  await row.getByLabel("Invoice ID").fill(invoiceNumber);
+  await row.getByLabel("Total QAR").fill(total);
+  if (received !== "0.00") await row.getByLabel("Received QAR").fill(received);
+  await page.getByRole("button", { name: "Review batch" }).click();
+  await page.getByRole("button", { name: "Save batch" }).click();
+  await expect(page.getByRole("status")).toContainText("Batch saved");
+}
+
+async function findInvoiceForPayment(page: Page, invoiceNumber: string) {
+  const payment = page.getByRole("region", { name: "Record Payment" });
+  await payment.getByLabel("Invoice number").fill(invoiceNumber);
+  await payment.getByRole("button", { name: "Find invoice" }).click();
+  await expect(payment.getByRole("heading", { name: invoiceNumber })).toBeVisible();
+  return payment;
 }
 
 test("Shop 1 staff saves a mixed batch and sees it after refresh", async ({ page }) => {
@@ -122,6 +148,162 @@ test("recent invoices show approved invoice and payment corrections", async ({ p
   await expect(saved).toContainText("QAR 50.00");
   await expect(saved).toContainText("Due QAR 0.00");
   await expect(saved).toContainText("Delivered · paid");
+});
+
+test("records partial and full cash payments and rejects overpayment in review", async ({ page }) => {
+  const invoiceNumber = `UI-PAY-${Date.now()}`;
+  await loginStaff(page);
+  await createDueInvoice(page, invoiceNumber, "50.00");
+  const payment = await findInvoiceForPayment(page, invoiceNumber);
+  await expect(payment).toContainText("Effective totalQAR 50.00");
+  await expect(payment).toContainText("PaidQAR 0.00");
+  await expect(payment).toContainText("DueQAR 50.00");
+
+  await payment.getByLabel("Cash amount (QAR)").fill("50.01");
+  await payment.getByRole("button", { name: "Review payment" }).click();
+  await expect(payment.getByRole("alert")).toContainText("cannot exceed");
+  await expect(payment.getByRole("button", { name: "Confirm payment" })).toHaveCount(0);
+
+  await payment.getByLabel("Cash amount (QAR)").fill("20.00");
+  await payment.getByRole("button", { name: "Review payment" }).click();
+  await expect(payment.getByText("Cash payment of QAR 20.00")).toBeVisible();
+  await payment.getByRole("button", { name: "Confirm payment" }).click();
+  await expect(payment.getByRole("status")).toContainText("Payment recorded");
+  await expect(payment).toContainText("PaidQAR 20.00");
+  await expect(payment).toContainText("DueQAR 30.00");
+
+  await payment.getByLabel("Cash amount (QAR)").fill("30.00");
+  await payment.getByRole("button", { name: "Review payment" }).click();
+  await payment.getByRole("button", { name: "Confirm payment" }).click();
+  await expect(payment.getByRole("alert")).toContainText("Already paid — no amount due");
+  await expect(payment.getByLabel("Cash amount (QAR)")).toHaveCount(0);
+});
+
+test("shows approved corrections in the payment lookup and blocks zero due", async ({ page }) => {
+  const invoiceNumber = `UI-PAY-CORRECTED-${Date.now()}`;
+  await loginStaff(page);
+  await createDueInvoice(page, invoiceNumber, "100.00", "10.00");
+  const shopId = "10000000-0000-4000-8000-000000000001";
+  const ownerId = "10000000-0000-4000-8000-000000000101";
+  localDbQuery(`
+    insert into public.corrections (shop_id, invoice_id, amount_delta_dirham, reason, business_date, approved_by)
+    select '${shopId}', i.id, -2500, 'Approved payment lookup invoice correction', i.business_date, '${ownerId}'
+    from public.invoices i where i.shop_id = '${shopId}' and i.invoice_id = '${invoiceNumber}'
+  `);
+  localDbQuery(`
+    insert into public.corrections (shop_id, payment_id, amount_delta_dirham, reason, business_date, approved_by)
+    select '${shopId}', p.id, 500, 'Approved payment lookup payment correction', i.business_date, '${ownerId}'
+    from public.invoices i join public.payments p on p.invoice_id = i.id
+    where i.shop_id = '${shopId}' and i.invoice_id = '${invoiceNumber}'
+  `);
+
+  const payment = await findInvoiceForPayment(page, invoiceNumber);
+  await expect(payment).toContainText("Effective totalQAR 75.00");
+  await expect(payment).toContainText("PaidQAR 15.00");
+  await expect(payment).toContainText("DueQAR 60.00");
+  await payment.getByLabel("Cash amount (QAR)").fill("60.00");
+  await payment.getByRole("button", { name: "Review payment" }).click();
+  await payment.getByRole("button", { name: "Confirm payment" }).click();
+  await expect(payment.getByRole("alert")).toContainText("Already paid — no amount due");
+});
+
+test("looks up normalized invoice numbers without exposing other shops", async ({ page }) => {
+  const invoiceNumber = `INV-42-${Date.now()}`;
+  await loginStaff(page);
+  await createDueInvoice(page, invoiceNumber, "30.00");
+  const payment = page.getByRole("region", { name: "Record Payment" });
+  await payment.getByLabel("Invoice number").fill(` ${invoiceNumber.toLowerCase()} `);
+  await payment.getByRole("button", { name: "Find invoice" }).click();
+  await expect(payment.getByRole("heading", { name: invoiceNumber })).toBeVisible();
+  await expect(payment).toContainText("DueQAR 30.00");
+
+  const historicalNumber = `OLD-${invoiceNumber}`;
+  localDbQuery(`
+    insert into public.invoice_number_registry (shop_id, invoice_number, canonical_invoice_id)
+    select shop_id, '${historicalNumber}', id from public.invoices
+    where shop_id = '10000000-0000-4000-8000-000000000001' and invoice_id = '${invoiceNumber}';
+  `);
+  await payment.getByLabel("Invoice number").fill(historicalNumber.toLowerCase());
+  await payment.getByRole("button", { name: "Find invoice" }).click();
+  await expect(payment.getByRole("heading", { name: invoiceNumber })).toBeVisible();
+});
+
+test("hides another shop's invoice and retries the same payment command after a lost response", async ({ page }) => {
+  const otherInvoice = `UI-SHOP2-${Date.now()}`;
+  const batchId = crypto.randomUUID();
+  const invoiceId = crypto.randomUUID();
+  const shop2 = "10000000-0000-4000-8000-000000000002";
+  const ownerId = "10000000-0000-4000-8000-000000000101";
+  localDbQuery(`
+    insert into public.batches (id, shop_id, business_date, created_by)
+    values ('${batchId}', '${shop2}', (now() at time zone 'Asia/Qatar')::date, '${ownerId}');
+  `);
+  localDbQuery(`
+    insert into public.invoices (id, shop_id, batch_id, invoice_id, invoice_type, quantity, total_amount_dirham, business_date, created_by)
+    values ('${invoiceId}', '${shop2}', '${batchId}', '${otherInvoice}', 'advance', 1, 1200,
+      (now() at time zone 'Asia/Qatar')::date, '${ownerId}');
+  `);
+  localDbQuery(`
+    insert into public.invoice_number_registry (shop_id, invoice_number, canonical_invoice_id)
+    values ('${shop2}', '${otherInvoice}', '${invoiceId}');
+  `);
+  await loginStaff(page);
+  const payment = page.getByRole("region", { name: "Record Payment" });
+  await payment.getByLabel("Invoice number").fill(otherInvoice);
+  await payment.getByRole("button", { name: "Find invoice" }).click();
+  await expect(payment.getByRole("alert")).toContainText("No matching invoice");
+
+  const ownInvoice = `UI-PAY-LOST-${Date.now()}`;
+  await createDueInvoice(page, ownInvoice, "30.00");
+  await findInvoiceForPayment(page, ownInvoice);
+  await payment.getByLabel("Cash amount (QAR)").fill("12.00");
+  await payment.getByRole("button", { name: "Review payment" }).click();
+
+  const today = qatarBusinessDate(new Date());
+  await page.clock.install({ time: new Date(Date.parse(`${today}T00:00:00.000Z`) + 21 * 60 * 60 * 1000 - 60_000) });
+  await expect(payment.getByText(`Business date: ${today} (Qatar)`)).toBeVisible();
+  let dropped = false;
+  let firstPaymentAction = "";
+  let originalCommandPayload: Buffer | null = null;
+  let retriedCommandPayload: Buffer | null = null;
+  await page.route("**/*", async (route) => {
+    if (!dropped && route.request().method() === "POST" && route.request().headers()["next-action"]) {
+      dropped = true;
+      firstPaymentAction = route.request().headers()["next-action"];
+      originalCommandPayload = route.request().postDataBuffer();
+      await route.fetch();
+      await route.abort("failed");
+    } else if (dropped && route.request().method() === "POST"
+      && route.request().headers()["next-action"] === firstPaymentAction) {
+      retriedCommandPayload = route.request().postDataBuffer();
+      await route.continue();
+    } else {
+      await route.continue();
+    }
+  });
+  await payment.getByRole("button", { name: "Confirm payment" }).click();
+  await expect(payment.getByText("Retry the same payment command.")).toBeVisible();
+  expect(dropped).toBe(true);
+
+  await payment.getByLabel("Invoice number").fill(ownInvoice);
+  await payment.getByRole("button", { name: "Find invoice" }).click();
+  await expect(payment.getByText("A payment is still pending. Retry that exact payment before starting another.")).toBeVisible();
+  await expect(payment.getByRole("button", { name: "Retry payment" })).toBeVisible();
+
+  await page.clock.fastForward(120_000);
+  await payment.getByRole("button", { name: "Retry payment" }).click();
+  await expect(payment.getByRole("status")).toContainText("Payment recorded");
+  expect(retriedCommandPayload).toEqual(originalCommandPayload);
+  const exactlyOnePaymentAndAudit = localDbQuery(`
+    select (select count(*) = 1 from public.payments p
+      join public.invoices i on i.id = p.invoice_id where i.invoice_id = '${ownInvoice}')
+      and (select count(*) = 1 from public.audit_events a
+        join public.payments p on a.entity_id = p.id::text
+        join public.invoices i on i.id = p.invoice_id
+        where i.invoice_id = '${ownInvoice}' and a.entity_type = 'payment' and a.action = 'record_payment')
+      as exactly_one_payment_and_audit
+  `);
+  expect(exactlyOnePaymentAndAudit).toContain("true");
 });
 
 test.describe("Qatar operating date in a different browser timezone", () => {
