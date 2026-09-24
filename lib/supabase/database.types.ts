@@ -813,7 +813,16 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      invoice_effective_balances: {
+        Row: {
+          canonical_invoice_id: string
+          shop_id: string
+          effective_total_dirham: number
+          effective_paid_dirham: number
+          effective_due_dirham: number
+        }
+        Relationships: []
+      }
     }
     Functions: {
       approve_overpayment: { Args: { command: Json }; Returns: Json }

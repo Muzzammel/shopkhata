@@ -1,8 +1,9 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
+set local timezone = 'Asia/Qatar';
 
-select plan(57);
+select plan(74);
 
 -- Fixtures: a shop-1 existing customer, reused across several assertions.
 insert into public.customers (id, shop_id, name)
@@ -709,6 +710,202 @@ select is(
   ),
   array['order-r1', 'order-r2'],
   'the response rows array preserves the order rows were submitted in'
+);
+reset role;
+
+-- 21. A real PostgreSQL calendar-date change must not invalidate an exact retry.
+-- The two session time zones straddle midnight for every possible UTC instant.
+set local timezone = 'Etc/GMT+12';
+select set_config('test.midnight_date', (now() at time zone 'Asia/Qatar')::date::text, true);
+select set_config('test.midnight_command', jsonb_build_object(
+  'shop_id', '10000000-0000-4000-8000-000000000001',
+  'business_date', current_setting('test.midnight_date'),
+  'idempotency_key', 'k21-midnight-replay',
+  'rows', jsonb_build_array(jsonb_build_object(
+    'row_id','midnight-row','invoice_number','SB-MIDNIGHT-REPLAY',
+    'total_dirham',100,'received_dirham',0,'payment_method','cash',
+    'delivered',false,'customer',null
+  ))
+)::text, true);
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"10000000-0000-4000-8000-000000000102"}';
+select set_config('test.midnight_receipt', public.submit_batch(current_setting('test.midnight_command')::jsonb)::text, true);
+reset role;
+insert into public.daily_closes (shop_id, business_date, event_type, actor_id)
+values ('10000000-0000-4000-8000-000000000001', current_setting('test.midnight_date')::date, 'closed', '10000000-0000-4000-8000-000000000101');
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"10000000-0000-4000-8000-000000000102"}';
+set local timezone = 'Pacific/Kiritimati';
+select is(
+  public.submit_batch(current_setting('test.midnight_command')::jsonb)::text,
+  current_setting('test.midnight_receipt'),
+  'exact staff retry after PostgreSQL current_date changes and the day closes returns the stored receipt'
+);
+select throws_ok(
+  $$select public.submit_batch(jsonb_set(current_setting('test.midnight_command')::jsonb, '{rows,0,total_dirham}', '101'::jsonb))$$,
+  'P0001', 'IDEMPOTENCY_CONFLICT',
+  'a changed fingerprint after the date change still conflicts'
+);
+select throws_ok(
+  $$select public.submit_batch(jsonb_set(jsonb_set(current_setting('test.midnight_command')::jsonb, '{idempotency_key}', '"k21-new"'::jsonb), '{rows,0,invoice_number}', '"SB-MIDNIGHT-NEW"'::jsonb))$$,
+  'P0001', 'CLOSED_DATE',
+  'a new staff submission for the now-closed date remains forbidden'
+);
+reset role;
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"10000000-0000-4000-8000-000000000103"}';
+select throws_ok(
+  $$select public.submit_batch(current_setting('test.midnight_command')::jsonb)$$,
+  '42501', 'UNAUTHORIZED_SHOP',
+  'wrong-shop actor cannot replay the stored receipt'
+);
+reset role;
+select is(
+  (select count(*)::int from public.invoices where shop_id = '10000000-0000-4000-8000-000000000001' and invoice_id = 'SB-MIDNIGHT-REPLAY'),
+  1,
+  'midnight retry wrote one invoice only'
+);
+insert into public.daily_closes (shop_id, business_date, event_type, actor_id, reason)
+values ('10000000-0000-4000-8000-000000000001', current_setting('test.midnight_date')::date,
+        'reopened', '10000000-0000-4000-8000-000000000101', 'Continue this transaction test');
+set local timezone = 'Asia/Qatar';
+
+-- 22. The backdate flag participates in new fingerprints, while stored
+-- pre-upgrade fingerprints remain replayable only with their original flag.
+select set_config('test.flag_command', jsonb_build_object(
+  'shop_id', '10000000-0000-4000-8000-000000000001',
+  'business_date', current_date::text,
+  'idempotency_key', 'k22-flag-fingerprint',
+  'rows', jsonb_build_array(jsonb_build_object(
+    'row_id','flag-row','invoice_number','SB-FLAG-FINGERPRINT',
+    'total_dirham',100,'received_dirham',0,'payment_method','cash',
+    'delivered',false,'customer',null
+  ))
+)::text, true);
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"10000000-0000-4000-8000-000000000102"}';
+select set_config('test.flag_receipt', public.submit_batch(current_setting('test.flag_command')::jsonb)::text, true);
+select throws_ok(
+  $$select public.submit_batch(jsonb_set(current_setting('test.flag_command')::jsonb, '{is_backdated}', 'true'::jsonb))$$,
+  'P0001', 'IDEMPOTENCY_CONFLICT',
+  'changing only is_backdated cannot replay a committed batch'
+);
+reset role;
+select set_config('test.legacy_command', jsonb_set(
+  jsonb_set(current_setting('test.flag_command')::jsonb, '{idempotency_key}', '"k22-legacy"'::jsonb),
+  '{rows,0,invoice_number}', '"SB-LEGACY-FINGERPRINT"'::jsonb
+)::text, true);
+insert into public.batches (shop_id, business_date, is_backdated, idempotency_key, fingerprint, idempotency_result)
+values (
+  '10000000-0000-4000-8000-000000000001', current_date, false, 'k22-legacy',
+  encode(extensions.digest((private.canonical_batch_command(
+    '10000000-0000-4000-8000-000000000001', current_date, false, null,
+    current_setting('test.legacy_command')::jsonb -> 'rows'
+  ) - 'is_backdated')::text::bytea, 'sha256'), 'hex'),
+  '{"ok":true,"batch_id":"10000000-0000-4000-8000-000000000999"}'::jsonb
+);
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"10000000-0000-4000-8000-000000000102"}';
+select is(
+  public.submit_batch(current_setting('test.legacy_command')::jsonb),
+  '{"ok":true,"batch_id":"10000000-0000-4000-8000-000000000999"}'::jsonb,
+  'a stored pre-upgrade fingerprint still returns its receipt'
+);
+select throws_ok(
+  $$select public.submit_batch(jsonb_set(current_setting('test.legacy_command')::jsonb, '{is_backdated}', 'true'::jsonb))$$,
+  'P0001', 'IDEMPOTENCY_CONFLICT',
+  'a pre-upgrade fingerprint cannot replay with a changed backdate flag'
+);
+reset role;
+select is(
+  (select count(*)::int from public.invoices where invoice_id = 'SB-LEGACY-FINGERPRINT'),
+  0,
+  'legacy receipt replay performs no invoice write'
+);
+
+-- 23. Operational balances use approved invoice and payment corrections,
+-- and the security-invoker view keeps the underlying shop RLS boundary.
+insert into public.corrections (shop_id, invoice_id, amount_delta_dirham, reason, business_date, approved_by)
+select i.shop_id, i.id, -1000, 'approved invoice correction', i.business_date, '10000000-0000-4000-8000-000000000101'
+from public.invoices i where i.invoice_id = 'SB-0001';
+insert into public.corrections (shop_id, invoice_id, amount_delta_dirham, reason, business_date)
+select i.shop_id, i.id, -2000, 'pending invoice correction', i.business_date
+from public.invoices i where i.invoice_id = 'SB-0001';
+insert into public.corrections (shop_id, payment_id, amount_delta_dirham, reason, business_date, approved_by)
+select p.shop_id, p.id, 500, 'approved payment correction', p.business_date, '10000000-0000-4000-8000-000000000101'
+from public.payments p join public.invoices i on i.id = p.invoice_id where i.invoice_id = 'SB-0001';
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"10000000-0000-4000-8000-000000000102"}';
+select is((select b.effective_total_dirham from public.invoice_effective_balances b
+           join public.invoices i on i.id = b.canonical_invoice_id where i.invoice_id = 'SB-0001'),
+          9000::bigint, 'approved invoice correction changes the effective total, pending correction does not');
+select is((select b.effective_paid_dirham from public.invoice_effective_balances b
+           join public.invoices i on i.id = b.canonical_invoice_id where i.invoice_id = 'SB-0001'),
+          4500::bigint, 'approved payment correction changes the effective paid amount');
+select is((select b.effective_due_dirham from public.invoice_effective_balances b
+           join public.invoices i on i.id = b.canonical_invoice_id where i.invoice_id = 'SB-0001'),
+          4500::bigint, 'effective due matches payment-operation arithmetic');
+reset role;
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"10000000-0000-4000-8000-000000000103"}';
+select is((select count(*)::int from public.invoice_effective_balances
+           where shop_id = '10000000-0000-4000-8000-000000000001'),
+          0, 'wrong-shop staff cannot read effective balances');
+reset role;
+
+-- 24. The operating date is Qatar's calendar date, independent of session timezone.
+select set_config('TimeZone', case
+  when (now() at time zone 'Etc/GMT+12')::date <> (now() at time zone 'Asia/Qatar')::date
+    then 'Etc/GMT+12' else 'Pacific/Kiritimati' end, true);
+select isnt(current_date, (now() at time zone 'Asia/Qatar')::date,
+  'the session date differs from the Qatar operating date');
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"10000000-0000-4000-8000-000000000102"}';
+select is(public.submit_batch(jsonb_build_object(
+  'shop_id', '10000000-0000-4000-8000-000000000001',
+  'business_date', (now() at time zone 'Asia/Qatar')::date::text,
+  'idempotency_key', 'k24-qatar-date',
+  'rows', jsonb_build_array(jsonb_build_object(
+    'row_id','qatar-row','invoice_number','SB-QATAR-DATE',
+    'total_dirham',100,'received_dirham',0,'payment_method','cash',
+    'delivered',false,'customer',null
+  ))
+)) ->> 'ok', 'true', 'staff can submit for the Qatar date despite a different session date');
+reset role;
+set local timezone = 'Asia/Qatar';
+
+-- 25. Legacy true fingerprints retain the original flag on exact replay.
+select set_config('test.legacy_true_command', jsonb_build_object(
+  'shop_id', '10000000-0000-4000-8000-000000000001',
+  'business_date', (current_date - 1)::text,
+  'is_backdated', true,
+  'backdated_reason', 'Original owner backdate',
+  'idempotency_key', 'k25-legacy-true',
+  'rows', jsonb_build_array(jsonb_build_object(
+    'row_id','legacy-true-row','invoice_number','SB-LEGACY-TRUE',
+    'total_dirham',100,'received_dirham',0,'payment_method','cash',
+    'delivered',false,'customer',null
+  ))
+)::text, true);
+insert into public.batches (shop_id, business_date, is_backdated, backdated_reason, idempotency_key, fingerprint, idempotency_result)
+values (
+  '10000000-0000-4000-8000-000000000001', current_date - 1, true,
+  'Original owner backdate', 'k25-legacy-true',
+  encode(extensions.digest((private.canonical_batch_command(
+    '10000000-0000-4000-8000-000000000001', current_date - 1, true, 'Original owner backdate',
+    current_setting('test.legacy_true_command')::jsonb -> 'rows'
+  ) - 'is_backdated')::text::bytea, 'sha256'), 'hex'),
+  '{"ok":true,"batch_id":"10000000-0000-4000-8000-000000000998"}'::jsonb
+);
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"10000000-0000-4000-8000-000000000101"}';
+select is(public.submit_batch(current_setting('test.legacy_true_command')::jsonb),
+  '{"ok":true,"batch_id":"10000000-0000-4000-8000-000000000998"}'::jsonb,
+  'exact legacy true replay returns its stored receipt');
+select throws_ok(
+  $$select public.submit_batch(jsonb_set(current_setting('test.legacy_true_command')::jsonb, '{is_backdated}', 'false'::jsonb))$$,
+  'P0001', 'IDEMPOTENCY_CONFLICT',
+  'changing a legacy true flag to false conflicts'
 );
 reset role;
 

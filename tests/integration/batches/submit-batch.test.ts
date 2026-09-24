@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { delimiter, join } from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { qatarBusinessDate } from "@/lib/invoice-entry";
 
 const SUITE_TIMEOUT = 120_000;
 const RESET_TIMEOUT = 90_000;
@@ -123,7 +124,7 @@ describe("submit_batch RPC (real network, real sessions)", () => {
   it("lets Shop 1 staff submit a mixed batch and read it back through RLS", async () => {
     const client = await signIn(STAFF1_EMAIL, STAFF1_PASSWORD);
     const invoiceNumber = uniqueInvoiceNumber("mixed");
-    const businessDate = new Date().toISOString().slice(0, 10);
+    const businessDate = qatarBusinessDate(new Date());
 
     const { data, error } = await client.rpc("submit_batch", {
       command: {
@@ -191,7 +192,7 @@ describe("submit_batch RPC (real network, real sessions)", () => {
     const { error } = await client.rpc("submit_batch", {
       command: {
         shop_id: SHOP_1,
-        business_date: new Date().toISOString().slice(0, 10),
+        business_date: qatarBusinessDate(new Date()),
         idempotency_key: `it-${uniqueInvoiceNumber("bad-method")}`,
         rows: [
           {
@@ -211,7 +212,7 @@ describe("submit_batch RPC (real network, real sessions)", () => {
   });
 
   it("rejects a backdated batch from staff and accepts it from the owner", async () => {
-    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const yesterday = qatarBusinessDate(new Date(Date.now() - 86_400_000));
 
     const staffClient = await signIn(STAFF1_EMAIL, STAFF1_PASSWORD);
     const { error: staffError } = await staffClient.rpc("submit_batch", {
@@ -264,7 +265,7 @@ describe("submit_batch RPC (real network, real sessions)", () => {
     const invoiceNumber = uniqueInvoiceNumber("replay");
     const command = {
       shop_id: SHOP_1,
-      business_date: new Date().toISOString().slice(0, 10),
+      business_date: qatarBusinessDate(new Date()),
       idempotency_key: `it-${invoiceNumber}`,
       rows: [
         {
@@ -299,7 +300,7 @@ describe("submit_batch RPC (real network, real sessions)", () => {
 
     const buildCommand = (shopId: string, idempotencyKey: string) => ({
       shop_id: shopId,
-      business_date: new Date().toISOString().slice(0, 10),
+      business_date: qatarBusinessDate(new Date()),
       idempotency_key: idempotencyKey,
       rows: [
         {
@@ -327,7 +328,7 @@ describe("submit_batch RPC (real network, real sessions)", () => {
     const idempotencyKey = `it-${invoiceNumber}`;
     const command = {
       shop_id: SHOP_1,
-      business_date: new Date().toISOString().slice(0, 10),
+      business_date: qatarBusinessDate(new Date()),
       idempotency_key: idempotencyKey,
       rows: [
         {
@@ -384,7 +385,7 @@ describe("submit_batch RPC (real network, real sessions)", () => {
     const clientA = await signIn(STAFF1_EMAIL, STAFF1_PASSWORD);
     const clientB = await signIn(STAFF1_EMAIL, STAFF1_PASSWORD);
     const idempotencyKey = `it-conflict-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const businessDate = new Date().toISOString().slice(0, 10);
+    const businessDate = qatarBusinessDate(new Date());
 
     const buildCommand = (invoiceNumber: string) => ({
       shop_id: SHOP_1,
@@ -458,7 +459,7 @@ describe("submit_batch RPC (real network, real sessions)", () => {
     // the race — genuinely mid-write, inside the per-row insert loop.
     const clientA = await signIn(STAFF1_EMAIL, STAFF1_PASSWORD);
     const clientB = await signIn(STAFF1_EMAIL, STAFF1_PASSWORD);
-    const businessDate = new Date().toISOString().slice(0, 10);
+    const businessDate = qatarBusinessDate(new Date());
     const sharedNumber = uniqueInvoiceNumber("race-shared-row2");
     const contenderANumber = uniqueInvoiceNumber("race-contender-a-row1");
     const contenderBNumber = uniqueInvoiceNumber("race-contender-b-row1");
