@@ -22,7 +22,7 @@ export default async function Home() {
   if (profileError) throw new Error("INVOICE_WORKSPACE_UNAVAILABLE");
   return <InvoiceEntry
     appName={APP_NAME} shop={workspace.shop} shops={availableShops.map(({ id, name }) => ({ id, name }))}
-    actorName={profile.display_name} actorRole={actor.role} customers={workspace.customers}
+    actorName={profile.display_name} actorRole={actor.role}
     invoices={workspace.invoices} duplicateInvoiceNumbers={workspace.duplicateInvoiceNumbers}
     businessDate={qatarBusinessDate(new Date())}
   />;

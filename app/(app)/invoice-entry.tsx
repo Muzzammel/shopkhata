@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { formatQar } from "@/lib/domain/money";
 import { prepareInvoiceBatch, qatarBusinessDate, selectInvoiceAttempt, type EntryError, type EntryRow, type InvoiceEntryInput } from "@/lib/invoice-entry";
 import { getShopSwitchDisposition, type ShopChoice } from "@/lib/shop-switching";
-import type { WorkspaceCustomer, WorkspaceInvoice } from "@/lib/shop-workspace";
+import type { WorkspaceInvoice } from "@/lib/shop-workspace";
 
+import { CustomerSearch } from "./customer-search";
 import { saveInvoiceBatch, type SaveResult } from "./invoice-actions";
 import { InvoicePayment } from "./invoice-payment";
 import { loadShopWorkspace } from "./workspace-actions";
@@ -16,19 +17,17 @@ function emptyRow(): EntryRow {
   return { rowId: crypto.randomUUID(), invoiceId: "", total: "", received: "", delivered: false, customerId: "", customerName: "", customerMobile: "" };
 }
 
-export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, customers, invoices, duplicateInvoiceNumbers, businessDate }: {
+export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, invoices, duplicateInvoiceNumbers, businessDate }: {
   appName: string;
   shop: ShopChoice;
   shops: ShopChoice[];
   actorName: string;
   actorRole: string;
-  customers: WorkspaceCustomer[];
   invoices: WorkspaceInvoice[];
   duplicateInvoiceNumbers: string[];
   businessDate: string;
 }) {
   const [currentShop, setCurrentShop] = useState(shop);
-  const [currentCustomers, setCurrentCustomers] = useState(customers);
   const [currentInvoices, setCurrentInvoices] = useState(invoices);
   const [duplicateNumbers, setDuplicateNumbers] = useState(duplicateInvoiceNumbers);
   const [rows, setRows] = useState<EntryRow[]>(() => [emptyRow()]);
@@ -112,7 +111,6 @@ export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, custo
       activeShopIdRef.current = result.workspace.shop.id;
       workspaceGenerationRef.current += 1;
       setCurrentShop(result.workspace.shop);
-      setCurrentCustomers(result.workspace.customers);
       setCurrentInvoices(result.workspace.invoices);
       setDuplicateNumbers(result.workspace.duplicateInvoiceNumbers);
       setRows([emptyRow()]);
@@ -135,7 +133,6 @@ export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, custo
     try {
       const result = await loadShopWorkspace(shopId);
       if (!result.ok || !workspaceIsCurrent(shopId, generation)) return;
-      setCurrentCustomers(result.workspace.customers);
       setCurrentInvoices(result.workspace.invoices);
       setDuplicateNumbers(result.workspace.duplicateInvoiceNumbers);
     } catch {
@@ -216,7 +213,7 @@ export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, custo
             <label className={styles.checkbox}>Delivered<input disabled={workspaceLocked || batchUncertain} type="checkbox" checked={row.delivered} onChange={(event) => updateRow(row.rowId, { delivered: event.target.checked })} /></label>
           </div>
           <div className={styles.customerFields}>
-            <label>Existing customer<select disabled={workspaceLocked || batchUncertain} value={row.customerId} onChange={(event) => updateRow(row.rowId, { customerId: event.target.value, customerName: "", customerMobile: "" })}><option value="">None</option>{currentCustomers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name || customer.mobile || customer.public_id}</option>)}</select></label>
+            <CustomerSearch key={`${currentShop.id}-${row.rowId}`} shopId={currentShop.id} disabled={workspaceLocked || batchUncertain} onSelect={(customer) => updateRow(row.rowId, { customerId: customer?.id ?? "", customerName: "", customerMobile: "" })} />
             <label>New customer name<input value={row.customerName} disabled={workspaceLocked || batchUncertain || Boolean(row.customerId)} onChange={(event) => updateRow(row.rowId, { customerName: event.target.value })} /></label>
             <label>New customer mobile<input value={row.customerMobile} disabled={workspaceLocked || batchUncertain || Boolean(row.customerId)} onChange={(event) => updateRow(row.rowId, { customerMobile: event.target.value })} /></label>
           </div>

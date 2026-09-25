@@ -14,7 +14,6 @@ export type WorkspaceInvoice = {
 };
 export type ShopWorkspace = {
   shop: { id: string; name: string };
-  customers: WorkspaceCustomer[];
   invoices: WorkspaceInvoice[];
   duplicateInvoiceNumbers: string[];
 };
@@ -28,11 +27,10 @@ export async function readShopWorkspace(actor: Actor, shopId: string): Promise<S
   const shop = shops.find((item) => item.id === shopId);
   if (!shop) throw new Error("UNAUTHORIZED_SHOP");
 
-  const [{ data: customers, error: customerError }, { data: invoices, error: invoiceError }] = await Promise.all([
-    supabase.from("customers").select("id, name, mobile, public_id").eq("shop_id", shop.id).order("name").limit(200),
-    supabase.from("invoices").select("id, invoice_id, business_date, total_amount_dirham, delivered, customer_id, created_at").eq("shop_id", shop.id).order("created_at", { ascending: false }).limit(30),
-  ]);
-  if (customerError || invoiceError || !customers || !invoices) throw new Error("INVOICE_WORKSPACE_UNAVAILABLE");
+  const { data: invoices, error: invoiceError } = await supabase.from("invoices")
+    .select("id, invoice_id, business_date, total_amount_dirham, delivered, customer_id, created_at")
+    .eq("shop_id", shop.id).order("created_at", { ascending: false }).limit(30);
+  if (invoiceError || !invoices) throw new Error("INVOICE_WORKSPACE_UNAVAILABLE");
   const registry: { invoice_number: string }[] = [];
   for (let offset = 0; ; offset += 1000) {
     const { data, error } = await supabase.from("invoice_number_registry").select("invoice_number")
@@ -64,7 +62,6 @@ export async function readShopWorkspace(actor: Actor, shopId: string): Promise<S
   });
   return {
     shop: { id: shop.id, name: shop.name },
-    customers,
     invoices: recentInvoices,
     duplicateInvoiceNumbers: registry.map((row) => row.invoice_number),
   };

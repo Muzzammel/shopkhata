@@ -7,6 +7,12 @@ import { qatarBusinessDate } from "@/lib/invoice-entry";
 // another test's invoice from the recent preview when they run concurrently.
 test.describe.configure({ mode: "default" });
 
+function seedCustomers(shopId: string, customers: { id: string; publicId: string; name: string; mobile: string }[]) {
+  const values = customers.map(({ id, publicId, name, mobile }) =>
+    `('${id}', '${shopId}', '${publicId}', '${name.replaceAll("'", "''")}', '${mobile}')`).join(",\n");
+  localDbQuery(`insert into public.customers (id, shop_id, public_id, name, mobile) values ${values}`);
+}
+
 function localDbQuery(sql: string) {
   return execFileSync(process.execPath, [
     join(process.cwd(), "node_modules", "supabase", "dist", "supabase.js"),
@@ -29,7 +35,7 @@ async function createDueInvoice(page: Page, invoiceNumber: string, total: string
   if (received !== "0.00") await row.getByLabel("Received QAR").fill(received);
   await page.getByRole("button", { name: "Review batch" }).click();
   await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.getByRole("status")).toContainText("Batch saved");
+  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
 }
 
 async function findInvoiceForPayment(page: Page, invoiceNumber: string) {
@@ -39,6 +45,114 @@ async function findInvoiceForPayment(page: Page, invoiceNumber: string) {
   await expect(payment.getByRole("heading", { name: invoiceNumber })).toBeVisible();
   return payment;
 }
+
+test("searches beyond 200 customers and keeps a selected customer on a delivered invoice with due", async ({ page }) => {
+  const suffix = Date.now();
+  const shopId = "10000000-0000-4000-8000-000000000001";
+  const target = { name: `ZZZ Beyond 200 ${suffix}`, mobile: `799${String(suffix).slice(-6)}` };
+  const publicId = `CUS-BEYOND-${suffix}`;
+  const expectedFirstTwoPages = Array.from({ length: 204 }, (_, index) => index + 1)
+    .map((number) => ({ name: `List customer ${suffix} ${number}`, publicId: `CUS-LIST-${suffix}-${number}` }))
+    .sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : left.publicId < right.publicId ? -1 : 1)
+    .slice(0, 40);
+  localDbQuery(`insert into public.customers (shop_id, public_id, name, mobile)
+    select '${shopId}', case when i = 205 then '${publicId}' else 'CUS-LIST-${suffix}-' || i end,
+      case when i = 205 then '${target.name}' else 'List customer ${suffix} ' || i end,
+      case when i = 205 then '${target.mobile}' else '700${String(suffix).slice(-5)}' || lpad(i::text, 3, '0') end
+    from generate_series(1, 205) i`);
+
+  await loginStaff(page);
+  const row = page.locator("[data-entry-row]").first();
+  const search = row.getByLabel("Customer search", { exact: true });
+  await search.fill(`List customer ${suffix}`);
+  const customerOptions = page.getByRole("option");
+  await expect(customerOptions).toHaveCount(20);
+  await page.getByRole("button", { name: "Show more results" }).click();
+  await expect(customerOptions).toHaveCount(40);
+  const customerOptionTexts = await customerOptions.allInnerTexts();
+  const returnedPublicIds = customerOptionTexts.map((text) => text.match(new RegExp(`CUS-LIST-${suffix}-\\d+`))?.[0]);
+  expect(returnedPublicIds).toEqual(expectedFirstTwoPages.map((customer) => customer.publicId));
+  expect(new Set(returnedPublicIds).size).toBe(40);
+  await expect(customerOptions.nth(20)).toContainText(expectedFirstTwoPages[20].publicId);
+
+  await search.fill(target.name);
+  const option = page.getByRole("option", { name: new RegExp(target.name) });
+  await expect(option).toBeVisible();
+  await expect(option).toContainText(target.mobile);
+  await option.click();
+  await row.getByLabel("Invoice ID").fill(`CUSTOMER-DUE-${suffix}`);
+  await row.getByLabel("Total QAR").fill("42.00");
+  await row.getByLabel("Received QAR").fill("12.00");
+  await row.getByLabel("Delivered").check();
+  await expect(row.getByText(new RegExp(target.name))).toBeVisible();
+  await page.getByRole("button", { name: "Review batch" }).click();
+  await expect(page.getByLabel("New invoice batch").getByText("Due QAR 30.00", { exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Save batch" }).click();
+  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
+  const persisted = localDbQuery(`select (i.customer_id = c.id and b.effective_due_dirham = 3000) as linked_due
+    from public.invoices i join public.customers c on c.id = i.customer_id
+    join public.invoice_effective_balances b on b.canonical_invoice_id = i.id
+    where i.invoice_id = 'CUSTOMER-DUE-${suffix}' and c.public_id = '${publicId}'`);
+  expect(persisted).toContain("true");
+});
+
+test("distinguishes duplicate customer names by mobile and public ID", async ({ page }) => {
+  const suffix = Date.now();
+  seedCustomers("10000000-0000-4000-8000-000000000001", [
+    { id: crypto.randomUUID(), publicId: `CUS-DUP-A-${suffix}`, name: `Same customer ${suffix}`, mobile: `711${suffix}` },
+    { id: crypto.randomUUID(), publicId: `CUS-DUP-B-${suffix}`, name: `Same customer ${suffix}`, mobile: `722${suffix}` },
+  ]);
+  await loginStaff(page);
+  const search = page.getByLabel("Customer search", { exact: true });
+  await search.fill(`Same customer ${suffix}`);
+  const options = page.getByRole("option").filter({ hasText: `Same customer ${suffix}` });
+  await expect(options).toHaveCount(2);
+  await expect(options.nth(0)).toContainText(`CUS-DUP-A-${suffix}`);
+  await expect(options.nth(1)).toContainText(`CUS-DUP-B-${suffix}`);
+  await search.fill(`CUS-DUP-B-${suffix}`);
+  await expect(page.getByRole("option")).toHaveCount(1);
+  await expect(page.getByRole("option")).toContainText(`722${suffix}`);
+  await search.fill(`722${suffix}`);
+  await expect(page.getByRole("option")).toHaveCount(1);
+  await expect(page.getByRole("option")).toContainText(`CUS-DUP-B-${suffix}`);
+  await search.fill(`No such customer ${suffix}`);
+  await expect(page.locator('[id^="customer-search-status-"]').filter({ hasText: "No customers found." })).toBeVisible();
+});
+
+test("rapid customer searches ignore an older response that arrives last", async ({ page }) => {
+  const suffix = Date.now();
+  seedCustomers("10000000-0000-4000-8000-000000000001", [
+    { id: crypto.randomUUID(), publicId: `CUS-SLOW-${suffix}`, name: `Slow customer ${suffix}`, mobile: `733${suffix}` },
+    { id: crypto.randomUUID(), publicId: `CUS-FAST-${suffix}`, name: `Fast customer ${suffix}`, mobile: `744${suffix}` },
+  ]);
+  await loginStaff(page);
+  let release!: () => void;
+  let reached!: () => void;
+  const delayed = new Promise<void>((resolve) => { release = resolve; });
+  const firstReached = new Promise<void>((resolve) => { reached = resolve; });
+  let held = false;
+  await page.route("**/*", async (route) => {
+    const request = route.request();
+    if (!held && request.method() === "POST" && request.headers()["next-action"]) {
+      held = true;
+      const response = await route.fetch();
+      reached();
+      await delayed;
+      await route.fulfill({ response });
+      return;
+    }
+    await route.continue();
+  });
+  const search = page.getByLabel("Customer search");
+  await search.fill(`Slow customer ${suffix}`);
+  await firstReached;
+  await search.fill(`Fast customer ${suffix}`);
+  await expect(search).toHaveValue(`Fast customer ${suffix}`);
+  await expect(page.locator('[id^="customer-search-status-"]').first()).toContainText("Searching customers...");
+  release();
+  await expect(page.getByRole("option")).toContainText(`Fast customer ${suffix}`);
+  await expect(page.getByRole("option")).not.toContainText(`Slow customer ${suffix}`);
+});
 
 test("Shop 1 staff saves a mixed batch and sees it after refresh", async ({ page }) => {
   const prefix = `UI-${Date.now()}`;
@@ -72,7 +186,7 @@ test("Shop 1 staff saves a mixed batch and sees it after refresh", async ({ page
   await expect(page.getByText(`${prefix}-DUE`, { exact: true })).toHaveCount(1);
   await expect(page.getByLabel("New invoice batch").getByText("Due QAR 60.50", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.getByRole("status")).toContainText("Batch saved");
+  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
   await page.reload();
   await expect(page.getByText(`${prefix}-PAID`)).toBeVisible();
   await expect(page.getByText(`${prefix}-DUE`)).toBeVisible();
@@ -92,7 +206,7 @@ test("a duplicate older than the recent preview gets a row error", async ({ page
   await rows.nth(0).getByLabel("Total QAR").fill("10.00");
   await page.getByRole("button", { name: "Review batch" }).click();
   await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.getByRole("status")).toContainText("Batch saved");
+  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
 
   for (let i = 0; i < 30; i++) {
     if (i > 0) await page.getByRole("button", { name: "Add row" }).click();
@@ -101,7 +215,7 @@ test("a duplicate older than the recent preview gets a row error", async ({ page
   }
   await page.getByRole("button", { name: "Review batch" }).click();
   await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.getByRole("status")).toContainText("Batch saved");
+  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
   await page.reload();
   await expect(page.getByLabel("Recent invoices").getByText(`${prefix}-FIRST`)).toHaveCount(0);
 
@@ -126,7 +240,7 @@ test("recent invoices show approved invoice and payment corrections", async ({ p
   await row.getByLabel("New customer name").fill("Corrected customer");
   await page.getByRole("button", { name: "Review batch" }).click();
   await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.getByRole("status")).toContainText("Batch saved");
+  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
 
   const shopId = "10000000-0000-4000-8000-000000000001";
   const ownerId = "10000000-0000-4000-8000-000000000101";
@@ -322,7 +436,7 @@ test("an open Shop 1 workspace advances its displayed Qatar date at midnight", a
   await page.getByLabel("Total QAR").fill("12.00");
   await page.getByRole("button", { name: "Review batch" }).click();
   await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.getByRole("status")).toContainText("Batch saved");
+  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
   await expect(page.getByLabel("Recent invoices")).toContainText(invoiceNumber);
   await expect(page.getByLabel("Recent invoices")).toContainText(today);
 });
@@ -358,7 +472,7 @@ test("a lost save response keeps the original date and retry key across midnight
   await page.clock.fastForward(120_000);
   await expect(page.locator("header")).toContainText(today);
   await page.getByRole("button", { name: "Retry same batch" }).click();
-  await expect(page.getByRole("status")).toContainText("Batch saved");
+  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
   await expect(page.getByLabel("Recent invoices")).toContainText(invoiceNumber);
 });
 });
