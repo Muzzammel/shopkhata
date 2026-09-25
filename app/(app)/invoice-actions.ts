@@ -17,7 +17,7 @@ const entrySchema = z.object({
   rows: z.array(rowSchema).min(1).max(100),
 }).strict();
 
-export type SaveResult = { ok: boolean; message: string; errors: EntryError[] };
+export type SaveResult = { ok: boolean; message: string; errors: EntryError[]; uncertain?: boolean };
 
 export async function saveInvoiceBatch(raw: unknown): Promise<SaveResult> {
   const parsed = entrySchema.safeParse(raw);
@@ -32,10 +32,16 @@ export async function saveInvoiceBatch(raw: unknown): Promise<SaveResult> {
     .from("batches").select("id").eq("shop_id", input.shopId)
     .eq("idempotency_key", input.idempotencyKey).maybeSingle();
   if (priorError) return { ok: false, message: "Batch retry could not be checked.", errors: [] };
-  const { data: existing, error: lookupError } = await supabase
-    .from("invoice_number_registry").select("invoice_number").eq("shop_id", input.shopId);
-  if (lookupError) return { ok: false, message: "Invoice numbers could not be checked.", errors: [] };
-  const prepared = prepareInvoiceBatch(input, (existing ?? []).map((row) => row.invoice_number), Boolean(priorBatch));
+  const existingNumbers: string[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data: existing, error: lookupError } = await supabase
+      .from("invoice_number_registry").select("invoice_number").eq("shop_id", input.shopId)
+      .order("invoice_number").range(offset, offset + 999);
+    if (lookupError || !existing) return { ok: false, message: "Invoice numbers could not be checked.", errors: [] };
+    existingNumbers.push(...existing.map((row) => row.invoice_number));
+    if (existing.length < 1000) break;
+  }
+  const prepared = prepareInvoiceBatch(input, existingNumbers, Boolean(priorBatch));
   if (!prepared.command) return { ok: false, message: "Fix the marked rows before saving.", errors: prepared.errors };
 
   const { data, error } = await supabase.rpc("submit_batch", { command: prepared.command });
@@ -47,10 +53,15 @@ export async function saveInvoiceBatch(raw: unknown): Promise<SaveResult> {
         typeof item === "object" && item !== null && typeof item.row_id === "string" && typeof item.field === "string" && typeof item.message === "string"
       ).map((item) => ({ rowId: item.row_id, field: item.field, message: item.message }));
     } catch { /* The RPC may return a non-validation error. */ }
-    return { ok: false, message: error.message === "IDEMPOTENCY_CONFLICT" ? "This save key was already used for different invoices." : "Batch was not saved. Check the rows and try again.", errors };
+    return {
+      ok: false,
+      uncertain: !error.code,
+      message: error.message === "IDEMPOTENCY_CONFLICT" ? "This save key was already used for different invoices." : "Batch was not saved. Check the rows and try again.",
+      errors,
+    };
   }
   if (!isValidBatchReceipt(data)) {
-    return { ok: false, message: "Batch could not be confirmed. Retry with the same draft.", errors: [] };
+    return { ok: false, uncertain: true, message: "Batch could not be confirmed. Retry with the same draft.", errors: [] };
   }
   revalidatePath("/");
   return { ok: true, message: "Batch saved.", errors: [] };

@@ -108,9 +108,8 @@ test("a duplicate older than the recent preview gets a row error", async ({ page
   await rows.nth(0).getByLabel("Invoice ID").fill(`${prefix}-FIRST`);
   await rows.nth(0).getByLabel("Total QAR").fill("10.00");
   await page.getByRole("button", { name: "Review batch" }).click();
-  await page.getByRole("button", { name: "Save batch" }).click();
   await expect(rows.nth(0)).toContainText("Invoice ID already exists in this shop.");
-  await expect(page.getByRole("alert").filter({ hasText: "Fix the marked rows before saving." })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: /Fix \d+ row error/ })).toBeVisible();
 });
 
 test("recent invoices show approved invoice and payment corrections", async ({ page }) => {
@@ -358,7 +357,7 @@ test("a lost save response keeps the original date and retry key across midnight
 
   await page.clock.fastForward(120_000);
   await expect(page.locator("header")).toContainText(today);
-  await page.getByRole("button", { name: "Save batch" }).click();
+  await page.getByRole("button", { name: "Retry same batch" }).click();
   await expect(page.getByRole("status")).toContainText("Batch saved");
   await expect(page.getByLabel("Recent invoices")).toContainText(invoiceNumber);
 });

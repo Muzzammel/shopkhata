@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { formatQar } from "@/lib/domain/money";
 import { isValidPaymentReceipt, preparePaymentAttempt, type PaymentCommand } from "@/lib/invoice-payment";
@@ -10,7 +10,13 @@ import styles from "./invoice-entry.module.css";
 
 type PaymentInvoice = Extract<PaymentLookup, { ok: true }>["invoice"];
 
-export function InvoicePayment({ shopId }: { shopId: string }) {
+export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onActivityChange }: {
+  shopId: string;
+  disabled: boolean;
+  onSaved: (payment: { invoiceId: string; effectiveDue: number }) => void;
+  onStateChange: (state: { hasDraft: boolean; uncertain: boolean }) => void;
+  onActivityChange: (active: boolean) => void;
+}) {
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoice, setInvoice] = useState<PaymentInvoice | null>(null);
   const [lookupMessage, setLookupMessage] = useState("");
@@ -22,8 +28,13 @@ export function InvoicePayment({ shopId }: { shopId: string }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    const hasDraft = !saved && Boolean(invoiceNumber.trim() || invoice || amount.trim() || review);
+    onStateChange({ hasDraft, uncertain });
+  }, [amount, invoice, invoiceNumber, onStateChange, review, saved, uncertain]);
 
   async function lookup() {
+    if (disabled || busy) return;
     const hasUncertainAttempt = uncertain && attempt !== null;
     if (!hasUncertainAttempt) {
       setInvoice(null);
@@ -32,18 +43,25 @@ export function InvoicePayment({ shopId }: { shopId: string }) {
       setMessage("");
       setSaved(false);
     }
-    const result = await lookupInvoiceForPayment({ shopId, invoiceNumber });
-    if (hasUncertainAttempt) {
-      setLookupMessage("A payment is still pending. Retry that exact payment before starting another.");
-      return;
-    }
-    if (result.ok) {
-      setInvoice(result.invoice);
-      setLookupMessage("");
-      setAmount("");
-      setIdempotencyKey(crypto.randomUUID());
-    } else {
-      setLookupMessage(result.message);
+    onActivityChange(true);
+    setBusy(true);
+    try {
+      const result = await lookupInvoiceForPayment({ shopId, invoiceNumber });
+      if (hasUncertainAttempt) {
+        setLookupMessage("A payment is still pending. Retry that exact payment before starting another.");
+        return;
+      }
+      if (result.ok) {
+        setInvoice(result.invoice);
+        setLookupMessage("");
+        setAmount("");
+        setIdempotencyKey(crypto.randomUUID());
+      } else {
+        setLookupMessage(result.message);
+      }
+    } finally {
+      setBusy(false);
+      onActivityChange(false);
     }
   }
 
@@ -76,17 +94,20 @@ export function InvoicePayment({ shopId }: { shopId: string }) {
   }
 
   async function savePayment() {
-    if (!attempt || !invoice || busy || saved) return;
+    if (!attempt || !invoice || busy || saved || disabled) return;
+    onActivityChange(true);
     setBusy(true);
     try {
       const result = await recordInvoicePayment(attempt);
       if (!result.ok) {
         setUncertain(result.uncertain);
+        onStateChange({ hasDraft: true, uncertain: result.uncertain });
         setMessage(result.message);
         return;
       }
       if (!isValidPaymentReceipt(result.receipt, attempt.invoice_id)) {
         setUncertain(true);
+        onStateChange({ hasDraft: true, uncertain: true });
         setMessage("Payment status is uncertain. Retry the same payment command.");
         return;
       }
@@ -102,11 +123,15 @@ export function InvoicePayment({ shopId }: { shopId: string }) {
       setIdempotencyKey(crypto.randomUUID());
       setSaved(true);
       setMessage("Payment recorded.");
+      onStateChange({ hasDraft: false, uncertain: false });
+      onSaved({ invoiceId: attempt.invoice_id, effectiveDue: result.receipt.effective_due });
     } catch {
       setUncertain(true);
+      onStateChange({ hasDraft: true, uncertain: true });
       setMessage("Payment status is uncertain. Retry the same payment command.");
     } finally {
       setBusy(false);
+      onActivityChange(false);
     }
   }
 
@@ -116,8 +141,8 @@ export function InvoicePayment({ shopId }: { shopId: string }) {
       <p>Record cash against an existing invoice. This does not create an invoice.</p>
     </div>
     <form className={styles.lookup} onSubmit={(event) => { event.preventDefault(); void lookup(); }}>
-      <label>Invoice number<input aria-label="Invoice number" value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.target.value)} maxLength={120} /></label>
-      <button type="submit" disabled={!invoiceNumber.trim() || busy}>Find invoice</button>
+      <label>Invoice number<input aria-label="Invoice number" value={invoiceNumber} onChange={(event) => { if (!disabled && !busy) setInvoiceNumber(event.target.value); }} disabled={disabled || busy} maxLength={120} /></label>
+      <button type="submit" disabled={disabled || !invoiceNumber.trim() || busy}>Find invoice</button>
     </form>
     {lookupMessage && <p role="alert">{lookupMessage}</p>}
     {invoice && <div className={styles.paymentDetails}>
@@ -129,21 +154,21 @@ export function InvoicePayment({ shopId }: { shopId: string }) {
       </div>
       {uncertain && attempt ? <div className={styles.paymentReview}>
         <p role="alert">Payment status is uncertain. This exact payment command is still pending. Retry it before starting another payment.</p>
-        <button type="button" onClick={savePayment} disabled={busy}>{busy ? "Retrying…" : "Retry payment"}</button>
+        <button type="button" onClick={savePayment} disabled={disabled || busy}>{busy ? "Retrying…" : "Retry payment"}</button>
       </div> : invoice.effectiveDue <= 0 ? <p role="alert" className={styles.paidWarning}>Already paid — no amount due</p> : <>
         {!review && <>
           <label className={styles.paymentAmount}>Cash amount (QAR)
-            <input aria-label="Cash amount (QAR)" inputMode="decimal" value={amount} onChange={(event) => { setAmount(event.target.value); if (attempt) editPayment(); }} />
+            <input aria-label="Cash amount (QAR)" inputMode="decimal" value={amount} disabled={disabled || busy} onChange={(event) => { if (disabled || busy) return; setAmount(event.target.value); if (attempt) editPayment(); }} />
           </label>
-          <button type="button" onClick={reviewPayment}>Review payment</button>
+          <button type="button" onClick={reviewPayment} disabled={disabled || busy}>Review payment</button>
         </>}
         {review && attempt && <div className={styles.paymentReview}>
           <h4>Review payment</h4>
           <p>Cash payment of QAR {formatQar(attempt.amount_dirham)} for invoice {invoice.invoiceNumber}.</p>
           <p>Business date: {attempt.business_date} (Qatar)</p>
           <div className={styles.actions}>
-            <button type="button" onClick={savePayment} disabled={busy || saved}>{busy ? "Saving…" : saved ? "Saved" : "Confirm payment"}</button>
-            {!saved && <button type="button" className={styles.secondary} onClick={editPayment} disabled={busy}>Edit</button>}
+            <button type="button" onClick={savePayment} disabled={disabled || busy || saved}>{busy ? "Saving…" : saved ? "Saved" : "Confirm payment"}</button>
+            {!saved && <button type="button" className={styles.secondary} onClick={editPayment} disabled={disabled || busy}>Edit</button>}
           </div>
         </div>}
       </>}
