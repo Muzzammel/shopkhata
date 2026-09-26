@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { can, getCurrentActor } from "@/lib/auth/permissions";
-import { isValidBatchReceipt, prepareInvoiceBatch, type EntryError } from "@/lib/invoice-entry";
+import { isValidBatchReceipt, prepareInvoiceBatch, qatarBusinessDate, type EntryError } from "@/lib/invoice-entry";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const rowSchema = z.object({
@@ -13,7 +13,8 @@ const rowSchema = z.object({
   customerName: z.string().max(200), customerMobile: z.string().max(100),
 }).strict();
 const entrySchema = z.object({
-  shopId: z.uuid(), businessDate: z.iso.date(), idempotencyKey: z.uuid(),
+  shopId: z.uuid(), businessDate: z.iso.date(), isBackdated: z.boolean(),
+  backdatedReason: z.string().max(1000), idempotencyKey: z.uuid(),
   rows: z.array(rowSchema).min(1).max(100),
 }).strict();
 
@@ -27,11 +28,17 @@ export async function saveInvoiceBatch(raw: unknown): Promise<SaveResult> {
   if (!can(actor, "batch.enter", input.shopId)) {
     return { ok: false, message: "You cannot enter invoices for this shop.", errors: [] };
   }
+  if (input.isBackdated && actor.role !== "owner") {
+    return { ok: false, message: "Only an owner can submit a backdated batch.", errors: [] };
+  }
   const supabase = await createServerSupabaseClient();
   const { data: priorBatch, error: priorError } = await supabase
     .from("batches").select("id").eq("shop_id", input.shopId)
     .eq("idempotency_key", input.idempotencyKey).maybeSingle();
   if (priorError) return { ok: false, message: "Batch retry could not be checked.", errors: [] };
+  if (!priorBatch && input.isBackdated !== (input.businessDate < qatarBusinessDate(new Date()))) {
+    return { ok: false, message: "Refresh the business date and review the batch again.", errors: [] };
+  }
   const existingNumbers: string[] = [];
   for (let offset = 0; ; offset += 1000) {
     const { data: existing, error: lookupError } = await supabase
@@ -41,7 +48,7 @@ export async function saveInvoiceBatch(raw: unknown): Promise<SaveResult> {
     existingNumbers.push(...existing.map((row) => row.invoice_number));
     if (existing.length < 1000) break;
   }
-  const prepared = prepareInvoiceBatch(input, existingNumbers, Boolean(priorBatch));
+  const prepared = prepareInvoiceBatch(input, existingNumbers, Boolean(priorBatch), qatarBusinessDate(new Date()));
   if (!prepared.command) return { ok: false, message: "Fix the marked rows before saving.", errors: prepared.errors };
 
   const { data, error } = await supabase.rpc("submit_batch", { command: prepared.command });

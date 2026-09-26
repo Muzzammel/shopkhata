@@ -215,17 +215,18 @@ describe("submit_batch RPC (real network, real sessions)", () => {
     const yesterday = qatarBusinessDate(new Date(Date.now() - 86_400_000));
 
     const staffClient = await signIn(STAFF1_EMAIL, STAFF1_PASSWORD);
+    const staffInvoiceNumber = uniqueInvoiceNumber("staff-backdate");
     const { error: staffError } = await staffClient.rpc("submit_batch", {
       command: {
         shop_id: SHOP_1,
         business_date: yesterday,
         is_backdated: true,
         backdated_reason: "late entry",
-        idempotency_key: `it-${uniqueInvoiceNumber("staff-backdate")}`,
+        idempotency_key: `it-${staffInvoiceNumber}`,
         rows: [
           {
             row_id: "r1",
-            invoice_number: uniqueInvoiceNumber("staff-backdate"),
+            invoice_number: staffInvoiceNumber,
             total_dirham: 100,
             received_dirham: 0,
             delivered: false,
@@ -235,6 +236,10 @@ describe("submit_batch RPC (real network, real sessions)", () => {
       },
     });
     expect(staffError?.code).toBe("42501");
+    const { count: rejectedBatchCount, error: rejectedBatchError } = await staffClient.from("batches")
+      .select("id", { count: "exact", head: true }).eq("idempotency_key", `it-${staffInvoiceNumber}`);
+    expect(rejectedBatchError).toBeNull();
+    expect(rejectedBatchCount).toBe(0);
 
     const ownerClient = await signIn(OWNER_EMAIL, OWNER_PASSWORD);
     const { data, error: ownerError } = await ownerClient.rpc("submit_batch", {
@@ -242,7 +247,7 @@ describe("submit_batch RPC (real network, real sessions)", () => {
         shop_id: SHOP_1,
         business_date: yesterday,
         is_backdated: true,
-        backdated_reason: "late entry",
+        backdated_reason: "  month-end catch-up  ",
         idempotency_key: `it-${uniqueInvoiceNumber("owner-backdate")}`,
         rows: [
           {
@@ -258,6 +263,12 @@ describe("submit_batch RPC (real network, real sessions)", () => {
     });
     expect(ownerError).toBeNull();
     expect(data.ok).toBe(true);
+    const { data: batch, error: batchError } = await ownerClient.from("batches")
+      .select("business_date, is_backdated, backdated_reason")
+      .eq("id", data.batch_id)
+      .single();
+    expect(batchError).toBeNull();
+    expect(batch).toEqual({ business_date: yesterday, is_backdated: true, backdated_reason: "month-end catch-up" });
   });
 
   it("replays an exact resubmission without creating a duplicate invoice", async () => {

@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local timezone = 'Asia/Qatar';
 
-select plan(74);
+select plan(88);
 
 -- Fixtures: a shop-1 existing customer, reused across several assertions.
 insert into public.customers (id, shop_id, name)
@@ -350,6 +350,8 @@ select throws_ok(
   'the owner is still rejected against a closed historical date even with valid backdate fields'
 );
 reset role;
+select is((select count(*)::int from public.batches where idempotency_key = 'k13'), 0,
+  'closed-date rejection creates no batch');
 
 -- 14. Backdated batch: non-owner rejected, owner accepted. ----
 
@@ -372,6 +374,8 @@ select throws_ok(
   'a backdated batch submitted by non-owner staff is rejected'
 );
 reset role;
+select is((select count(*)::int from public.batches where idempotency_key = 'k14a'), 0,
+  'staff backdate rejection creates no batch');
 set local role authenticated;
 set local request.jwt.claims = '{"role":"authenticated","sub":"10000000-0000-4000-8000-000000000101"}';
 select lives_ok(
@@ -379,7 +383,7 @@ select lives_ok(
     'shop_id', '10000000-0000-4000-8000-000000000001',
     'business_date', (current_date - 1)::text,
     'is_backdated', true,
-    'backdated_reason', 'late entry',
+    'backdated_reason', '  late entry  ',
     'idempotency_key', 'k14b',
     'rows', jsonb_build_array(jsonb_build_object(
       'row_id', 'r1', 'invoice_number', 'SB-BACKDATE-OWNER',
@@ -390,6 +394,12 @@ select lives_ok(
   'a backdated batch submitted by the owner succeeds'
 );
 reset role;
+select is((select business_date from public.batches where idempotency_key = 'k14b'), current_date - 1,
+  'owner batch persists the selected business date');
+select is((select is_backdated from public.batches where idempotency_key = 'k14b'), true,
+  'owner batch persists the backdated flag');
+select is((select backdated_reason from public.batches where idempotency_key = 'k14b'), 'late entry',
+  'owner batch persists its normalized backdate reason');
 
 -- 15. Canonical fingerprint: changes with content, stable across replay, stable across casing. ----
 
@@ -908,6 +918,77 @@ select throws_ok(
   'changing a legacy true flag to false conflicts'
 );
 reset role;
+
+-- A backdated exact replay remains available after close, but only to a current owner.
+select set_config('test.backdated_replay_command', jsonb_build_object(
+  'shop_id', '10000000-0000-4000-8000-000000000001',
+  'business_date', (current_date - 1)::text,
+  'is_backdated', true,
+  'backdated_reason', '  month-end catch-up  ',
+  'idempotency_key', 'k26-backdated-replay',
+  'rows', jsonb_build_array(jsonb_build_object(
+    'row_id','backdated-replay-row','invoice_number','SB-BACKDATED-REPLAY',
+    'total_dirham',100,'received_dirham',0,'payment_method','cash',
+    'delivered',false,'customer',null
+  ))
+)::text, true);
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"10000000-0000-4000-8000-000000000101"}';
+select set_config('test.backdated_replay_receipt', public.submit_batch(current_setting('test.backdated_replay_command')::jsonb)::text, true);
+reset role;
+insert into public.daily_closes (shop_id, business_date, event_type, actor_id)
+values ('10000000-0000-4000-8000-000000000001', current_date - 1, 'closed', '10000000-0000-4000-8000-000000000101');
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"10000000-0000-4000-8000-000000000101"}';
+select is(public.submit_batch(current_setting('test.backdated_replay_command')::jsonb)::text,
+  current_setting('test.backdated_replay_receipt'),
+  'authorized exact backdated replay survives the day closing');
+reset role;
+update public.profiles set role = 'staff' where id = '10000000-0000-4000-8000-000000000101';
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"10000000-0000-4000-8000-000000000101"}';
+select throws_ok(
+  $$select public.submit_batch(current_setting('test.backdated_replay_command')::jsonb)$$,
+  '42501', 'INSUFFICIENT_ROLE',
+  'an actor who lost owner role cannot replay a backdated command');
+reset role;
+update public.profiles set role = 'owner' where id = '10000000-0000-4000-8000-000000000101';
+
+-- A changed backdate reason conflicts and leaves the original write set intact.
+select set_config('test.backdated_reason_command', jsonb_build_object(
+  'shop_id', '10000000-0000-4000-8000-000000000001',
+  'business_date', (current_date - 3)::text,
+  'is_backdated', true,
+  'backdated_reason', '  month-end catch-up  ',
+  'idempotency_key', 'k27-backdated-reason-fingerprint',
+  'rows', jsonb_build_array(jsonb_build_object(
+    'row_id','backdated-reason-row','invoice_number','SB-BACKDATED-REASON',
+    'total_dirham',100,'received_dirham',0,'payment_method','cash',
+    'delivered',false,'customer',null
+  ))
+)::text, true);
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"10000000-0000-4000-8000-000000000101"}';
+select set_config('test.backdated_reason_receipt',
+  public.submit_batch(current_setting('test.backdated_reason_command')::jsonb)::text, true);
+select is(current_setting('test.backdated_reason_receipt')::jsonb ->> 'ok', 'true',
+  'the initial owner submission succeeds before the reason-change retry');
+select is((select count(*)::int from public.batches where shop_id = '10000000-0000-4000-8000-000000000001' and idempotency_key = 'k27-backdated-reason-fingerprint'),
+  1, 'the initial owner submission commits one batch before the reason-change retry');
+select throws_ok(
+  $$select public.submit_batch(jsonb_set(current_setting('test.backdated_reason_command')::jsonb, '{backdated_reason}', '"corrected reason"'::jsonb))$$,
+  'P0001', 'IDEMPOTENCY_CONFLICT',
+  'changing only backdated_reason cannot replay a committed batch'
+);
+reset role;
+select is((select count(*)::int from public.batches where shop_id = '10000000-0000-4000-8000-000000000001' and idempotency_key = 'k27-backdated-reason-fingerprint'),
+  1, 'a changed backdate reason leaves exactly one committed batch');
+select is((select count(*)::int from public.invoices where shop_id = '10000000-0000-4000-8000-000000000001' and invoice_id = 'SB-BACKDATED-REASON'),
+  1, 'a changed backdate reason leaves exactly one invoice');
+select is((select count(*)::int from public.invoice_number_registry where shop_id = '10000000-0000-4000-8000-000000000001' and invoice_number = 'SB-BACKDATED-REASON'),
+  1, 'a changed backdate reason leaves exactly one invoice registry entry');
+select is((select backdated_reason from public.batches where shop_id = '10000000-0000-4000-8000-000000000001' and idempotency_key = 'k27-backdated-reason-fingerprint'),
+  'month-end catch-up', 'the original normalized backdate reason remains committed');
 
 select * from finish();
 rollback;

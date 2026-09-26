@@ -16,6 +16,8 @@ export type EntryRow = {
 export type InvoiceEntryInput = {
   shopId: string;
   businessDate: string;
+  isBackdated: boolean;
+  backdatedReason: string;
   idempotencyKey: string;
   rows: EntryRow[];
 };
@@ -28,10 +30,9 @@ export function qatarBusinessDate(now: Date): string {
   return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
-export function selectInvoiceAttempt(input: InvoiceEntryInput, now: Date, previous: InvoiceEntryInput | null): InvoiceEntryInput {
+export function selectInvoiceAttempt(input: InvoiceEntryInput, previous: InvoiceEntryInput | null): InvoiceEntryInput {
   return previous ?? {
     ...input,
-    businessDate: qatarBusinessDate(now),
     rows: input.rows.map((row) => ({ ...row })),
   };
 }
@@ -45,8 +46,15 @@ export function isValidBatchReceipt(value: unknown): value is { ok: true; batch_
     && "batch_id" in value && typeof value.batch_id === "string" && UUID_PATTERN.test(value.batch_id);
 }
 
-export function prepareInvoiceBatch(input: InvoiceEntryInput, existingInvoiceIds: readonly string[], replay = false) {
+export function prepareInvoiceBatch(input: InvoiceEntryInput, existingInvoiceIds: readonly string[], replay = false, today?: string) {
   const errors: EntryError[] = [];
+  if (today && !replay && input.isBackdated !== (input.businessDate < today)) {
+    errors.push({ rowId: "", field: "businessDate", message: "Refresh the business date and review the batch again." });
+  }
+  const backdatedReason = input.backdatedReason.trim() || null;
+  if (input.isBackdated && !backdatedReason) {
+    errors.push({ rowId: "", field: "backdatedReason", message: "Enter a reason for the backdated batch." });
+  }
   const amounts = input.rows.map((row) => {
     let total = 0;
     let received = 0;
@@ -88,6 +96,8 @@ export function prepareInvoiceBatch(input: InvoiceEntryInput, existingInvoiceIds
   const command = errors.length ? null : {
     shop_id: input.shopId,
     business_date: input.businessDate,
+    is_backdated: input.isBackdated,
+    backdated_reason: input.isBackdated ? backdatedReason : null,
     idempotency_key: input.idempotencyKey,
     rows: input.rows.map((row, index) => ({
       row_id: row.rowId,

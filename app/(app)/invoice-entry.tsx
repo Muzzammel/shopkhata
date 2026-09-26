@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { formatQar } from "@/lib/domain/money";
 import { prepareInvoiceBatch, qatarBusinessDate, selectInvoiceAttempt, type EntryError, type EntryRow, type InvoiceEntryInput } from "@/lib/invoice-entry";
@@ -36,6 +36,8 @@ export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, invoi
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<SaveResult | null>(null);
   const [currentDate, setCurrentDate] = useState(businessDate);
+  const [selectedBusinessDate, setSelectedBusinessDate] = useState(businessDate);
+  const [backdatedReason, setBackdatedReason] = useState("");
   const [attempt, setAttempt] = useState<InvoiceEntryInput | null>(null);
   const [batchUncertain, setBatchUncertain] = useState(false);
   const [paymentGuard, setPaymentGuard] = useState({ hasDraft: false, uncertain: false });
@@ -49,13 +51,22 @@ export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, invoi
   const activeShopIdRef = useRef(shop.id);
   const workspaceGenerationRef = useRef(0);
   useEffect(() => {
-    const refreshDate = () => setCurrentDate(qatarBusinessDate(new Date()));
+    const refreshDate = () => {
+      const today = qatarBusinessDate(new Date());
+      setCurrentDate(today);
+      setSelectedBusinessDate((selected) => selected === currentDate ? today : selected);
+    };
     refreshDate();
     const timer = setInterval(refreshDate, 10_000);
     return () => clearInterval(timer);
-  }, []);
-  const displayDate = attempt?.businessDate ?? currentDate;
-  const preview = prepareInvoiceBatch({ shopId: currentShop.id, businessDate: displayDate, idempotencyKey: key, rows }, duplicateNumbers, Boolean(attempt));
+  }, [currentDate]);
+  const displayDate = attempt?.businessDate ?? selectedBusinessDate;
+  const displayBackdated = attempt?.isBackdated ?? (displayDate < currentDate);
+  const displayReason = attempt?.backdatedReason ?? backdatedReason;
+  const preview = prepareInvoiceBatch({
+    shopId: currentShop.id, businessDate: displayDate, isBackdated: displayBackdated,
+    backdatedReason: displayReason, idempotencyKey: key, rows,
+  }, duplicateNumbers, Boolean(attempt), currentDate);
   const invoiceDraft = rows.length > 1 || rows.some((row) => Boolean(row.invoiceId.trim() || row.total.trim() || row.received.trim() || row.delivered || row.customerId || row.customerName.trim() || row.customerMobile.trim()));
   const uncertain = batchUncertain || paymentGuard.uncertain;
   const workspaceLocked = switching || busy || paymentActivity;
@@ -64,15 +75,15 @@ export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, invoi
     return activeShopIdRef.current === shopId && workspaceGenerationRef.current === generation;
   }
 
-  function reportPaymentActivity(active: boolean) {
+  const reportPaymentActivity = useCallback((active: boolean) => {
     paymentActivityRef.current = active;
     setPaymentActivity(active);
-  }
+  }, []);
 
-  function reportPaymentGuard(guard: { hasDraft: boolean; uncertain: boolean }) {
+  const reportPaymentGuard = useCallback((guard: { hasDraft: boolean; uncertain: boolean }) => {
     paymentGuardRef.current = guard;
     setPaymentGuard(guard);
-  }
+  }, []);
 
   async function switchShop(nextShopId: string) {
     if (nextShopId === activeShopIdRef.current || switchInProgressRef.current) return;
@@ -119,7 +130,10 @@ export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, invoi
       setBatchUncertain(false);
       setReview(false);
       setResult(null);
-      setCurrentDate(qatarBusinessDate(new Date()));
+      const today = qatarBusinessDate(new Date());
+      setCurrentDate(today);
+      setSelectedBusinessDate(today);
+      setBackdatedReason("");
       reportPaymentGuard({ hasDraft: false, uncertain: false });
     } catch {
       setSwitchMessage("The selected shop could not be loaded.");
@@ -145,7 +159,6 @@ export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, invoi
     if (attempt) {
       setAttempt(null);
       setKey(crypto.randomUUID());
-      setCurrentDate(qatarBusinessDate(new Date()));
     }
     setReview(false);
     setResult(null);
@@ -162,9 +175,11 @@ export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, invoi
     const commandShopId = activeShopIdRef.current;
     const commandGeneration = workspaceGenerationRef.current;
     if (currentShop.id !== commandShopId) return;
-    const submission = selectInvoiceAttempt({ shopId: commandShopId, businessDate: displayDate, idempotencyKey: key, rows }, new Date(), attempt);
+    const submission = selectInvoiceAttempt({
+      shopId: commandShopId, businessDate: displayDate, isBackdated: displayBackdated,
+      backdatedReason: displayReason, idempotencyKey: key, rows,
+    }, attempt);
     setAttempt(submission);
-    setCurrentDate(submission.businessDate);
     batchSavingRef.current = true;
     setBusy(true);
     try {
@@ -177,7 +192,10 @@ export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, invoi
         setKey(crypto.randomUUID());
         setAttempt(null);
         setBatchUncertain(false);
-        setCurrentDate(qatarBusinessDate(new Date()));
+        const today = qatarBusinessDate(new Date());
+        setCurrentDate(today);
+        setSelectedBusinessDate(today);
+        setBackdatedReason("");
         setReview(false);
         await refreshCurrentWorkspace(commandShopId, commandGeneration);
       }
@@ -203,6 +221,10 @@ export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, invoi
     {switchMessage && <p role="alert">{switchMessage}</p>}
     <section className={styles.panel} aria-labelledby="entry-title">
       <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Invoice operations</p><h2 id="entry-title">New invoice batch</h2></div><p>One save commits every row together.</p></div>
+      <div className={styles.batchDate}>
+        <label>Business date<input aria-label="Business date" type="date" max={currentDate} value={displayDate} disabled={actorRole !== "owner" || workspaceLocked || batchUncertain} onChange={(event) => { editDraft(); setSelectedBusinessDate(event.target.value); }} /></label>
+        {displayBackdated && <label>Reason for backdated entry<input aria-label="Backdate reason" required maxLength={1000} value={displayReason} disabled={workspaceLocked || batchUncertain} onChange={(event) => { editDraft(); setBackdatedReason(event.target.value); }} /></label>}
+      </div>
       <div className={styles.rows}>
         {rows.map((row, index) => <div className={styles.row} data-entry-row key={row.rowId}>
             <div className={styles.rowHeading}><strong>Invoice {index + 1}</strong>{rows.length > 1 && <button type="button" className={styles.textButton} disabled={workspaceLocked || batchUncertain} onClick={() => { setRows((current) => current.filter((item) => item.rowId !== row.rowId)); editDraft(); }}>Remove</button>}</div>
@@ -223,6 +245,7 @@ export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, invoi
       <div className={styles.actions}><button type="button" className={styles.secondary} disabled={workspaceLocked || batchUncertain} onClick={() => { setRows((current) => [...current, emptyRow()]); editDraft(); }}>Add row</button><button type="button" disabled={workspaceLocked} onClick={() => setReview(true)}>Review batch</button></div>
       {review && <div className={styles.review}>
         <h3>Batch review</h3>
+        <p>Business date: <strong>{displayDate}</strong>{displayBackdated && <> · <strong>Backdated</strong> · Reason: {displayReason.trim()}</>}</p>
         {preview.command && <div className={styles.reviewRows}>{preview.command.rows.map((row) => <div key={row.row_id}>
           <strong>{row.invoice_number}</strong><span>{row.delivered ? "Delivered" : "Advance"}</span>
           <span>QAR {formatQar(row.total_dirham)}</span><span>Received QAR {formatQar(row.received_dirham)}</span>

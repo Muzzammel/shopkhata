@@ -6,6 +6,8 @@ const shopId = "10000000-0000-4000-8000-000000000001";
 const base = {
   shopId,
   businessDate: "2026-09-24",
+  isBackdated: false,
+  backdatedReason: "",
   idempotencyKey: "entry-key-1",
   rows: [
     { rowId: "a", invoiceId: "A-1", total: "100.00", received: "100.00", delivered: true, customerId: "", customerName: "", customerMobile: "" },
@@ -22,6 +24,8 @@ describe("invoice entry command", () => {
     expect(result.command).toEqual({
       shop_id: shopId,
       business_date: "2026-09-24",
+      is_backdated: false,
+      backdated_reason: null,
       idempotency_key: "entry-key-1",
       rows: [
         { row_id: "a", invoice_number: "A-1", total_dirham: 10000, received_dirham: 10000, payment_method: "cash", delivered: true, customer: null },
@@ -54,6 +58,32 @@ describe("invoice entry command", () => {
     expect(result.command?.idempotency_key).toBe("entry-key-1");
   });
 
+  it("carries an owner backdate flag and normalized reason into the batch command", () => {
+    const result = prepareInvoiceBatch({
+      ...base,
+      businessDate: "2026-09-23",
+      isBackdated: true,
+      backdatedReason: "  month-end catch-up  ",
+    }, [], false, "2026-09-24");
+    expect(result.errors).toEqual([]);
+    expect(result.command).toMatchObject({
+      business_date: "2026-09-23",
+      is_backdated: true,
+      backdated_reason: "month-end catch-up",
+    });
+  });
+
+  it("requires a reason for a backdated batch", () => {
+    const result = prepareInvoiceBatch({
+      ...base,
+      businessDate: "2026-09-23",
+      isBackdated: true,
+      backdatedReason: "   ",
+    }, [], false, "2026-09-24");
+    expect(result.command).toBeNull();
+    expect(result.errors).toContainEqual({ rowId: "", field: "backdatedReason", message: "Enter a reason for the backdated batch." });
+  });
+
   it("rejects an aggregate that exceeds safe integer dirham before review formatting", () => {
     const input = { ...base, rows: [
       { ...base.rows[0], rowId: "large-a", invoiceId: "LARGE-A", total: "50000000000000.00", received: "0", delivered: false },
@@ -76,16 +106,20 @@ describe("invoice entry command", () => {
   it("uses the Qatar operating date after local midnight while UTC is still yesterday", () => {
     const now = new Date("2026-09-24T22:30:00.000Z"); // 01:30 on September 25 in Qatar.
     expect(qatarBusinessDate(now)).toBe("2026-09-25");
-    expect(selectInvoiceAttempt(base, now, null).businessDate).toBe("2026-09-25");
+    expect(selectInvoiceAttempt({ ...base, businessDate: "2026-09-25" }, null).businessDate).toBe("2026-09-25");
   });
 
   it("keeps the first attempted command across midnight after an uncertain response", () => {
-    const first = selectInvoiceAttempt(base, new Date("2026-09-24T20:59:00.000Z"), null);
-    expect(first.businessDate).toBe("2026-09-24");
+    const backdated = { ...base, businessDate: "2026-09-23", isBackdated: true, backdatedReason: "month-end close" };
+    const first = selectInvoiceAttempt(backdated, null);
+    expect(first.businessDate).toBe("2026-09-23");
     const changedDraft = { ...base, businessDate: "2026-09-25", rows: [{ ...base.rows[0], invoiceId: "CHANGED" }] };
-    const retry = selectInvoiceAttempt(changedDraft, new Date("2026-09-24T21:01:00.000Z"), first);
+    const retry = selectInvoiceAttempt(changedDraft, first);
     expect(retry).toBe(first);
     expect(retry.idempotencyKey).toBe("entry-key-1");
     expect(retry.rows[0].invoiceId).toBe("A-1");
+    expect(retry.shopId).toBe(shopId);
+    expect(retry.isBackdated).toBe(true);
+    expect(retry.backdatedReason).toBe("month-end close");
   });
 });

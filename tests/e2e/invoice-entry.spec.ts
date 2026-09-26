@@ -475,4 +475,65 @@ test("a lost save response keeps the original date and retry key across midnight
   await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
   await expect(page.getByLabel("Recent invoices")).toContainText(invoiceNumber);
 });
+
+test("owner backdated retry preserves its exact command across midnight", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel(/email/i).fill("owner@shopkhata.local");
+  await page.getByLabel(/password/i).fill("ShopKhata-Local-Owner-E2E-Only-2026!");
+  await page.getByRole("button", { name: /sign in|log in/i }).click();
+  await expect(page.getByRole("heading", { name: "Shop 1" })).toBeVisible();
+  const today = qatarBusinessDate(new Date());
+  const firstTime = new Date(Date.parse(`${today}T20:59:00.000Z`));
+  const businessDate = new Date(Date.parse(`${today}T12:00:00.000Z`) - 86_400_000).toISOString().slice(0, 10);
+
+  const invoiceNumber = `BACKDATE-${crypto.randomUUID().slice(0, 8)}`;
+  await page.getByLabel("Business date").fill(businessDate);
+  await page.getByLabel("Backdate reason").fill("  month-end catch-up  ");
+  await page.getByLabel("Invoice ID").fill(invoiceNumber);
+  await page.getByLabel("Total QAR").fill("12.00");
+  await page.getByRole("button", { name: "Review batch" }).click();
+  await expect(page.getByText("Backdated", { exact: true })).toBeVisible();
+  await expect(page.getByText("Reason: month-end catch-up")).toBeVisible();
+  await page.clock.install({ time: firstTime });
+  const browserDate = () => page.evaluate(() => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Qatar", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
+  expect(await browserDate()).toBe(today);
+  await page.clock.fastForward(10_000);
+
+  let dropped = false;
+  let actionId = "";
+  let initialPayload: Buffer | null = null;
+  let retryPayload: Buffer | null = null;
+  await page.route("**/*", async (route) => {
+    const request = route.request();
+    const currentActionId = request.headers()["next-action"];
+    if (request.method() !== "POST" || !currentActionId) return route.continue();
+    if (!dropped) {
+      dropped = true;
+      actionId = currentActionId;
+      initialPayload = request.postDataBuffer();
+      await route.fetch();
+      return route.abort("failed");
+    }
+    if (currentActionId === actionId) retryPayload = request.postDataBuffer();
+    return route.continue();
+  });
+  await page.getByRole("button", { name: "Save batch" }).click();
+  await expect(page.getByText("Batch was not saved. Try again with the same draft.")).toBeVisible();
+  await page.clock.fastForward(120_000);
+  const nextDate = new Date(Date.parse(`${today}T12:00:00.000Z`) + 86_400_000).toISOString().slice(0, 10);
+  expect(await browserDate()).toBe(nextDate);
+  await page.getByRole("button", { name: "Retry same batch" }).click();
+  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
+  expect(retryPayload).toEqual(initialPayload);
+
+  const persisted = localDbQuery(`select count(*) = 1 and bool_and(b.business_date = '${businessDate}'::date and b.is_backdated and b.backdated_reason = 'month-end catch-up') as valid
+    from public.invoices i join public.batches b on b.id = i.batch_id where i.invoice_id = '${invoiceNumber}'`);
+  expect(persisted).toContain("true");
+});
+
+test("staff remain on today's Qatar date without a backdate control", async ({ page }) => {
+  await loginStaff(page);
+  await expect(page.getByLabel("Business date")).toBeDisabled();
+  await expect(page.getByLabel("Backdate reason")).toHaveCount(0);
+});
 });
