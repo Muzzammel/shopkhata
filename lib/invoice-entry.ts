@@ -11,6 +11,7 @@ export type EntryRow = {
   customerId: string;
   customerName: string;
   customerMobile: string;
+  note?: string;
 };
 
 export type InvoiceEntryInput = {
@@ -37,7 +38,7 @@ export function selectInvoiceAttempt(input: InvoiceEntryInput, previous: Invoice
   };
 }
 
-export type EntryError = { rowId: string; field: string; message: string };
+export type EntryError = { rowId: string; field: string; message: string; code?: string };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -106,6 +107,7 @@ export function prepareInvoiceBatch(input: InvoiceEntryInput, existingInvoiceIds
       received_dirham: amounts[index].received,
       payment_method: "cash",
       delivered: row.delivered,
+      ...(row.note?.trim() ? { note: row.note.trim() } : {}),
       customer: row.customerId.trim()
         ? { type: "existing", customer_id: row.customerId.trim() }
         : row.customerName.trim() || row.customerMobile.trim()
