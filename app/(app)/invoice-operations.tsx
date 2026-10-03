@@ -97,7 +97,7 @@ export function InvoiceOperations({ detail, permissions }: { detail: InvoiceDeta
     </section>
     <section className={styles.panel} aria-labelledby="change-history-heading">
       <h2 id="change-history-heading">Requests and version history</h2>
-      <p>Original version 0: {detail.originalInvoiceNumber}; customer {detail.originalCustomerId ?? "none"}; {detail.originalDelivered ? "delivered" : "advance"}. Canonical invoice {detail.id}. Current approved version {detail.revision}.</p>
+      <p>Original version 0: {detail.originalInvoiceNumber}; customer {detail.originalCustomerId ?? "none"}; {detail.originalDelivered ? "delivered" : "advance"}. Current approved version {detail.revision}.</p>
       {!detail.changes.length && <p>No correction or replacement requests.</p>}
       <div className={styles.detailList}>{detail.changes.map((change) => <article key={change.id} aria-label={`${change.kind} request ${change.id}`}>
         <strong>{change.kind === "replacement" ? "Non-financial replacement" : "Financial correction"} — {change.decision?.outcome ?? "Pending approval"}</strong>

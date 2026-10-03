@@ -91,6 +91,9 @@ jobs:
       - name: Run approve_overpayment integration tests
         run: pnpm test:integration:overpayment
 
+      - name: Run complete invoice operations integration tests
+        run: pnpm test:integration:operations
+
       - name: Create local-only SSR environment configuration
         run: |
           supabase_env="$(pnpm exec supabase status -o env 2>/dev/null)"
@@ -107,8 +110,8 @@ jobs:
           grep -qx 'NEXT_PUBLIC_SUPABASE_URL=.*' .env.local
           grep -qx 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=.*' .env.local
 
-      - name: Run auth E2E tests
-        run: pnpm exec playwright test tests/e2e/auth.spec.ts
+      - name: Run complete Playwright suite
+        run: pnpm test:e2e --workers=1
 
       - name: Stop local Supabase
         if: always()

@@ -13,7 +13,8 @@
     "test:migration-upgrade": "vitest run --config vitest.integration.config.mts",
     "test:integration:batches": "vitest run --config vitest.integration.batches.config.mts",
     "test:integration:payments": "vitest run --config vitest.integration.payments.config.mts",
-    "test:integration:overpayment": "vitest run --config vitest.integration.overpayment.config.mts"
+    "test:integration:overpayment": "vitest run --config vitest.integration.overpayment.config.mts",
+    "test:integration:operations": "vitest run --config vitest.integration.operations.config.mts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

@@ -10,14 +10,15 @@
 
 - [x] Inspect branch, HEAD, status, governing specifications, migrations, UI, permission rules, and testing conventions.
 - [x] Run existing unit baseline: 8 files, 45 tests PASS.
-- [ ] Add failing database and validator tests for governed requests, decisions, registry/version semantics, authorization, and retries.
-- [ ] Add a new migration with immutable request/decision schema, authenticated RPCs, atomic approvals, bounded financial validation, and effective invoice projection.
-- [ ] Verify database reset, pgTAP, DB lint; regenerate database types.
-- [ ] Add validators and mapped errors; implement detail payment, correction, replacement, approval/history UI.
-- [ ] Use effective projection in detail, recent invoices, payment lookup; add canonical duplicate navigation including historical numbers.
-- [ ] Add real Supabase integration tests including concurrency and complete Playwright workflows.
-- [ ] Run full regression matrix, fix regressions, record attributable results.
-- [ ] Update implementation documentation and create coherent scoped commits.
+- [x] Add failing database and validator tests for governed requests, decisions, registry/version semantics, authorization, and retries.
+- [x] Add a new migration with immutable request/decision schema, authenticated RPCs, atomic approvals, bounded financial validation, and effective invoice projection.
+- [x] Verify database reset, pgTAP, DB lint; regenerate database types.
+- [x] Add validators and mapped errors; implement detail payment, correction, replacement, approval/history UI.
+- [x] Use effective projection in detail, recent invoices, payment lookup; add canonical duplicate navigation including historical numbers.
+- [x] Add real Supabase integration tests including concurrency and complete Playwright workflows.
+- [x] Run full regression matrix, fix regressions, record attributable results. All functional gates pass; audit fails with 19 existing advisories.
+- [x] Update implementation documentation and create coherent scoped commits.
+- [ ] Formal all-GREEN closure: blocked by existing dependency audit; no waiver or dependency upgrade authorized.
 
 **Decisions:** Financial requests reference either the canonical invoice total or one canonical payment, and propose a signed integer-dirham delta. Approval never UPDATEs a pending correction row: it appends a decision and a new approved `corrections` row. Rejections append decisions. New corrections use today's Qatar business date; closed dates reject new approvals, exact decision replay precedes date/state checks. Reject changes producing negative totals/paid/due, a negative corrected payment, or delivered due without a customer. Existing credits stay attached to their original customer; replacement does not transfer credits. No cancellation state exists in the current schema/design, so rejection is the supported terminal negative decision.
 

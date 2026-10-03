@@ -23,7 +23,7 @@ describe("invoice operations UI retry and refresh", () => {
     const props = { shopId, disabled: false, onSaved: vi.fn(), onStateChange: vi.fn(), onActivityChange: vi.fn(), initialInvoice: invoice };
     const view = render(createElement(InvoicePayment, props));
     view.rerender(createElement(InvoicePayment, { ...props, initialInvoice: { ...invoice, invoiceNumber: "NEW", effectiveTotal: 9000, effectiveDue: 7000 } }));
-    expect(screen.getByRole("heading", { name: "NEW" })).toBeTruthy();
+    expect(screen.getByText("Invoice NEW")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Cash amount (QAR)"), { target: { value: "75.00" } });
     fireEvent.click(screen.getByRole("button", { name: "Review payment" }));
     expect(screen.getByRole("alert").textContent).toContain("cannot exceed");

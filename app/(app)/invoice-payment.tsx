@@ -154,12 +154,12 @@ export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onAct
     </form>}
     {lookupMessage && <p role="alert">{lookupMessage}</p>}
     {invoice && <div className={styles.paymentDetails}>
-      <h3>{invoice.invoiceNumber}</h3>
-      <div className={styles.totals}>
+      {initialInvoice ? <p>Invoice {invoice.invoiceNumber}</p> : <h3>{invoice.invoiceNumber}</h3>}
+      {!initialInvoice && <div className={styles.totals}>
         <span>Effective total<strong>QAR {formatQar(invoice.effectiveTotal)}</strong></span>
         <span>Paid<strong>QAR {formatQar(invoice.effectivePaid)}</strong></span>
         <span>Due<strong>QAR {formatQar(invoice.effectiveDue)}</strong></span>
-      </div>
+      </div>}
       {uncertain && attempt ? <div className={styles.paymentReview}>
         <p role="alert">Payment status is uncertain. This exact payment command is still pending. Retry it before starting another payment.</p>
         <button type="button" onClick={savePayment} disabled={disabled || busy}>{busy ? "Retrying…" : "Retry payment"}</button>

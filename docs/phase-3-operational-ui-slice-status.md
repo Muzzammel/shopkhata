@@ -1,3 +1,9 @@
+# Current invoice operations status ? 2026-10-03
+
+BIG SLICE 1 implements governed financial correction and immutable non-financial replacement workflows, canonical detail/payment operations, effective-version reads, and historical/current duplicate navigation. See [implemented semantics](invoice-operations.md) and [executed verification](invoice-operations-verification.md). The audit gate is reported separately; no dependency waiver or upgrade is implied.
+
+## Historical foundation status before BIG SLICE 1
+
 # Phase 3 operational UI slice status
 
 The current invoice-entry slice serves the seeded Shop 1 staff workflow. It selects the first shop visible to the signed-in actor and does not expose a shop picker.
