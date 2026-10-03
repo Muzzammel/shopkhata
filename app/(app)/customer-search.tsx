@@ -7,15 +7,17 @@ import type { WorkspaceCustomer } from "@/lib/shop-workspace";
 import { searchShopCustomers } from "./workspace-actions";
 import styles from "./invoice-entry.module.css";
 
-export function CustomerSearch({ shopId, disabled, onSelect }: {
+export function CustomerSearch({ shopId, disabled, onSelect, initial = null }: {
   shopId: string;
   disabled: boolean;
+  /** Customer already linked to this row, e.g. from a restored draft. */
+  initial?: WorkspaceCustomer | null;
   onSelect: (customer: WorkspaceCustomer | null) => void;
 }) {
   const id = useId();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<WorkspaceCustomer[]>([]);
-  const [selected, setSelected] = useState<WorkspaceCustomer | null>(null);
+  const [selected, setSelected] = useState<WorkspaceCustomer | null>(initial);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [nextOffset, setNextOffset] = useState(0);

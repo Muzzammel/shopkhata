@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { APP_NAME } from "@/lib/domain/constants";
 
 import "./globals.css";
+import { Pwa } from "./pwa";
 
 export const metadata: Metadata = {
   title: APP_NAME,
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body><Pwa />{children}</body>
     </html>
   );
 }

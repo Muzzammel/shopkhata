@@ -93,7 +93,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     request.nextUrl.pathname === "/login" ||
     request.nextUrl.pathname.startsWith("/login/");
 
-  if (isLoginRoute || claims) {
+  // The offline page is static and carries no server data; the service worker
+  // must be able to fetch it without a session.
+  if (isLoginRoute || claims || request.nextUrl.pathname === "/offline") {
     return response;
   }
 

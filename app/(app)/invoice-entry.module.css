@@ -8,3 +8,7 @@
 .operationFields { display: grid; gap: 0.75rem; margin: 1rem 0; border: 1px solid var(--border, #ddd); padding: 1rem; }
 .operationFields label { display: grid; gap: .35rem; }
 .operationFields input, .operationFields select, .operationFields textarea { max-width: 100%; padding: .6rem; font: inherit; }
+
+.draftBar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;min-height:1.5em;margin-bottom:14px;color:#52606d;font-size:.9rem}.draftStatus{font-weight:700;color:#145778}.stale{color:#9a3412;margin-bottom:12px}
+.importPanel{display:grid;gap:10px;margin-bottom:18px;padding:14px;border:1px dashed #bdcbd8;border-radius:12px}.importControls{display:flex;flex-wrap:wrap;align-items:end;gap:12px}.importPanel label{display:grid;gap:6px;color:#425466;font-size:.85rem;font-weight:600}.importPanel textarea{width:100%;border:1px solid #bdcbd8;border-radius:8px;padding:8px;font:inherit}.importPanel summary{cursor:pointer;color:#145778;font-weight:600}.importPreview{display:grid;gap:10px}.importTable{overflow-x:auto}.importTable table{width:100%;border-collapse:collapse;font-size:.9rem}.importTable th,.importTable td{text-align:left;padding:6px 10px;border-bottom:1px solid #e5ebf0}
+.exportForm{display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin-top:18px;padding-top:16px;border-top:1px solid #e5ebf0}.exportForm label{display:grid;gap:6px;color:#425466;font-size:.85rem;font-weight:600}.exportForm input{border:1px solid #bdcbd8;border-radius:8px;padding:8px 10px;font:inherit}

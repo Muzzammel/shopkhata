@@ -1,9 +1,10 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { clearSessionMarker } from "@/lib/offline/draft-store";
 import { createBrowserClient } from "@/lib/supabase/browser";
 
 function safeDestination(): string {
@@ -22,6 +23,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isPending, setIsPending] = useState(false);
+  // Reaching this page means there is no live session, so the offline page
+  // must stop opening the previous user's draft until someone signs in.
+  useEffect(() => { void clearSessionMarker(); }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
