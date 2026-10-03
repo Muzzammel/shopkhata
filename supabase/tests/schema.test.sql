@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(128);
+select plan(161);
 
 create function pg_temp.query_returns_true(query text)
 returns boolean
@@ -50,6 +50,7 @@ select col_type_is('public', 'invoices', 'total_amount_dirham', 'bigint', 'invoi
 select col_type_is('public', 'payments', 'amount_dirham', 'bigint', 'payment amounts use bigint dirhams');
 select col_type_is('public', 'customer_credits', 'amount_dirham', 'bigint', 'customer-credit amounts use bigint dirhams');
 select col_type_is('public', 'expenses', 'amount_dirham', 'bigint', 'expense amounts use bigint dirhams');
+select has_column('public', 'expenses', 'backdated_reason', 'backdated expenses retain the required reason');
 select col_type_is('public', 'corrections', 'amount_delta_dirham', 'bigint', 'correction deltas use bigint dirhams');
 
 select ok(
@@ -1139,6 +1140,8 @@ select ok(
     select 1
     from unnest(array[
       'batches', 'invoices', 'payments', 'customer_credits', 'expenses',
+      'customer_payment_batches','credit_application_batches','credit_applications',
+      'expense_correction_requests','expense_correction_decisions',
       'corrections', 'daily_closes', 'audit_events', 'invoice_number_registry'
     ]) as protected(table_name)
     cross join unnest(array['anon', 'authenticated']) as app(role_name)
@@ -1161,6 +1164,8 @@ select ok(
     select 1
     from unnest(array[
       'batches', 'invoices', 'payments', 'customer_credits', 'expenses',
+      'customer_payment_batches','credit_application_batches','credit_applications',
+      'expense_correction_requests','expense_correction_decisions',
       'corrections', 'daily_closes', 'audit_events', 'invoice_number_registry'
     ]) as protected(table_name)
     where not exists (
@@ -1174,5 +1179,37 @@ select ok(
   'financial event tables have append-only triggers'
 );
 
+select has_table('public','customer_payment_batches','customer-wide payments have immutable request headers');
+select has_table('public','credit_application_batches','credit applications have immutable request headers');
+select has_table('public','credit_applications','credit allocations are immutable events');
+select has_table('public','expense_correction_requests','expense corrections have immutable requests');
+select has_table('public','expense_correction_decisions','expense corrections have immutable decisions');
+select has_view('public','customer_financial_balances','customer due and available credit share one projection');
+select has_view('public','customer_ledger','customer ledger is derived from authoritative financial events');
+select has_view('public','effective_expenses','expenses expose approved effective corrections');
+select has_column('public','expenses','category','expenses have a controlled category');
+select has_column('public','expenses','idempotency_key','expense creation supports idempotent retry');
+select has_column('public','payments','customer_payment_batch_id','customer payments retain their allocation batch');
+select has_column('public','attachments','expense_id','receipt metadata references its expense');
+select ok(exists(select 1 from pg_constraint where conname='expenses_amount_nonnegative' and conrelid='public.expenses'::regclass),'expense table preserves the existing non-negative amount invariant');
+select ok(exists(select 1 from pg_trigger where tgrelid='public.attachments'::regclass and tgname='attachments_append_only' and not tgisinternal),'attachment metadata is append-only');
+select ok(exists(select 1 from storage.buckets where id='expense-receipts' and public=false and file_size_limit=10485760 and allowed_mime_types=array['image/jpeg','image/png','image/webp','application/pdf']),'expense receipts use a private bounded image/PDF bucket');
+select ok(to_regprocedure('public.create_customer(jsonb)') is not null,'customer creation uses an authenticated database command');
+select ok(to_regprocedure('public.record_customer_payment(jsonb)') is not null,'customer payments allocate through one database command');
+select ok(to_regprocedure('public.apply_customer_credit(jsonb)') is not null,'approved customer credit is applied through one database command');
+select ok(to_regprocedure('public.create_expense(jsonb)') is not null,'expense creation uses an idempotent database command');
+select ok(to_regprocedure('public.request_expense_correction(jsonb)') is not null,'expense correction requests are governed');
+select ok(to_regprocedure('public.decide_expense_correction(jsonb)') is not null,'expense correction decisions are governed');
+select ok(to_regprocedure('public.register_expense_attachment(jsonb)') is not null,'expense receipt metadata is linked through an authorized command');
+select ok(has_function_privilege('authenticated','public.record_customer_payment(jsonb)','EXECUTE'),'authenticated actors may call the customer payment command');
+select ok(not has_function_privilege('anon','public.record_customer_payment(jsonb)','EXECUTE'),'anonymous actors cannot call the customer payment command');
+select ok(has_function_privilege('authenticated','public.apply_customer_credit(jsonb)','EXECUTE'),'authenticated actors may call credit application');
+select ok(not has_function_privilege('anon','public.apply_customer_credit(jsonb)','EXECUTE'),'anonymous actors cannot apply customer credit');
+select ok(has_function_privilege('authenticated','public.create_expense(jsonb)','EXECUTE'),'authenticated actors may create expenses');
+select ok(not has_function_privilege('anon','public.create_expense(jsonb)','EXECUTE'),'anonymous actors cannot create expenses');
+select ok(exists(select 1 from pg_policy where polrelid='storage.objects'::regclass and polname='expense_receipts_shop_read'),'receipt downloads require an authorized shop object policy');
+select ok(exists(select 1 from pg_policy where polrelid='storage.objects'::regclass and polname='expense_receipts_shop_insert'),'receipt uploads require an authorized shop object policy');
+select ok(not has_table_privilege('authenticated','public.expenses','INSERT') and not has_table_privilege('authenticated','public.attachments','INSERT'),'expense and receipt metadata cannot bypass command RPCs');
+select ok(not has_table_privilege('authenticated','public.customer_payment_batches','UPDATE') and not has_table_privilege('authenticated','public.credit_applications','DELETE'),'customer payment and credit history remain append-only');
 select * from finish();
 rollback;

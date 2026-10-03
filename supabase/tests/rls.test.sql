@@ -594,14 +594,10 @@ select ok(
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.proname = 'approve_overpayment'
   )
-  and not exists (
-    select 1 from pg_proc p
-    join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname in ('public', 'private')
-      and p.prokind = 'f'
-      and p.proname = 'create_expense'
-  ),
-  'Phase 3C implements submit_batch, record_payment, and approve_overpayment, not create_expense'
+  and exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_expense')
+  and exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='record_customer_payment')
+  and exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='apply_customer_credit'),
+  'customer payment, credit, and expense operations use scoped database RPCs'
 );
 select ok(
   exists (select 1 from pg_namespace where nspname = 'private'),

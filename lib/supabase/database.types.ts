@@ -6,6 +6,8 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+type TableShape<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relationships: [] };
+
 export type Database = {
   graphql_public: {
     Tables: {
@@ -44,6 +46,9 @@ export type Database = {
           file_name: string
           file_path: string
           id: string
+          idempotency_key: string | null
+          fingerprint: string | null
+          expense_id: string | null
           invoice_id: string | null
           note: string | null
           shop_id: string
@@ -57,6 +62,9 @@ export type Database = {
           file_name: string
           file_path: string
           id?: string
+          idempotency_key?: string | null
+          fingerprint?: string | null
+          expense_id?: string | null
           invoice_id?: string | null
           note?: string | null
           shop_id: string
@@ -70,6 +78,9 @@ export type Database = {
           file_name?: string
           file_path?: string
           id?: string
+          idempotency_key?: string | null
+          fingerprint?: string | null
+          expense_id?: string | null
           invoice_id?: string | null
           note?: string | null
           shop_id?: string
@@ -119,6 +130,26 @@ export type Database = {
           },
         ]
       }
+      customer_payment_batches: TableShape<{
+        id: string; shop_id: string; customer_id: string; amount_dirham: number; business_date: string;
+        idempotency_key: string; fingerprint: string; idempotency_result: Json; created_by: string; recorded_at: string;
+      }>
+      credit_application_batches: TableShape<{
+        id: string; shop_id: string; customer_id: string; amount_dirham: number; business_date: string;
+        idempotency_key: string; fingerprint: string; idempotency_result: Json; created_by: string; recorded_at: string;
+      }>
+      credit_applications: TableShape<{
+        id: string; shop_id: string; customer_id: string; batch_id: string; credit_id: string; invoice_id: string;
+        amount_dirham: number; business_date: string; recorded_at: string; created_by: string;
+      }>
+      expense_correction_requests: TableShape<{
+        id: string; shop_id: string; expense_id: string; amount_dirham: number; expected_correction_request_id: string | null; category: string; description: string;
+        reason: string; requested_by: string; requested_at: string; idempotency_key: string; fingerprint: string;
+      }>
+      expense_correction_decisions: TableShape<{
+        id: string; shop_id: string; request_id: string; expense_id: string; decision: string; reason: string | null;
+        decided_by: string; decided_at: string; idempotency_key: string; fingerprint: string;
+      }>
       audit_events: {
         Row: {
           action: string
@@ -175,8 +206,8 @@ export type Database = {
       }
       batches: {
         Row: {
-          backdated_reason: string | null
           business_date: string
+          backdated_reason: string | null
           created_at: string
           created_by: string | null
           fingerprint: string | null
@@ -188,8 +219,8 @@ export type Database = {
           shop_id: string
         }
         Insert: {
-          backdated_reason?: string | null
           business_date: string
+          backdated_reason?: string | null
           created_at?: string
           created_by?: string | null
           fingerprint?: string | null
@@ -201,8 +232,8 @@ export type Database = {
           shop_id: string
         }
         Update: {
-          backdated_reason?: string | null
           business_date?: string
+          backdated_reason?: string | null
           created_at?: string
           created_by?: string | null
           fingerprint?: string | null
@@ -672,9 +703,14 @@ export type Database = {
         Row: {
           amount_dirham: number
           business_date: string
+          backdated_reason: string | null
           created_at: string
           created_by: string | null
           description: string
+          category: string
+          idempotency_key: string | null
+          fingerprint: string | null
+          idempotency_result: Json | null
           id: string
           recorded_at: string
           shop_id: string
@@ -682,9 +718,14 @@ export type Database = {
         Insert: {
           amount_dirham: number
           business_date: string
+          backdated_reason?: string | null
           created_at?: string
           created_by?: string | null
           description: string
+          category?: string
+          idempotency_key?: string | null
+          fingerprint?: string | null
+          idempotency_result?: Json | null
           id?: string
           recorded_at?: string
           shop_id: string
@@ -692,9 +733,14 @@ export type Database = {
         Update: {
           amount_dirham?: number
           business_date?: string
+          backdated_reason?: string | null
           created_at?: string
           created_by?: string | null
           description?: string
+          category?: string
+          idempotency_key?: string | null
+          fingerprint?: string | null
+          idempotency_result?: Json | null
           id?: string
           recorded_at?: string
           shop_id?: string
@@ -859,6 +905,7 @@ export type Database = {
           business_date: string
           created_at: string
           created_by: string | null
+          customer_payment_batch_id: string | null
           fingerprint: string | null
           id: string
           idempotency_key: string | null
@@ -874,6 +921,7 @@ export type Database = {
           business_date: string
           created_at?: string
           created_by?: string | null
+          customer_payment_batch_id?: string | null
           fingerprint?: string | null
           id?: string
           idempotency_key?: string | null
@@ -889,6 +937,7 @@ export type Database = {
           business_date?: string
           created_at?: string
           created_by?: string | null
+          customer_payment_batch_id?: string | null
           fingerprint?: string | null
           id?: string
           idempotency_key?: string | null
@@ -1193,6 +1242,7 @@ export type Database = {
           effective_due_dirham: number | null
           effective_invoice_number: string | null
           effective_paid_dirham: number | null
+          effective_credit_applied_dirham: number | null
           effective_total_dirham: number | null
           original_invoice_number: string | null
           original_total_dirham: number | null
@@ -1249,6 +1299,18 @@ export type Database = {
           },
         ]
       }
+      customer_financial_balances: {
+        Row: { shop_id: string | null; customer_id: string | null; outstanding_due_dirham: number | null; available_credit_dirham: number | null; invoice_count: number | null; last_activity_date: string | null }
+        Relationships: []
+      }
+      customer_ledger: {
+        Row: { shop_id: string | null; customer_id: string | null; business_date: string | null; recorded_at: string | null; sequence_id: string | null; entry_type: string | null; reference: string | null; invoice_number: string | null; actor_id: string | null; invoice_id: string | null; debit_dirham: number | null; credit_dirham: number | null }
+        Relationships: []
+      }
+      effective_expenses: {
+        Row: { id: string | null; shop_id: string | null; business_date: string | null; recorded_at: string | null; created_by: string | null; description: string | null; amount_dirham: number | null; category: string | null; correction_request_id: string | null; backdated_reason: string | null }
+        Relationships: []
+      }
     }
     Functions: {
       approve_overpayment: { Args: { command: Json }; Returns: Json }
@@ -1258,6 +1320,13 @@ export type Database = {
       request_invoice_correction: { Args: { command: Json }; Returns: Json }
       request_invoice_replacement: { Args: { command: Json }; Returns: Json }
       submit_batch: { Args: { command: Json }; Returns: Json }
+      create_customer: { Args: { command: Json }; Returns: Json }
+      record_customer_payment: { Args: { command: Json }; Returns: Json }
+      apply_customer_credit: { Args: { command: Json }; Returns: Json }
+      create_expense: { Args: { command: Json }; Returns: Json }
+      request_expense_correction: { Args: { command: Json }; Returns: Json }
+      decide_expense_correction: { Args: { command: Json }; Returns: Json }
+      register_expense_attachment: { Args: { command: Json }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
