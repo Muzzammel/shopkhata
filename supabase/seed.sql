@@ -58,7 +58,7 @@ insert into auth.users (
     'authenticated',
     'authenticated',
     'staff2@shopkhata.local',
-    '',
+    crypt('ShopKhata-Local-Shop2-E2E-Only-2026!', gen_salt('bf')),
     now(),
     '',
     '',
@@ -92,6 +92,7 @@ on conflict (id) do update set
     when auth.users.id in (
       '10000000-0000-4000-8000-000000000101',
       '10000000-0000-4000-8000-000000000102',
+      '10000000-0000-4000-8000-000000000103',
       '10000000-0000-4000-8000-000000000104'
     ) then excluded.encrypted_password
     else auth.users.encrypted_password
@@ -100,6 +101,7 @@ on conflict (id) do update set
     when auth.users.id in (
       '10000000-0000-4000-8000-000000000101',
       '10000000-0000-4000-8000-000000000102',
+      '10000000-0000-4000-8000-000000000103',
       '10000000-0000-4000-8000-000000000104'
     ) then excluded.email_confirmed_at
     else auth.users.email_confirmed_at
@@ -136,6 +138,19 @@ on conflict (provider_id, provider) do update set
   created_at = excluded.created_at,
   updated_at = excluded.updated_at,
   last_sign_in_at = excluded.last_sign_in_at;
+
+-- 1d. Seed the explicitly local-only email identity for the Shop 2 staff user
+insert into auth.identities (
+  id, user_id, identity_data, provider, provider_id, created_at, updated_at, last_sign_in_at
+) values (
+  '20000000-0000-4000-8000-000000000103',
+  '10000000-0000-4000-8000-000000000103',
+  '{"sub":"10000000-0000-4000-8000-000000000103","email":"staff2@shopkhata.local"}',
+  'email', '10000000-0000-4000-8000-000000000103', now(), now(), now()
+)
+on conflict (provider_id, provider) do update set
+  id = excluded.id, user_id = excluded.user_id, identity_data = excluded.identity_data,
+  created_at = excluded.created_at, updated_at = excluded.updated_at, last_sign_in_at = excluded.last_sign_in_at;
 
 -- 1b. Seed the explicitly local-only email identity for the E2E owner user
 insert into auth.identities (

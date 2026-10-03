@@ -1,23 +1,33 @@
 # Customer operations verification record
 
-Run date: 2026-10-03 (Qatar time). This record reports only commands executed in the current Big Slice 2 worktree.
+Run date: 2026-10-03 (Qatar time). Final verification was run on branch `phase-3-operational-ui`, based on implementation HEAD `a3f161d4f532893cc0069dbb3f8db0e79a424898`. No Daily Closing or other business feature was started.
 
-## Passed
+## Migration and local services
 
-- `pnpm.cmd typecheck` — exit 0; Next route type generation and TypeScript completed.
-- `pnpm.cmd lint` — exit 0; no ESLint warnings or errors on the final run.
-- `pnpm.cmd test --run` — exit 0; 12 test files and 61 tests passed.
-- `pnpm.cmd test --run --coverage` — exit 0; 12 files and 61 tests passed. Coverage: 72.11% statements, 70.20% branches, 71.95% functions, 75.50% lines.
-- `pnpm.cmd build` — exit 0; optimized Next.js production build completed and generated the Customers and Expenses routes.
-- `git diff --check` — exit 0; Git emitted only existing LF-to-CRLF working-copy notices.
+- Docker Desktop was present and running. Docker CLI 29.6.2 and its `desktop-linux` daemon responded successfully. The sandbox shell did not expose Docker on PATH; the installed per-user CLI was invoked directly through a scoped PATH.
+- Supabase CLI 2.115.0 is installed through the repository package. Its telemetry write had failed under the original user profile. CLI invocations used the supported `USERPROFILE` redirection to the writable temp directory and `SUPABASE_TELEMETRY_DISABLED=1`; application behavior was not changed for this workaround.
+- The unverified future-dated migration was renamed to `20261003090200_customer_ledger_and_expenses.sql`. It follows `20261003090100_invoice_overpayment_projection.sql` and does not collide.
+- The first clean reset caught an invalid replacement of `invoice_effective_balances`: the prior migration had renamed its first column to `canonical_invoice_id`. The new migration now preserves that column name and uses it for the subsequent view join. A schema assertion locks this contract.
+- `pnpm exec supabase start` and `pnpm exec supabase db reset --local` completed from a clean database. All 21 migrations applied in order and `supabase/seed.sql` completed.
 
-## Blocked or incomplete
+## Database and migration results
 
-- `pnpm.cmd test:integration:customer-expenses` — exit 1 during setup; 4 tests skipped. The suite reported `Prerequisite: local Supabase and Docker must be running.` The Supabase CLI also failed trying to write `C:\Users\Reem\.supabase\telemetry.json.tmp...` with `EPERM`.
-- `docker --version` — unavailable: `docker` is not recognized in this environment.
-- `pnpm.cmd test:e2e` — started the full 38-test Playwright run. Unauthenticated/login and some invoice cases passed; operational cases needing seeded local users failed to sign in. The new customer-expense case failed at its first post-login assertion because the browser remained on the sign-in page. The runner did not provide a final suite summary before it was interrupted after remaining alive with no further output; this is not a passing E2E result.
-- `pnpm.cmd audit --prod` and `pnpm.cmd audit` — both exited 1 because requests to `registry.npmjs.org` failed with `EACCES` / `fetch failed`. Current production advisory status was not refreshed in this run. The previously documented `braces@3.0.3` development advisory was not changed.
-- Supabase reset, pgTAP, database lint, integration suites, and migration-upgrade tests could not be run against a live local database because Docker is absent and the CLI is blocked by its telemetry-file write.
-- Frozen-lockfile install was not run: no dependency or lockfile changes were made.
+- `pnpm exec supabase test db --local` â€” PASS; 7 pgTAP files, **448 assertions**, zero skips. The schema suite plans 162 assertions; `customer_expenses.test.sql` plans and passes 33.
+- `pnpm exec supabase db lint --local` â€” exit 0. It reports six existing warnings in `private.is_valid_date_text` and `public.submit_batch` (immutability/stability, two text-to-array assignments, two loop-variable shadow notices, and one unused variable). No warning is attributed to the Big Slice 2 migration.
+- `pnpm run test:migration-upgrade` â€” PASS; 2 files, **5 tests**, including the supported legacy schema checkpoint and restoration to the complete seeded chain.
+- All five live Supabase integration suites passed with zero skips: batches **8**, payments **5**, overpayment/credit **5**, invoice operations **9**, and customer/expenses/receipts **4**. These include FIFO payment allocation and races, credit issuance/application and races, expense retry/correction/approval, and real Storage upload/read, MIME/size rejection, generated UUID paths, registration idempotency, and shop isolation.
 
-The pgTAP plan counts are 161 schema assertions and 33 customer/expense lifecycle assertions. Their SQL has been added but remains source-inspected rather than executed. Big Slice 1/Invoice Operations is not certified by the blocked full Playwright and database gates in this environment.
+## Application regression and audits
+
+- `pnpm.cmd test:e2e --workers=1` â€” PASS; **38/38 Playwright tests**. This includes the new customer/expense workflow and all Big Slice 1 invoice tests. Running with one worker avoids shared seeded-database contention. A separate six-worker run passed 37/38 and timed out while filling the customer payment amount; the complete serial run passed.
+- `pnpm.cmd lint` â€” PASS.
+- `pnpm.cmd typecheck` â€” PASS; Next route type generation and TypeScript completed.
+- `pnpm.cmd test --run` â€” PASS; 12 files, **61 tests**.
+- `pnpm.cmd test --run --coverage` â€” PASS; 12 files, **61 tests**. Coverage: **72.00% statements, 70.11% branches, 71.95% functions, 75.35% lines**.
+- `pnpm.cmd build` â€” PASS; optimized production build completed with Customers and Expenses routes.
+- `pnpm.cmd install --frozen-lockfile` â€” PASS (`Already up to date`); `pnpm-lock.yaml` remained unchanged.
+- `pnpm.cmd audit --prod` â€” PASS; no known production vulnerabilities.
+- `pnpm.cmd audit` â€” exit 1 for only the documented high-severity dev-only `braces@3.0.3` advisory in the `eslint-config-next` path. The advisory has no published patched version and was not suppressed or changed.
+- `git diff --check` â€” PASS; no whitespace errors. Git emitted only existing LF-to-CRLF working-copy notices.
+
+The first pgTAP run also exposed two fixture issues (temporary result-table grants and UUID/text comparison); both were corrected and the complete 448-assertion suite then passed. The first customer integration run exposed a missing local Shop 2 staff password/identity; the local-only seed now provides it, and the final customer suite passes. These verification corrections do not alter production credentials or remote data.

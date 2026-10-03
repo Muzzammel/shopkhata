@@ -13,6 +13,7 @@ create temporary table test_payment_result(result jsonb);
 create temporary table test_credit_result(result jsonb);
 create temporary table test_expense_result(result jsonb);
 create temporary table test_correction_result(result jsonb);
+grant all on test_payment_result,test_credit_result,test_expense_result,test_correction_result to authenticated;
 
 set local role authenticated;
 set local request.jwt.claims='{"role":"authenticated","sub":"10000000-0000-4000-8000-000000000102"}';
@@ -33,7 +34,7 @@ select is((select (result->'allocations'->1->>'amount_dirham')::int from test_pa
 select is((select effective_due_dirham from public.effective_invoices where canonical_invoice_id='a1000000-0000-4000-8000-000000000002'),100::bigint,'second invoice retains its unpaid due');
 select is((select outstanding_due_dirham from public.customer_financial_balances where shop_id='10000000-0000-4000-8000-000000000001' and customer_id='c1000000-0000-4000-8000-000000000001'),150::bigint,'customer due equals all remaining invoice obligations');
 select is((select sum(debit_dirham-credit_dirham)::bigint from public.customer_ledger where shop_id='10000000-0000-4000-8000-000000000001' and customer_id='c1000000-0000-4000-8000-000000000001'),150::bigint,'ledger net balance reconciles to the customer balance');
-select is((select count(*)::int from public.payments where customer_payment_batch_id=(select result->>'batch_id' from test_payment_result)),2,'one immutable payment allocation exists per affected invoice');
+select is((select count(*)::int from public.payments where customer_payment_batch_id=(select (result->>'batch_id')::uuid from test_payment_result)),2,'one immutable payment allocation exists per affected invoice');
 select is((public.record_customer_payment(jsonb_build_object('shop_id','10000000-0000-4000-8000-000000000001','customer_id','c1000000-0000-4000-8000-000000000001','amount_dirham',400,'business_date',current_date::text,'idempotency_key','customer-payment-1'))->>'batch_id'),(select result->>'batch_id' from test_payment_result),'an exact customer-payment retry returns its original batch');
 select throws_ok($$select public.record_customer_payment(jsonb_build_object('shop_id','10000000-0000-4000-8000-000000000001','customer_id','c1000000-0000-4000-8000-000000000001','amount_dirham',151,'business_date',current_date::text,'idempotency_key','customer-payment-too-large'))$$,'P0001','AMOUNT_EXCEEDS_DUE','customer payment cannot exceed authoritative due');
 

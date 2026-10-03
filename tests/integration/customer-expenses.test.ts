@@ -18,7 +18,7 @@ describe("customer ledger, allocated payments, governed credit and expenses",()=
   try{supabase(["migration","list","--local"],30_000);}catch{throw new Error("Prerequisite: local Supabase and Docker must be running.");}
   available=true;supabase(["db","reset","--local"]);const env=parseEnv(supabase(["status","-o","env"],30_000));credentials={url:env.API_URL,key:env.PUBLISHABLE_KEY??env.ANON_KEY};
   async function login(email:string,password:string){const client=createClient(credentials.url,credentials.key);const {error}=await client.auth.signInWithPassword({email,password});if(error)throw error;return client;}
-  [staff,staff2,manager]=await Promise.all([login("staff1@shopkhata.local","ShopKhata-Local-E2E-Only-2026!"),login("staff2@shopkhata.local","ShopKhata-Local-E2E-Only-2026!"),login("manager@shopkhata.local","ShopKhata-Local-Manager-E2E-Only-2026!")]);
+  [staff,staff2,manager]=await Promise.all([login("staff1@shopkhata.local","ShopKhata-Local-E2E-Only-2026!"),login("staff2@shopkhata.local","ShopKhata-Local-Shop2-E2E-Only-2026!"),login("manager@shopkhata.local","ShopKhata-Local-Manager-E2E-Only-2026!")]);
  },SUITE_TIMEOUT);
  afterAll(()=>{if(available)supabase(["db","reset","--local"]);},SUITE_TIMEOUT);
  async function newCustomer(client:SupabaseClient,label:string,shopId=SHOP1){const {data,error}=await client.rpc("create_customer",{command:{shop_id:shopId,name:`Integration ${label} ${key()}`,mobile:null}});if(error)throw error;return data.customer_id as string;}
@@ -48,10 +48,13 @@ describe("customer ledger, allocated payments, governed credit and expenses",()=
   const denied=await staff.rpc("decide_expense_correction",{command:{shop_id:SHOP1,request_id:request.data.request_id,decision:"approved",idempotency_key:key()}});expect(denied.error?.message).toBe("INSUFFICIENT_ROLE");
   const approved=await manager.rpc("decide_expense_correction",{command:{shop_id:SHOP1,request_id:request.data.request_id,decision:"approved",idempotency_key:key()}});expect(approved.error).toBeNull();
   const {data:effective}=await staff.from("effective_expenses").select("amount_dirham,category").eq("shop_id",SHOP1).eq("id",expenseId).single();expect(effective?.amount_dirham).toBe(300);expect(effective?.category).toBe("utilities");
-  const path=`${SHOP1}/${expenseId}/${key()}.png`;const upload=await staff.storage.from("expense-receipts").upload(path,new Uint8Array([137,80,78,71]),{contentType:"image/png"});expect(upload.error).toBeNull();
+  const path=`${SHOP1}/${expenseId}/${key()}.png`;expect(path).toMatch(new RegExp(`^${SHOP1}/${expenseId}/[0-9a-f-]{36}\\.png$`));const upload=await staff.storage.from("expense-receipts").upload(path,new Uint8Array([137,80,78,71]),{contentType:"image/png"});expect(upload.error).toBeNull();
+  const invalidType=await staff.storage.from("expense-receipts").upload(`${SHOP1}/${expenseId}/${key()}.txt`,new Uint8Array([1]),{contentType:"text/plain"});expect(invalidType.error).not.toBeNull();
+  const oversized=await staff.storage.from("expense-receipts").upload(`${SHOP1}/${expenseId}/${key()}.pdf`,new Uint8Array(10*1024*1024+1),{contentType:"application/pdf"});expect(oversized.error).not.toBeNull();
+  const crossShopUpload=await staff2.storage.from("expense-receipts").upload(`${SHOP1}/${expenseId}/${key()}.png`,new Uint8Array([1]),{contentType:"image/png"});expect(crossShopUpload.error).not.toBeNull();
   const receiptKey=key();const metadata={shop_id:SHOP1,expense_id:expenseId,file_path:path,file_name:"receipt.png",content_type:"image/png",byte_size:4,idempotency_key:receiptKey};
   const [registered,duplicate]=await Promise.all([staff.rpc("register_expense_attachment",{command:metadata}),staff.rpc("register_expense_attachment",{command:metadata})]);expect(registered.error).toBeNull();expect(duplicate.error).toBeNull();expect(duplicate.data.attachment_id).toBe(registered.data.attachment_id);
-  const signed=await staff.storage.from("expense-receipts").createSignedUrl(path,60);expect(signed.error).toBeNull();
+  const signed=await staff.storage.from("expense-receipts").createSignedUrl(path,60);expect(signed.error).toBeNull();const read=await staff.storage.from("expense-receipts").download(path);expect(read.error).toBeNull();expect(read.data?.size).toBe(4);
   const crossShop=await staff2.storage.from("expense-receipts").createSignedUrl(path,60);expect(crossShop.error).not.toBeNull();
   const foreignExpense=await staff2.from("expenses").select("id").eq("shop_id",SHOP1).eq("id",expenseId);expect(foreignExpense.data).toEqual([]);
   const {count}=await staff.from("attachments").select("id",{count:"exact",head:true}).eq("shop_id",SHOP1).eq("file_path",path);expect(count).toBe(1);

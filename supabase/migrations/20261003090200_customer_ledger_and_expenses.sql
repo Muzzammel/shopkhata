@@ -90,7 +90,7 @@ create index expenses_shop_business_date_idx on public.expenses(shop_id,business
 -- Make approved credit applications part of the shared invoice due projection.
 -- Cash paid remains a separate amount; credit is exposed as its own column.
 create or replace view public.invoice_effective_balances with(security_invoker=true) as
-select i.id invoice_id,i.shop_id,
+select i.id canonical_invoice_id,i.shop_id,
  (i.total_amount_dirham+coalesce((select sum(c.amount_delta_dirham) from public.corrections c where c.shop_id=i.shop_id and c.invoice_id=i.id and c.approved_by is not null),0))::bigint effective_total_dirham,
  (coalesce((select sum(p.amount_dirham) from public.payments p where p.shop_id=i.shop_id and p.invoice_id=i.id),0)+coalesce((select sum(c.amount_delta_dirham) from public.corrections c where c.shop_id=i.shop_id and c.payment_id in(select p.id from public.payments p where p.shop_id=i.shop_id and p.invoice_id=i.id) and c.approved_by is not null),0))::bigint effective_paid_dirham,
  (i.total_amount_dirham+coalesce((select sum(c.amount_delta_dirham) from public.corrections c where c.shop_id=i.shop_id and c.invoice_id=i.id and c.approved_by is not null),0)-coalesce((select sum(p.amount_dirham) from public.payments p where p.shop_id=i.shop_id and p.invoice_id=i.id),0)-coalesce((select sum(c.amount_delta_dirham) from public.corrections c where c.shop_id=i.shop_id and c.payment_id in(select p.id from public.payments p where p.shop_id=i.shop_id and p.invoice_id=i.id) and c.approved_by is not null),0)-coalesce((select sum(a.amount_dirham) from public.credit_applications a where a.shop_id=i.shop_id and a.invoice_id=i.id),0))::bigint effective_due_dirham
@@ -105,7 +105,7 @@ select i.id as canonical_invoice_id, i.shop_id, i.invoice_id as original_invoice
  case when d.id is null then i.delivered else r.delivered end as effective_delivered,
  coalesce(d.revision,0) as revision,i.total_amount_dirham as original_total_dirham,i.business_date,i.recorded_at,i.created_by,
  b.effective_total_dirham,b.effective_paid_dirham,b.effective_due_dirham,coalesce(ca.amount_dirham,0)::bigint effective_credit_applied_dirham
-from public.invoices i join public.invoice_effective_balances b on b.invoice_id=i.id and b.shop_id=i.shop_id
+from public.invoices i join public.invoice_effective_balances b on b.canonical_invoice_id=i.id and b.shop_id=i.shop_id
 left join lateral(select rd.* from public.replacement_decisions rd where rd.invoice_id=i.id and rd.shop_id=i.shop_id and rd.decision='approved' order by rd.revision desc limit 1)d on true
 left join public.replacement_requests r on r.id=d.request_id and r.shop_id=i.shop_id
 left join lateral(select sum(a.amount_dirham) amount_dirham from public.credit_applications a where a.shop_id=i.shop_id and a.invoice_id=i.id)ca on true;
@@ -334,7 +334,7 @@ end $$;
 revoke all on function public.request_expense_correction(jsonb) from public,anon; grant execute on function public.request_expense_correction(jsonb) to authenticated;
 
 create or replace function public.decide_expense_correction(command jsonb) returns jsonb language plpgsql security definer set search_path='' as $$
-declare sid uuid; rid uuid; dec text; reason text; ik text; fp text; actor_role text; req record; prior record; current_correction uuid; did uuid:=gen_random_uuid(); res jsonb;
+declare sid uuid; rid uuid; dec text; reason text; ik text; fp text; actor_role text; req record; prior record; current_correction uuid; did uuid:=gen_random_uuid();
 begin
  if auth.uid() is null or not private.is_active_actor() then raise exception 'AUTHENTICATION_REQUIRED' using errcode='28000'; end if;
  if jsonb_typeof(command) is distinct from 'object' or not private.jsonb_object_keys_subset(command,array['shop_id','request_id','decision','reason','idempotency_key']) or not private.is_valid_uuid_text(command->>'shop_id') or not private.is_valid_uuid_text(command->>'request_id') then raise exception 'INVALID_REQUEST' using errcode='P0001'; end if;

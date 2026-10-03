@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(161);
+select plan(162);
 
 create function pg_temp.query_returns_true(query text)
 returns boolean
@@ -1187,6 +1187,7 @@ select has_table('public','expense_correction_decisions','expense corrections ha
 select has_view('public','customer_financial_balances','customer due and available credit share one projection');
 select has_view('public','customer_ledger','customer ledger is derived from authoritative financial events');
 select has_view('public','effective_expenses','expenses expose approved effective corrections');
+select has_column('public','invoice_effective_balances','canonical_invoice_id','invoice balance projection preserves the canonical invoice identifier');
 select has_column('public','expenses','category','expenses have a controlled category');
 select has_column('public','expenses','idempotency_key','expense creation supports idempotent retry');
 select has_column('public','payments','customer_payment_batch_id','customer payments retain their allocation batch');
