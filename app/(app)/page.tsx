@@ -7,13 +7,14 @@ import { readShopWorkspace } from "@/lib/shop-workspace";
 
 import { InvoiceEntry } from "./invoice-entry";
 
-export default async function Home() {
+export default async function Home({ searchParams }: PageProps<"/">) {
   const actor = await getCurrentActor();
   const supabase = await createServerSupabaseClient();
   const { data: shops, error: shopError } = await supabase.from("shops").select("id, name, is_active").eq("is_active", true).order("name");
   if (shopError || !shops) throw new Error("SHOP_VISIBILITY_UNAVAILABLE");
   const availableShops = getVisibleShops(actor, shops);
-  const shop = availableShops[0];
+  const query = await searchParams;
+  const shop = availableShops.find((s) => s.id === query.shop) ?? availableShops[0];
   if (!shop) throw new Error("SHOP_REQUIRED");
   const [{ data: profile, error: profileError }, workspace] = await Promise.all([
     supabase.from("profiles").select("display_name").eq("id", actor.id).single(),

@@ -27,9 +27,8 @@ export async function readShopWorkspace(actor: Actor, shopId: string): Promise<S
   const shop = shops.find((item) => item.id === shopId);
   if (!shop) throw new Error("UNAUTHORIZED_SHOP");
 
-  const { data: invoices, error: invoiceError } = await supabase.from("invoices")
-    .select("id, invoice_id, business_date, total_amount_dirham, delivered, customer_id, created_at")
-    .eq("shop_id", shop.id).order("created_at", { ascending: false }).limit(30);
+  const { data: invoices, error: invoiceError } = await supabase.from("effective_invoices")
+    .select("*").eq("shop_id", shop.id).order("recorded_at", { ascending: false }).order("canonical_invoice_id").limit(30);
   if (invoiceError || !invoices) throw new Error("INVOICE_WORKSPACE_UNAVAILABLE");
   const registry: { invoice_number: string }[] = [];
   for (let offset = 0; ; offset += 1000) {
@@ -39,27 +38,11 @@ export async function readShopWorkspace(actor: Actor, shopId: string): Promise<S
     registry.push(...data);
     if (data.length < 1000) break;
   }
-  const invoiceIds = invoices.map((invoice) => invoice.id);
-  const { data: balances, error: balanceError } = invoiceIds.length
-    ? await supabase.from("invoice_effective_balances")
-      .select("canonical_invoice_id, effective_total_dirham, effective_paid_dirham, effective_due_dirham")
-      .eq("shop_id", shop.id).in("canonical_invoice_id", invoiceIds)
-    : { data: [], error: null };
-  if (balanceError || !balances) throw new Error("INVOICE_BALANCES_UNAVAILABLE");
-  const balanceByInvoice = new Map(balances.map((balance) => [balance.canonical_invoice_id, balance]));
-  const recentInvoices = invoices.map((invoice) => {
-    const balance = balanceByInvoice.get(invoice.id);
-    if (!balance) throw new Error("INVOICE_BALANCE_MISSING");
-    return {
-      id: invoice.id,
-      invoice_id: invoice.invoice_id,
-      business_date: invoice.business_date,
-      effective_total_dirham: balance.effective_total_dirham,
-      effective_due_dirham: balance.effective_due_dirham,
-      delivered: invoice.delivered,
-      customer_id: invoice.customer_id,
-    };
-  });
+  const recentInvoices = invoices.map((invoice) => ({
+    id: invoice.canonical_invoice_id!, invoice_id: invoice.effective_invoice_number!, business_date: invoice.business_date!,
+    effective_total_dirham: invoice.effective_total_dirham!, effective_due_dirham: invoice.effective_due_dirham!,
+    delivered: invoice.effective_delivered!, customer_id: invoice.effective_customer_id,
+  }));
   return {
     shop: { id: shop.id, name: shop.name },
     invoices: recentInvoices,

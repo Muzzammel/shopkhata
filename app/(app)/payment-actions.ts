@@ -34,24 +34,18 @@ export async function lookupInvoiceForPayment(raw: unknown): Promise<PaymentLook
     .select("canonical_invoice_id").eq("shop_id", parsed.data.shopId)
     .eq("normalized_invoice_number", parsed.data.invoiceNumber.toLowerCase()).maybeSingle();
   if (registryError || !registeredNumber) return { ok: false, message: "No matching invoice was found in this shop." };
-  const { data: invoice, error } = await supabase.from("invoices")
-    .select("id, invoice_id").eq("shop_id", parsed.data.shopId)
-    .eq("id", registeredNumber.canonical_invoice_id).maybeSingle();
+  const { data: invoice, error } = await supabase.from("effective_invoices")
+    .select("canonical_invoice_id, effective_invoice_number, effective_total_dirham, effective_paid_dirham, effective_due_dirham").eq("shop_id", parsed.data.shopId)
+    .eq("canonical_invoice_id", registeredNumber.canonical_invoice_id).maybeSingle();
   if (error || !invoice) return { ok: false, message: "No matching invoice was found in this shop." };
-  const { data: balance, error: balanceError } = await supabase.from("invoice_effective_balances")
-    .select("canonical_invoice_id, effective_total_dirham, effective_paid_dirham, effective_due_dirham")
-    .eq("shop_id", parsed.data.shopId).eq("canonical_invoice_id", invoice.id).maybeSingle();
-  if (balanceError || !balance || balance.canonical_invoice_id !== invoice.id) {
-    return { ok: false, message: "The invoice balance could not be loaded." };
-  }
   return {
     ok: true,
     invoice: {
-      id: invoice.id,
-      invoiceNumber: invoice.invoice_id,
-      effectiveTotal: balance.effective_total_dirham,
-      effectivePaid: balance.effective_paid_dirham,
-      effectiveDue: balance.effective_due_dirham,
+      id: invoice.canonical_invoice_id!,
+      invoiceNumber: invoice.effective_invoice_number!,
+      effectiveTotal: invoice.effective_total_dirham!,
+      effectivePaid: invoice.effective_paid_dirham!,
+      effectiveDue: invoice.effective_due_dirham!,
     },
   };
 }
@@ -90,5 +84,6 @@ export async function recordInvoicePayment(raw: unknown): Promise<PaymentActionR
     return { ok: false, uncertain: true, message: "Payment status is uncertain. Retry the same payment command." };
   }
   revalidatePath("/");
+  revalidatePath(`/shops/${command.shop_id}/invoices/${command.invoice_id}`);
   return { ok: true, receipt: data };
 }

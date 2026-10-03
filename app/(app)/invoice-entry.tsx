@@ -1,12 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 import { formatQar } from "@/lib/domain/money";
 import { prepareInvoiceBatch, qatarBusinessDate, selectInvoiceAttempt, type EntryError, type EntryRow, type InvoiceEntryInput } from "@/lib/invoice-entry";
 import { getShopSwitchDisposition, type ShopChoice } from "@/lib/shop-switching";
 import type { WorkspaceInvoice } from "@/lib/shop-workspace";
 
+import { DuplicateInvoiceWarning } from "./duplicate-invoice-warning";
+import { normalizeInvoiceNumber } from "@/lib/invoice-operations";
 import { CustomerSearch } from "./customer-search";
 import { saveInvoiceBatch, type SaveResult } from "./invoice-actions";
 import { InvoicePayment } from "./invoice-payment";
@@ -239,6 +242,7 @@ export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, invoi
             <label>New customer name<input value={row.customerName} disabled={workspaceLocked || batchUncertain || Boolean(row.customerId)} onChange={(event) => updateRow(row.rowId, { customerName: event.target.value })} /></label>
             <label>New customer mobile<input value={row.customerMobile} disabled={workspaceLocked || batchUncertain || Boolean(row.customerId)} onChange={(event) => updateRow(row.rowId, { customerMobile: event.target.value })} /></label>
           </div>
+          {duplicateNumbers.some((n) => normalizeInvoiceNumber(n) === normalizeInvoiceNumber(row.invoiceId)) && <DuplicateInvoiceWarning key={`${currentShop.id}:${row.invoiceId}`} shopId={currentShop.id} number={row.invoiceId} />}
           {rowErrors(row.rowId).length > 0 && <ul className={styles.errors}>{rowErrors(row.rowId).map((error, i) => <li key={`${error.field}-${i}`}>{error.message}</li>)}</ul>}
         </div>)}
       </div>
@@ -258,9 +262,9 @@ export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, invoi
     </section>
     <section className={styles.panel} aria-labelledby="recent-title">
       <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Saved records</p><h2 id="recent-title">Recent invoices</h2></div><p>{currentShop.name}</p></div>
-      {currentInvoices.length === 0 ? <p>No invoices saved yet.</p> : <div className={styles.savedList}>{currentInvoices.map((invoice) => <div className={styles.saved} key={invoice.id}>
+      {currentInvoices.length === 0 ? <p>No invoices saved yet.</p> : <div className={styles.savedList}>{currentInvoices.map((invoice) => <Link className={styles.saved} href={`/shops/${currentShop.id}/invoices/${invoice.id}`} key={invoice.id} aria-label={`View invoice ${invoice.invoice_id}`}>
         <strong>{invoice.invoice_id}</strong><span>{invoice.business_date}</span><span>{invoice.delivered ? invoice.effective_due_dirham <= 0 ? "Delivered · paid" : "Delivered · due" : "Advance"}</span><span>QAR {formatQar(invoice.effective_total_dirham)}</span><span>Due QAR {formatQar(invoice.effective_due_dirham)}</span>
-      </div>)}</div>}
+      </Link>)}</div>}
     </section>
     <InvoicePayment key={currentShop.id} shopId={currentShop.id} disabled={switching || busy} onActivityChange={reportPaymentActivity} onSaved={({ invoiceId, effectiveDue }) => {
       const generation = workspaceGenerationRef.current;

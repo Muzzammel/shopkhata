@@ -10,15 +10,17 @@ import styles from "./invoice-entry.module.css";
 
 type PaymentInvoice = Extract<PaymentLookup, { ok: true }>["invoice"];
 
-export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onActivityChange }: {
+export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onActivityChange, initialInvoice }: {
+  initialInvoice?: PaymentInvoice;
   shopId: string;
   disabled: boolean;
   onSaved: (payment: { invoiceId: string; effectiveDue: number }) => void;
   onStateChange: (state: { hasDraft: boolean; uncertain: boolean }) => void;
   onActivityChange: (active: boolean) => void;
 }) {
+  const preselected = Boolean(initialInvoice);
   const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [invoice, setInvoice] = useState<PaymentInvoice | null>(null);
+  const [invoice, setInvoice] = useState<PaymentInvoice | null>(initialInvoice ?? null);
   const [lookupMessage, setLookupMessage] = useState("");
   const [amount, setAmount] = useState("");
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
@@ -28,10 +30,16 @@ export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onAct
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [saved, setSaved] = useState(false);
+  const sourceVersion = initialInvoice ? `${initialInvoice.id}:${initialInvoice.invoiceNumber}:${initialInvoice.effectiveTotal}:${initialInvoice.effectivePaid}:${initialInvoice.effectiveDue}` : "";
+  const [lastSourceVersion, setLastSourceVersion] = useState(sourceVersion);
+  if (sourceVersion !== lastSourceVersion && initialInvoice && !uncertain && !attempt && !busy) {
+    setLastSourceVersion(sourceVersion);
+    setInvoice(initialInvoice);
+  }
   useEffect(() => {
-    const hasDraft = !saved && Boolean(invoiceNumber.trim() || invoice || amount.trim() || review);
+    const hasDraft = !saved && Boolean(invoiceNumber.trim() || (!preselected && invoice) || amount.trim() || review);
     onStateChange({ hasDraft, uncertain });
-  }, [amount, invoice, invoiceNumber, onStateChange, review, saved, uncertain]);
+  }, [amount, preselected, invoice, invoiceNumber, onStateChange, review, saved, uncertain]);
 
   async function lookup() {
     if (disabled || busy) return;
@@ -100,8 +108,8 @@ export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onAct
     try {
       const result = await recordInvoicePayment(attempt);
       if (!result.ok) {
-        setUncertain(result.uncertain);
-        onStateChange({ hasDraft: true, uncertain: result.uncertain });
+        setUncertain(uncertain || result.uncertain);
+        onStateChange({ hasDraft: true, uncertain: uncertain || result.uncertain });
         setMessage(result.message);
         return;
       }
@@ -140,10 +148,10 @@ export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onAct
       <div><p className={styles.eyebrow}>Existing invoice</p><h2 id="payment-title">Record Payment</h2></div>
       <p>Record cash against an existing invoice. This does not create an invoice.</p>
     </div>
-    <form className={styles.lookup} onSubmit={(event) => { event.preventDefault(); void lookup(); }}>
+    {!initialInvoice && <form className={styles.lookup} onSubmit={(event) => { event.preventDefault(); void lookup(); }}>
       <label>Invoice number<input aria-label="Invoice number" value={invoiceNumber} onChange={(event) => { if (!disabled && !busy) setInvoiceNumber(event.target.value); }} disabled={disabled || busy} maxLength={120} /></label>
       <button type="submit" disabled={disabled || !invoiceNumber.trim() || busy}>Find invoice</button>
-    </form>
+    </form>}
     {lookupMessage && <p role="alert">{lookupMessage}</p>}
     {invoice && <div className={styles.paymentDetails}>
       <h3>{invoice.invoiceNumber}</h3>
