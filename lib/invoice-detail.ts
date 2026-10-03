@@ -27,6 +27,7 @@ export type InvoiceDetail = {
   originalTotalDirham: number;
   effectiveTotalDirham: number;
   effectivePaidDirham: number;
+  effectiveCreditAppliedDirham: number;
   effectiveDueDirham: number;
   businessDate: string;
   recordedAt: string;
@@ -106,6 +107,7 @@ export async function readInvoiceDetail(actor: Actor, shopId: string, canonicalI
     originalTotalDirham: invoice.total_amount_dirham,
     effectiveTotalDirham: effective.effective_total_dirham!,
     effectivePaidDirham: effective.effective_paid_dirham!,
+    effectiveCreditAppliedDirham: effective.effective_credit_applied_dirham ?? 0,
     effectiveDueDirham: effective.effective_due_dirham!,
     businessDate: invoice.business_date,
     recordedAt: invoice.recorded_at,

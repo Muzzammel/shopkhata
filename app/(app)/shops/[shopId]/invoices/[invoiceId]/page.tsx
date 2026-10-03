@@ -43,12 +43,13 @@ export default async function InvoiceDetailPage({ params }: PageProps<"/shops/[s
         <div><dt>Business date</dt><dd>{detail.businessDate}</dd></div>
         <div><dt>Recorded at (Qatar)</dt><dd>{formatTimestamp(detail.recordedAt)}</dd></div>
         <div><dt>Created by</dt><dd>{actorLabel(detail.creatorName, detail.createdBy)}</dd></div>
-        <div><dt>Customer</dt><dd>{detail.customer ? <>{detail.customer.name ?? "Unnamed customer"} · {detail.customer.publicId}{detail.customer.mobile ? ` · ${detail.customer.mobile}` : ""}</> : "No customer"}</dd></div>
+        <div><dt>Customer</dt><dd>{detail.customer ? <><Link href={`/customers/${detail.customer.id}?shop=${shopId}`}>{detail.customer.name ?? "Unnamed customer"} · {detail.customer.publicId}</Link>{detail.customer.mobile ? ` · ${detail.customer.mobile}` : ""}</> : "No customer"}</dd></div>
         <div><dt>Delivery status</dt><dd>{detail.delivered ? "Delivered" : "Advance / not delivered"}</dd></div>
       </dl>
       <div className={`${styles.totals} ${styles.detailTotals}`}>
         <span>Effective total<strong>QAR {formatQar(detail.effectiveTotalDirham)}</strong></span>
         <span>Effective paid<strong>QAR {formatQar(detail.effectivePaidDirham)}</strong></span>
+        <span>Customer credit applied<strong>QAR {formatQar(detail.effectiveCreditAppliedDirham)}</strong></span>
         <span>Effective due<strong>QAR {formatQar(detail.effectiveDueDirham)}</strong></span>
       </div>
     </section>

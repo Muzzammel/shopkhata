@@ -260,7 +260,7 @@ export function InvoiceEntry({ appName, shop, shops, actorName, actorRole, invoi
       </div>}
       {result && <p role={result.ok ? "status" : "alert"} className={result.ok ? styles.success : styles.errors}>{result.message}</p>}
     </section>
-    <section className={styles.panel} aria-labelledby="recent-title">
+    <section id="recent-invoices" className={styles.panel} aria-labelledby="recent-title">
       <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Saved records</p><h2 id="recent-title">Recent invoices</h2></div><p>{currentShop.name}</p></div>
       {currentInvoices.length === 0 ? <p>No invoices saved yet.</p> : <div className={styles.savedList}>{currentInvoices.map((invoice) => <Link className={styles.saved} href={`/shops/${currentShop.id}/invoices/${invoice.id}`} key={invoice.id} aria-label={`View invoice ${invoice.invoice_id}`}>
         <strong>{invoice.invoice_id}</strong><span>{invoice.business_date}</span><span>{invoice.delivered ? invoice.effective_due_dirham <= 0 ? "Delivered · paid" : "Delivered · due" : "Advance"}</span><span>QAR {formatQar(invoice.effective_total_dirham)}</span><span>Due QAR {formatQar(invoice.effective_due_dirham)}</span>

@@ -143,7 +143,7 @@ export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onAct
     }
   }
 
-  return <section className={styles.panel} aria-labelledby="payment-title">
+  return <section id="invoice-payments" className={styles.panel} aria-labelledby="payment-title">
     <div className={styles.sectionHeading}>
       <div><p className={styles.eyebrow}>Existing invoice</p><h2 id="payment-title">Record Payment</h2></div>
       <p>Record cash against an existing invoice. This does not create an invoice.</p>
