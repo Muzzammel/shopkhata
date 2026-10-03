@@ -100,6 +100,20 @@ export type Database = {
             foreignKeyName: "attachments_shop_id_invoice_id_fkey"
             columns: ["shop_id", "invoice_id"]
             isOneToOne: false
+            referencedRelation: "effective_invoices"
+            referencedColumns: ["shop_id", "canonical_invoice_id"]
+          },
+          {
+            foreignKeyName: "attachments_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_effective_balances"
+            referencedColumns: ["shop_id", "canonical_invoice_id"]
+          },
+          {
+            foreignKeyName: "attachments_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["shop_id", "id"]
           },
@@ -216,6 +230,148 @@ export type Database = {
           },
         ]
       }
+      correction_decisions: {
+        Row: {
+          decided_at: string
+          decided_by: string
+          decision: string
+          expected_revision: number
+          fingerprint: string
+          id: string
+          idempotency_key: string
+          invoice_id: string
+          reason: string | null
+          request_id: string
+          revision: number | null
+          shop_id: string
+        }
+        Insert: {
+          decided_at?: string
+          decided_by: string
+          decision: string
+          expected_revision: number
+          fingerprint: string
+          id?: string
+          idempotency_key: string
+          invoice_id: string
+          reason?: string | null
+          request_id: string
+          revision?: number | null
+          shop_id: string
+        }
+        Update: {
+          decided_at?: string
+          decided_by?: string
+          decision?: string
+          expected_revision?: number
+          fingerprint?: string
+          id?: string
+          idempotency_key?: string
+          invoice_id?: string
+          reason?: string | null
+          request_id?: string
+          revision?: number | null
+          shop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "correction_decisions_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "correction_decisions_shop_id_request_id_invoice_id_fkey"
+            columns: ["shop_id", "request_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "correction_requests"
+            referencedColumns: ["shop_id", "id", "invoice_id"]
+          },
+        ]
+      }
+      correction_requests: {
+        Row: {
+          amount_delta_dirham: number
+          fingerprint: string
+          id: string
+          idempotency_key: string
+          invoice_id: string
+          payment_id: string | null
+          reason: string
+          requested_at: string
+          requested_by: string
+          shop_id: string
+        }
+        Insert: {
+          amount_delta_dirham: number
+          fingerprint: string
+          id?: string
+          idempotency_key: string
+          invoice_id: string
+          payment_id?: string | null
+          reason: string
+          requested_at?: string
+          requested_by: string
+          shop_id: string
+        }
+        Update: {
+          amount_delta_dirham?: number
+          fingerprint?: string
+          id?: string
+          idempotency_key?: string
+          invoice_id?: string
+          payment_id?: string | null
+          reason?: string
+          requested_at?: string
+          requested_by?: string
+          shop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "correction_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "correction_requests_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "correction_requests_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "effective_invoices"
+            referencedColumns: ["shop_id", "canonical_invoice_id"]
+          },
+          {
+            foreignKeyName: "correction_requests_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_effective_balances"
+            referencedColumns: ["shop_id", "canonical_invoice_id"]
+          },
+          {
+            foreignKeyName: "correction_requests_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["shop_id", "id"]
+          },
+          {
+            foreignKeyName: "correction_requests_shop_id_payment_id_fkey"
+            columns: ["shop_id", "payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["shop_id", "id"]
+          },
+        ]
+      }
       corrections: {
         Row: {
           amount_delta_dirham: number
@@ -228,6 +384,7 @@ export type Database = {
           payment_id: string | null
           reason: string
           recorded_at: string
+          request_id: string | null
           shop_id: string
         }
         Insert: {
@@ -241,6 +398,7 @@ export type Database = {
           payment_id?: string | null
           reason: string
           recorded_at?: string
+          request_id?: string | null
           shop_id: string
         }
         Update: {
@@ -254,6 +412,7 @@ export type Database = {
           payment_id?: string | null
           reason?: string
           recorded_at?: string
+          request_id?: string | null
           shop_id?: string
         }
         Relationships: [
@@ -272,11 +431,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "corrections_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "correction_requests"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "corrections_shop_id_fkey"
             columns: ["shop_id"]
             isOneToOne: false
             referencedRelation: "shops"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corrections_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "effective_invoices"
+            referencedColumns: ["shop_id", "canonical_invoice_id"]
+          },
+          {
+            foreignKeyName: "corrections_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_effective_balances"
+            referencedColumns: ["shop_id", "canonical_invoice_id"]
           },
           {
             foreignKeyName: "corrections_shop_id_invoice_id_fkey"
@@ -365,6 +545,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "shops"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_credits_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "effective_invoices"
+            referencedColumns: ["shop_id", "canonical_invoice_id"]
+          },
+          {
+            foreignKeyName: "customer_credits_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_effective_balances"
+            referencedColumns: ["shop_id", "canonical_invoice_id"]
           },
           {
             foreignKeyName: "customer_credits_shop_id_invoice_id_fkey"
@@ -552,6 +746,20 @@ export type Database = {
             foreignKeyName: "invoice_number_registry_shop_id_canonical_invoice_id_fkey"
             columns: ["shop_id", "canonical_invoice_id"]
             isOneToOne: false
+            referencedRelation: "effective_invoices"
+            referencedColumns: ["shop_id", "canonical_invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_number_registry_shop_id_canonical_invoice_id_fkey"
+            columns: ["shop_id", "canonical_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_effective_balances"
+            referencedColumns: ["shop_id", "canonical_invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_number_registry_shop_id_canonical_invoice_id_fkey"
+            columns: ["shop_id", "canonical_invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["shop_id", "id"]
           },
@@ -716,6 +924,20 @@ export type Database = {
             foreignKeyName: "payments_shop_id_invoice_id_fkey"
             columns: ["shop_id", "invoice_id"]
             isOneToOne: false
+            referencedRelation: "effective_invoices"
+            referencedColumns: ["shop_id", "canonical_invoice_id"]
+          },
+          {
+            foreignKeyName: "payments_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_effective_balances"
+            referencedColumns: ["shop_id", "canonical_invoice_id"]
+          },
+          {
+            foreignKeyName: "payments_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["shop_id", "id"]
           },
@@ -750,6 +972,154 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      replacement_decisions: {
+        Row: {
+          decided_at: string
+          decided_by: string
+          decision: string
+          expected_revision: number
+          fingerprint: string
+          id: string
+          idempotency_key: string
+          invoice_id: string
+          reason: string | null
+          request_id: string
+          revision: number | null
+          shop_id: string
+        }
+        Insert: {
+          decided_at?: string
+          decided_by: string
+          decision: string
+          expected_revision: number
+          fingerprint: string
+          id?: string
+          idempotency_key: string
+          invoice_id: string
+          reason?: string | null
+          request_id: string
+          revision?: number | null
+          shop_id: string
+        }
+        Update: {
+          decided_at?: string
+          decided_by?: string
+          decision?: string
+          expected_revision?: number
+          fingerprint?: string
+          id?: string
+          idempotency_key?: string
+          invoice_id?: string
+          reason?: string | null
+          request_id?: string
+          revision?: number | null
+          shop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_decisions_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_decisions_shop_id_request_id_invoice_id_fkey"
+            columns: ["shop_id", "request_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_requests"
+            referencedColumns: ["shop_id", "id", "invoice_id"]
+          },
+        ]
+      }
+      replacement_requests: {
+        Row: {
+          customer_id: string | null
+          delivered: boolean
+          expected_revision: number
+          fingerprint: string
+          id: string
+          idempotency_key: string
+          invoice_id: string
+          invoice_number: string
+          reason: string
+          requested_at: string
+          requested_by: string
+          shop_id: string
+        }
+        Insert: {
+          customer_id?: string | null
+          delivered: boolean
+          expected_revision: number
+          fingerprint: string
+          id?: string
+          idempotency_key: string
+          invoice_id: string
+          invoice_number: string
+          reason: string
+          requested_at?: string
+          requested_by: string
+          shop_id: string
+        }
+        Update: {
+          customer_id?: string | null
+          delivered?: boolean
+          expected_revision?: number
+          fingerprint?: string
+          id?: string
+          idempotency_key?: string
+          invoice_id?: string
+          invoice_number?: string
+          reason?: string
+          requested_at?: string
+          requested_by?: string
+          shop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_requests_shop_id_customer_id_fkey"
+            columns: ["shop_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["shop_id", "id"]
+          },
+          {
+            foreignKeyName: "replacement_requests_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_requests_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "effective_invoices"
+            referencedColumns: ["shop_id", "canonical_invoice_id"]
+          },
+          {
+            foreignKeyName: "replacement_requests_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_effective_balances"
+            referencedColumns: ["shop_id", "canonical_invoice_id"]
+          },
+          {
+            foreignKeyName: "replacement_requests_shop_id_invoice_id_fkey"
+            columns: ["shop_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["shop_id", "id"]
+          },
+        ]
       }
       shops: {
         Row: {
@@ -813,20 +1183,80 @@ export type Database = {
       }
     }
     Views: {
+      effective_invoices: {
+        Row: {
+          business_date: string | null
+          canonical_invoice_id: string | null
+          created_by: string | null
+          effective_customer_id: string | null
+          effective_delivered: boolean | null
+          effective_due_dirham: number | null
+          effective_invoice_number: string | null
+          effective_paid_dirham: number | null
+          effective_total_dirham: number | null
+          original_invoice_number: string | null
+          original_total_dirham: number | null
+          recorded_at: string | null
+          revision: number | null
+          shop_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_effective_balances: {
         Row: {
-          canonical_invoice_id: string
-          shop_id: string
-          effective_total_dirham: number
-          effective_paid_dirham: number
-          effective_due_dirham: number
+          canonical_invoice_id: string | null
+          effective_due_dirham: number | null
+          effective_paid_dirham: number | null
+          effective_total_dirham: number | null
+          shop_id: string | null
         }
-        Relationships: []
+        Insert: {
+          canonical_invoice_id?: string | null
+          effective_due_dirham?: never
+          effective_paid_dirham?: never
+          effective_total_dirham?: never
+          shop_id?: string | null
+        }
+        Update: {
+          canonical_invoice_id?: string | null
+          effective_due_dirham?: never
+          effective_paid_dirham?: never
+          effective_total_dirham?: never
+          shop_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
       approve_overpayment: { Args: { command: Json }; Returns: Json }
+      decide_invoice_correction: { Args: { command: Json }; Returns: Json }
+      decide_invoice_replacement: { Args: { command: Json }; Returns: Json }
       record_payment: { Args: { command: Json }; Returns: Json }
+      request_invoice_correction: { Args: { command: Json }; Returns: Json }
+      request_invoice_replacement: { Args: { command: Json }; Returns: Json }
       submit_batch: { Args: { command: Json }; Returns: Json }
     }
     Enums: {

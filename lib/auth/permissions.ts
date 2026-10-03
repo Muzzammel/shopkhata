@@ -3,6 +3,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 export type Role = "owner" | "manager" | "staff";
 
 export type Permission =
+  | "correction.request"
+  | "invoice.replacement.request"
+  | "invoice.replacement.approve"
   | "batch.enter"
   | "payment.record"
   | "expense.create"
@@ -27,6 +30,8 @@ export type Actor = {
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   owner: [
+    "correction.request",
+    "invoice.replacement.request",
     "batch.enter",
     "payment.record",
     "expense.create",
@@ -34,6 +39,7 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "records.view_assigned",
     "reports.view_all",
     "payment.override_excess",
+    "invoice.replacement.approve",
     "correction.approve",
     "date.close",
     "date.reopen",
@@ -43,12 +49,15 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "audit.view_full",
   ],
   manager: [
+    "correction.request",
+    "invoice.replacement.request",
     "batch.enter",
     "payment.record",
     "expense.create",
     "invoice.deliver_due",
     "records.view_assigned",
     "payment.override_excess",
+    "invoice.replacement.approve",
     "correction.approve",
     "date.close",
     "date.reopen",
@@ -57,6 +66,8 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "audit.view_full",
   ],
   staff: [
+    "correction.request",
+    "invoice.replacement.request",
     "batch.enter",
     "payment.record",
     "expense.create",
@@ -68,12 +79,15 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
 };
 
 const SCOPED_PERMISSIONS = new Set<Permission>([
+  "correction.request",
+  "invoice.replacement.request",
   "batch.enter",
   "payment.record",
   "expense.create",
   "invoice.deliver_due",
   "records.view_assigned",
   "payment.override_excess",
+  "invoice.replacement.approve",
   "correction.approve",
   "date.close",
   "date.reopen",
@@ -83,11 +97,14 @@ const SCOPED_PERMISSIONS = new Set<Permission>([
 ]);
 
 const MUTATION_PERMISSIONS = new Set<Permission>([
+  "correction.request",
+  "invoice.replacement.request",
   "batch.enter",
   "payment.record",
   "expense.create",
   "invoice.deliver_due",
   "payment.override_excess",
+  "invoice.replacement.approve",
   "correction.approve",
   "date.close",
   "date.reopen",
