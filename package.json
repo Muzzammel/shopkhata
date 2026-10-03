@@ -15,7 +15,8 @@
     "test:integration:payments": "vitest run --config vitest.integration.payments.config.mts",
     "test:integration:overpayment": "vitest run --config vitest.integration.overpayment.config.mts",
     "test:integration:operations": "vitest run --config vitest.integration.operations.config.mts",
-    "test:integration:customer-expenses": "vitest run --config vitest.integration.customer-expenses.config.mts"
+    "test:integration:customer-expenses": "vitest run --config vitest.integration.customer-expenses.config.mts",
+    "test:integration:offline-excel": "vitest run --config vitest.integration.offline-excel.config.mts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

@@ -1,4 +1,7 @@
 begin;
+-- current_date below must be the Qatar operating date the RPCs enforce, not the
+-- session's UTC date, which is a day behind from 00:00 to 03:00 Qatar time.
+set local timezone = 'Asia/Qatar';
 create extension if not exists pgtap with schema extensions;
 select plan(33);
 

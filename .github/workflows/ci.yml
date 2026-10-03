@@ -97,6 +97,9 @@ jobs:
       - name: Customer ledger and expenses integration tests
         run: pnpm test:integration:customer-expenses
 
+      - name: Offline reconnect, conflict and Excel export integration tests
+        run: pnpm test:integration:offline-excel
+
       - name: Create local-only SSR environment configuration
         run: |
           supabase_env="$(pnpm exec supabase status -o env 2>/dev/null)"

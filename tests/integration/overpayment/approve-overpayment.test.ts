@@ -3,6 +3,10 @@ import { delimiter, join } from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+// The operating date is Qatar's calendar date. The UTC date is a day behind it
+// from 00:00 to 03:00 Qatar time, and the server refuses it as a backdate.
+import { qatarBusinessDate } from "@/lib/invoice-entry";
+
 const SUITE_TIMEOUT = 120_000;
 const RESET_TIMEOUT = 90_000;
 const PNPM = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
@@ -127,7 +131,7 @@ describe("approve_overpayment RPC (real network, real sessions)", () => {
     const { data, error } = await client.rpc("submit_batch", {
       command: {
         shop_id: SHOP_1,
-        business_date: new Date().toISOString().slice(0, 10),
+        business_date: qatarBusinessDate(new Date()),
         idempotency_key: `it-invoice-${invoiceNumber}`,
         rows: [
           {
@@ -164,7 +168,7 @@ describe("approve_overpayment RPC (real network, real sessions)", () => {
         invoice_id: invoiceId,
         amount_dirham: 1300,
         payment_method: "cash",
-        business_date: new Date().toISOString().slice(0, 10),
+        business_date: qatarBusinessDate(new Date()),
         idempotency_key: `it-${invoiceId}-p1`,
         reason: "customer paid extra, keep on account",
       },
@@ -210,7 +214,7 @@ describe("approve_overpayment RPC (real network, real sessions)", () => {
         invoice_id: invoiceId,
         amount_dirham: 1200,
         payment_method: "cash",
-        business_date: new Date().toISOString().slice(0, 10),
+        business_date: qatarBusinessDate(new Date()),
         idempotency_key: `it-${invoiceId}-staff`,
         reason: "should be rejected",
       },
@@ -229,7 +233,7 @@ describe("approve_overpayment RPC (real network, real sessions)", () => {
         invoice_id: invoiceId,
         amount_dirham: 1200,
         payment_method: "cash",
-        business_date: new Date().toISOString().slice(0, 10),
+        business_date: qatarBusinessDate(new Date()),
         idempotency_key: `it-${invoiceId}-no-customer`,
         reason: "no customer to credit",
       },
@@ -246,7 +250,7 @@ describe("approve_overpayment RPC (real network, real sessions)", () => {
       invoice_id: invoiceId,
       amount_dirham: 1200,
       payment_method: "cash",
-      business_date: new Date().toISOString().slice(0, 10),
+      business_date: qatarBusinessDate(new Date()),
       idempotency_key: `it-${invoiceId}-replay`,
       reason: "replay test",
     };
@@ -285,7 +289,7 @@ describe("approve_overpayment RPC (real network, real sessions)", () => {
     const managerClientA = await signIn(MANAGER_EMAIL, MANAGER_PASSWORD);
     const managerClientB = await signIn(MANAGER_EMAIL, MANAGER_PASSWORD);
     const { invoiceId } = await createInvoice(managerClientA, "race", 1000);
-    const businessDate = new Date().toISOString().slice(0, 10);
+    const businessDate = qatarBusinessDate(new Date());
 
     const [resultA, resultB] = await Promise.all([
       managerClientA.rpc("approve_overpayment", {

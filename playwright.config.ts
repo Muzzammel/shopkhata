@@ -14,12 +14,28 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      testIgnore: /pwa\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
+    {
+      // A development server cannot start a page without its hot-reload
+      // connection, so real offline page loads are verified on a production build.
+      name: "pwa",
+      testMatch: /pwa\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], baseURL: "http://localhost:3100" },
+    },
   ],
-  webServer: {
-    command: "pnpm dev",
-    url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: [
+    {
+      command: "pnpm dev",
+      url: "http://localhost:3000",
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: "pnpm build && pnpm exec next start -p 3100",
+      url: "http://localhost:3100/login",
+      reuseExistingServer: !process.env.CI,
+      timeout: 300_000,
+    },
+  ],
 });
