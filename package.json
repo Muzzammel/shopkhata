@@ -10,6 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest",
     "test:e2e": "playwright test",
+    "backup:db": "node scripts/backup.mjs",
+    "backup:verify": "node scripts/backup.mjs verify",
     "test:migration-upgrade": "vitest run --config vitest.integration.config.mts",
     "test:integration:batches": "vitest run --config vitest.integration.batches.config.mts",
     "test:integration:payments": "vitest run --config vitest.integration.payments.config.mts",
