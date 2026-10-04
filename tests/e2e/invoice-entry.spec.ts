@@ -430,7 +430,7 @@ test("an open Shop 1 workspace advances its displayed Qatar date at midnight", a
   await page.getByRole("button", { name: /sign in|log in/i }).click();
   await expect(page.getByRole("heading", { name: "Shop 1" })).toBeVisible();
   await page.clock.fastForward(120_000);
-  await expect(page.locator("header")).toContainText(today);
+  await expect(page.locator("main header")).toContainText(today);
   const invoiceNumber = `DATE-${crypto.randomUUID().slice(0, 8)}`;
   await page.getByLabel("Invoice ID").fill(invoiceNumber);
   await page.getByLabel("Total QAR").fill("12.00");
@@ -470,7 +470,7 @@ test("a lost save response keeps the original date and retry key across midnight
   expect(dropped).toBe(true);
 
   await page.clock.fastForward(120_000);
-  await expect(page.locator("header")).toContainText(today);
+  await expect(page.locator("main header")).toContainText(today);
   await page.getByRole("button", { name: "Retry same batch" }).click();
   await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
   await expect(page.getByLabel("Recent invoices")).toContainText(invoiceNumber);
