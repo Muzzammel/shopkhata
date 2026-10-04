@@ -5,7 +5,7 @@ import { readAllPages } from "@/lib/read-all-pages";
 import type { Database } from "@/lib/supabase/database.types";
 
 type Client = SupabaseClient<Database>;
-type Cell = string | number | { value: string | number; type?: NumberConstructor; format?: string; fontWeight?: "bold" } | null;
+export type Cell = string | number | { value: string | number; type?: NumberConstructor; format?: string; fontWeight?: "bold" } | null;
 export type ExportSheet = { sheet: string; stickyRowsCount: 1; columns: { width: number }[]; data: Cell[][] };
 
 // ponytail: whole export is read into memory; fine for two shops. Stream by
@@ -13,17 +13,17 @@ export type ExportSheet = { sheet: string; stickyRowsCount: 1; columns: { width:
 export const MAX_EXPORT_ROWS = 20_000;
 
 /** Integer dirham shown as a QAR number cell with two decimals. */
-function qar(dirham: number | null | undefined): Cell {
+export function qar(dirham: number | null | undefined): Cell {
   if (dirham === null || dirham === undefined) return null;
   if (!Number.isSafeInteger(dirham)) throw new Error("EXPORT_AMOUNT_INVALID");
   return { value: dirham / 100, type: Number, format: "0.00" };
 }
 
-function recordedAt(iso: string | null): string {
+export function recordedAt(iso: string | null): string {
   return iso ? new Date(iso).toLocaleString("sv-SE", { timeZone: "Asia/Qatar" }) : "";
 }
 
-function sheet(name: string, headers: string[], rows: Cell[][]): ExportSheet {
+export function sheet(name: string, headers: string[], rows: Cell[][]): ExportSheet {
   return {
     sheet: name, stickyRowsCount: 1, columns: headers.map(() => ({ width: 20 })),
     data: [headers.map((value) => ({ value, fontWeight: "bold" as const })), ...rows],
@@ -54,12 +54,16 @@ export function ledgerExportSheet(sources: readonly CustomerLedgerSource[]): Exp
 }
 
 export const EXPENSE_EXPORT_HEADERS = ["Business Date", "Category", "Description", "Amount QAR", "Created By", "Recorded At (Qatar)", "Expense Reference"];
-export type ExpenseExportRow = { businessDate: string; category: string; description: string; amountDirham: number; createdBy: string; recordedAt: string | null; expenseId: string };
+export type ExpenseExportRow = { businessDate: string; category: string; description: string; amountDirham: number; createdBy: string; recordedAt: string | null; expenseId: string; corrected?: boolean; backdatedReason?: string };
 export function expenseExportSheet(rows: readonly ExpenseExportRow[]): ExportSheet {
   return sheet("Expenses", EXPENSE_EXPORT_HEADERS, rows.map((row) => [
     row.businessDate, row.category, row.description, qar(row.amountDirham), row.createdBy, recordedAt(row.recordedAt), row.expenseId,
   ]));
 }
+
+/** One page of `limit` rows for a screen, or every row for an export. */
+const readRows = <T>(fetchPage: (offset: number, end: number) => PromiseLike<{ data: T[] | null; error: unknown }>, limit?: number) =>
+  limit ? fetchPage(0, limit - 1) : readAllPages(fetchPage);
 
 function chunks<T>(items: readonly T[], size = 200): T[][] {
   return Array.from({ length: Math.ceil(items.length / size) }, (_, index) => items.slice(index * size, (index + 1) * size));
@@ -68,11 +72,11 @@ function chunks<T>(items: readonly T[], size = 200): T[][] {
 // Every read below goes through the caller's RLS-scoped client; nothing here
 // can return a shop the signed-in user cannot already see.
 
-export async function fetchInvoiceExport(supabase: Client, shopId: string, from: string, to: string): Promise<InvoiceExportRow[]> {
-  const { data, error } = await readAllPages((offset, end) => supabase.from("effective_invoices")
+export async function fetchInvoiceExport(supabase: Client, shopId: string, from: string, to: string, limit?: number): Promise<InvoiceExportRow[]> {
+  const { data, error } = await readRows((offset, end) => supabase.from("effective_invoices")
     .select("canonical_invoice_id,effective_invoice_number,original_invoice_number,business_date,recorded_at,effective_total_dirham,effective_paid_dirham,effective_credit_applied_dirham,effective_due_dirham,effective_delivered,effective_customer_id")
     .eq("shop_id", shopId).gte("business_date", from).lte("business_date", to)
-    .order("business_date").order("recorded_at").order("canonical_invoice_id").range(offset, end));
+    .order("business_date").order("recorded_at").order("canonical_invoice_id").range(offset, end), limit);
   if (error || !data) throw new Error("EXPORT_UNAVAILABLE");
   const customers = new Map<string, { name: string | null; mobile: string | null }>();
   for (const ids of chunks([...new Set(data.flatMap((row) => row.effective_customer_id ? [row.effective_customer_id] : []))])) {
@@ -112,12 +116,12 @@ export async function fetchLedgerExport(supabase: Client, shopId: string, custom
   };
 }
 
-export async function fetchExpenseExport(supabase: Client, shopId: string, from: string, to: string): Promise<ExpenseExportRow[]> {
+export async function fetchExpenseExport(supabase: Client, shopId: string, from: string, to: string, limit?: number): Promise<ExpenseExportRow[]> {
   // effective_expenses carries the latest approved correction, not the original entry.
-  const { data, error } = await readAllPages((offset, end) => supabase.from("effective_expenses")
-    .select("id,business_date,recorded_at,created_by,description,amount_dirham,category")
+  const { data, error } = await readRows((offset, end) => supabase.from("effective_expenses")
+    .select("id,business_date,recorded_at,created_by,description,amount_dirham,category,correction_request_id,backdated_reason")
     .eq("shop_id", shopId).gte("business_date", from).lte("business_date", to)
-    .order("business_date").order("recorded_at").order("id").range(offset, end));
+    .order("business_date").order("recorded_at").order("id").range(offset, end), limit);
   if (error || !data) throw new Error("EXPORT_UNAVAILABLE");
   const names = new Map<string, string>();
   for (const ids of chunks([...new Set(data.flatMap((row) => row.created_by ? [row.created_by] : []))])) {
@@ -128,5 +132,6 @@ export async function fetchExpenseExport(supabase: Client, shopId: string, from:
   return data.map((row) => ({
     businessDate: row.business_date!, category: row.category!, description: row.description!, amountDirham: row.amount_dirham!,
     createdBy: row.created_by ? names.get(row.created_by) ?? row.created_by : "", recordedAt: row.recorded_at, expenseId: row.id!,
+    corrected: row.correction_request_id !== null, backdatedReason: row.backdated_reason ?? "",
   }));
 }

@@ -8,10 +8,15 @@ import {
   invoiceExportSheet, ledgerExportSheet, type ExportSheet,
 } from "@/lib/excel/exports";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
+import {
+  MAX_REPORT_RANGE_DAYS, customerDueSheet, dailySummarySheet, expenseReportSheet, fetchCustomerDueReport, fetchDailySummary,
+  fetchExpenseReport, fetchPaymentReport, fetchSalesReport, paymentReportSheet, salesReportSheet,
+} from "@/lib/reports";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const rangeSchema = z.object({ shop: z.uuid(), from: z.iso.date(), to: z.iso.date() }).refine((value) => value.from <= value.to);
 const ledgerSchema = z.object({ shop: z.uuid(), customer: z.uuid() });
+const reportRangeSchema = rangeSchema.refine((value) => Date.parse(value.to) - Date.parse(value.from) <= MAX_REPORT_RANGE_DAYS * 86_400_000);
 
 const fail = (status: number, message: string) => new Response(message, { status, headers: { "Cache-Control": "no-store" } });
 
@@ -42,6 +47,25 @@ export async function GET(request: NextRequest, context: RouteContext<"/exports/
       sheet = kind === "invoices"
         ? invoiceExportSheet(await fetchInvoiceExport(supabase, shop, from, to))
         : expenseExportSheet(await fetchExpenseExport(supabase, shop, from, to));
+      fileName = `shopkhata-${kind}-${from}_${to}`;
+    } else if (kind === "report-dues") {
+      const parsed = z.object({ shop: z.uuid() }).safeParse({ shop: query.shop });
+      if (!parsed.success) return fail(400, "Choose a shop to export.");
+      if (!can(actor, "records.export", parsed.data.shop)) return fail(403, "You cannot export records for this shop.");
+      const report = await fetchCustomerDueReport(supabase, parsed.data.shop);
+      sheet = customerDueSheet(report.rows, report.totals);
+      fileName = `shopkhata-customer-dues-${qatarBusinessDate(new Date())}`;
+    } else if (kind === "report-daily" || kind === "report-sales" || kind === "report-expenses" || kind === "report-payments") {
+      // Same authoritative reads as the reports screen, without its row limit.
+      const today = qatarBusinessDate(new Date());
+      const parsed = reportRangeSchema.safeParse({ shop: query.shop, from: query.from || today, to: query.to || today });
+      if (!parsed.success) return fail(400, "Choose a valid date range.");
+      const { shop, from, to } = parsed.data;
+      if (!can(actor, "records.export", shop)) return fail(403, "You cannot export records for this shop.");
+      if (kind === "report-daily") sheet = dailySummarySheet(await fetchDailySummary(supabase, shop, from, to));
+      else if (kind === "report-sales") { const report = await fetchSalesReport(supabase, shop, from, to); sheet = salesReportSheet(report.rows, report.totals); }
+      else if (kind === "report-expenses") { const report = await fetchExpenseReport(supabase, shop, from, to); sheet = expenseReportSheet(report.rows, report.totals); }
+      else { const report = await fetchPaymentReport(supabase, shop, from, to); sheet = paymentReportSheet(report.rows, report.totals); }
       fileName = `shopkhata-${kind}-${from}_${to}`;
     } else {
       return fail(404, "Unknown export.");
