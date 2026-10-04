@@ -193,6 +193,71 @@ test("Shop 1 staff saves a mixed batch and sees it after refresh", async ({ page
   await expect(page.getByText(`${prefix}-ADV`)).toBeVisible();
 });
 
+test("invoice detail shows canonical identity, effective balances, payments, and approved corrections", async ({ page }) => {
+  const invoiceNumber = `DETAIL-${Date.now()}`;
+  await loginStaff(page);
+  await createDueInvoice(page, invoiceNumber, "100.00", "30.00");
+  const canonical = localDbQuery(`select i.id from public.invoices i where i.shop_id = '10000000-0000-4000-8000-000000000001' and i.invoice_id = '${invoiceNumber}'`).match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i)?.[0];
+  if (!canonical) throw new Error("Created invoice UUID was not returned by the local database.");
+  localDbQuery(`insert into public.corrections (shop_id, invoice_id, amount_delta_dirham, reason, business_date, approved_by)
+    select i.shop_id, i.id, 500, 'approved invoice adjustment', i.business_date, '10000000-0000-4000-8000-000000000101'
+    from public.invoices i where i.shop_id = '10000000-0000-4000-8000-000000000001' and i.id = '${canonical}'`);
+  localDbQuery(`insert into public.corrections (shop_id, payment_id, amount_delta_dirham, reason, business_date, approved_by)
+    select p.shop_id, p.id, -200, 'approved payment adjustment', p.business_date, '10000000-0000-4000-8000-000000000101'
+    from public.payments p where p.shop_id = '10000000-0000-4000-8000-000000000001' and p.invoice_id = '${canonical}'`);
+  await page.getByRole("link", { name: new RegExp(invoiceNumber) }).click();
+  await expect(page.getByRole("heading", { name: "Invoice detail" })).toBeVisible();
+  await expect(page.getByText(canonical)).toBeVisible();
+  await expect(page.getByText("QAR 105.00", { exact: true })).toBeVisible();
+  await expect(page.getByText("QAR 28.00", { exact: true })).toBeVisible();
+  await expect(page.getByText("QAR 77.00", { exact: true })).toBeVisible();
+  await expect(page.getByText("approved invoice adjustment")).toBeVisible();
+  await expect(page.getByText("approved payment adjustment")).toBeVisible();
+  await expect(page.getByText("30.00")).toBeVisible();
+});
+
+test("invoice detail safely hides missing and cross-shop invoices", async ({ page }) => {
+  await loginStaff(page);
+  await page.goto("/shops/10000000-0000-4000-8000-000000000001/invoices/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+  await expect(page.getByRole("heading", { name: "Invoice not found" })).toBeVisible();
+  await page.goto("/shops/10000000-0000-4000-8000-000000000002/invoices/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+  await expect(page.getByRole("heading", { name: "Invoice not found" })).toBeVisible();
+});
+
+test("invoice detail shows empty customer and payment states", async ({ page }) => {
+  const invoiceNumber = `DETAIL-EMPTY-${Date.now()}`;
+  await loginStaff(page);
+  await createDueInvoice(page, invoiceNumber, "12.00");
+  await page.getByRole("link", { name: new RegExp(invoiceNumber) }).click();
+  await expect(page.getByText("No customer", { exact: true })).toBeVisible();
+  await expect(page.getByText("No payments recorded.", { exact: true })).toBeVisible();
+  await expect(page.getByText("No approved financial corrections.", { exact: true })).toBeVisible();
+});
+
+test("invoice detail opens invoices in the currently selected owner shop", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel(/email/i).fill("owner@shopkhata.local");
+  await page.getByLabel(/password/i).fill("ShopKhata-Local-Owner-E2E-Only-2026!");
+  await page.getByRole("button", { name: /sign in|log in/i }).click();
+  await expect(page.getByRole("heading", { name: "Shop 1" })).toBeVisible();
+  const invoiceNumber = `DETAIL-SWITCH-${Date.now()}`;
+  await createDueInvoice(page, invoiceNumber, "40.00");
+  await page.getByRole("link", { name: new RegExp(invoiceNumber) }).click();
+  await expect(page.getByRole("heading", { name: invoiceNumber })).toBeVisible();
+  await page.getByRole("link", { name: "Back to invoices" }).click();
+  await page.getByLabel("Current shop").selectOption("10000000-0000-4000-8000-000000000002");
+  await expect(page.getByRole("heading", { name: "Shop 2" })).toBeVisible();
+  const shopTwoInvoice = `DETAIL-SHOP2-${Date.now()}`;
+  await createDueInvoice(page, shopTwoInvoice, "25.00");
+  await page.getByRole("link", { name: new RegExp(shopTwoInvoice) }).click();
+  await expect(page.getByRole("heading", { name: shopTwoInvoice })).toBeVisible();
+  await expect(page.getByText("Shop 2", { exact: true })).toBeVisible();
+  const canonical = localDbQuery(`select i.id from public.invoices i where i.shop_id = '10000000-0000-4000-8000-000000000002' and i.invoice_id = '${shopTwoInvoice}'`).match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i)?.[0];
+  if (!canonical) throw new Error("Created Shop 2 invoice UUID was not returned by the local database.");
+  await page.goto(`/shops/10000000-0000-4000-8000-000000000001/invoices/${canonical}`);
+  await expect(page.getByRole("heading", { name: "Invoice not found" })).toBeVisible();
+});
+
 test("a duplicate older than the recent preview gets a row error", async ({ page }) => {
   test.setTimeout(120_000);
   const prefix = `UI-OLD-${Date.now()}`;
