@@ -98,6 +98,48 @@ test.describe("offline page privacy", () => {
 });
 
 test.describe("installable shell", () => {
+  test("meets the browser's install criteria on the production build and never lets a financial response be stored", async ({ page, context }) => {
+    // Manifest: every field an installer needs, and icons that really are the size they claim.
+    const manifestResponse = await page.request.get("/manifest.webmanifest");
+    expect(manifestResponse.headers()["content-type"]).toContain("application/manifest+json");
+    const manifest = await manifestResponse.json();
+    expect(manifest).toMatchObject({ name: "ShopKhata", short_name: "ShopKhata", id: "/", start_url: "/", scope: "/", display: "standalone" });
+    expect(manifest.background_color).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(manifest.theme_color).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(manifest.icons.some((icon: { purpose?: string }) => icon.purpose === "maskable")).toBe(true);
+    for (const icon of manifest.icons as { src: string; sizes: string; type: string }[]) {
+      const body = await (await page.request.get(icon.src)).body();
+      // PNG signature, then the IHDR width and height.
+      expect(body.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+      expect(`${body.readUInt32BE(16)}x${body.readUInt32BE(20)}`).toBe(icon.sizes);
+      expect(icon.type).toBe("image/png");
+    }
+
+    await login(page);
+    await expect(page.locator('link[rel="manifest"]')).toHaveAttribute("href", /manifest\.webmanifest/);
+    await waitForOfflineShell(page);
+    const worker = await page.evaluate(async () => {
+      const registration = await navigator.serviceWorker.ready;
+      return { scope: new URL(registration.scope).pathname, state: registration.active?.state, script: new URL(registration.active!.scriptURL).pathname };
+    });
+    expect(worker).toEqual({ scope: "/", state: "activated", script: "/sw.js" });
+
+    // Chromium's own verdict. A test browser profile is always "incognito", which is the one criterion it cannot meet.
+    const session = await context.newCDPSession(page);
+    const { installabilityErrors } = await session.send("Page.getInstallabilityErrors");
+    expect(installabilityErrors.map((error) => error.errorId).filter((id) => id !== "in-incognito")).toEqual([]);
+
+    // The production build sends the security headers, and authenticated pages and exports may not be stored by any cache.
+    for (const path of ["/", "/customers", "/expenses", "/closing", "/reports", `/exports/invoices?shop=${SHOP_1}`]) {
+      const response = await page.request.get(path);
+      expect(response.status(), path).toBe(200);
+      expect(response.headers()["cache-control"], path).toMatch(/no-store/);
+      expect(response.headers()["x-content-type-options"], path).toBe("nosniff");
+    }
+    expect((await page.request.get("/")).headers()["content-security-policy"]).not.toContain("unsafe-eval");
+    expect((await page.request.get("/sw.js")).headers()["content-security-policy"]).toBe("default-src 'self'; script-src 'self'");
+  });
+
   test("serves a valid manifest and a service worker that caches no authenticated data", async ({ page }) => {
     await login(page);
     const manifest = await (await page.request.get("/manifest.webmanifest")).json();

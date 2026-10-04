@@ -17,7 +17,7 @@ const qar = (dirham: number) => `QAR ${formatQar(dirham)}`;
 const qatarTime = (iso: string | null) => iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Qatar" }) : "—";
 
 function Table({ head, children, empty }: { head: string[]; children: ReactNode[]; empty: string }) {
-  return <div className={styles.tableWrap}><table><thead><tr>{head.map((title) => <th key={title}>{title}</th>)}</tr></thead>
+  return <div className={styles.tableWrap}><table><thead><tr>{head.map((title) => <th key={title} scope="col">{title}</th>)}</tr></thead>
     <tbody>{children.length ? children.slice(0, SCREEN_ROW_LIMIT) : <tr><td colSpan={head.length}>{empty}</td></tr>}</tbody></table>
     {children.length > SCREEN_ROW_LIMIT && <p className={styles.muted}>Showing the first {SCREEN_ROW_LIMIT} rows. The totals above cover every row; export the report for the full list.</p>}
   </div>;
@@ -46,7 +46,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
     const day = (await fetchDailySummary(supabase, shop.id, from, to))[0] ?? emptyDailySummary(from);
     body = <>
       <p className={styles.muted}>Everything recorded for business date {from}, whenever it was typed in. Sales, receipts, dues and expenses only — ShopKhata holds no cost of goods, so no figure here is profit.</p>
-      <div className={styles.tableWrap}><table><thead><tr><th>Metric</th><th>Value</th><th>Meaning</th></tr></thead><tbody>
+      <div className={styles.tableWrap}><table><thead><tr><th scope="col">Metric</th><th scope="col">Value</th><th scope="col">Meaning</th></tr></thead><tbody>
         {DAILY_METRICS.map((metric) => <tr key={metric.key}><td>{metric.label}</td><td><strong data-metric={metric.key}>{metric.kind === "money" ? qar(day[metric.key]) : day[metric.key]}</strong></td><td>{metric.meaning}</td></tr>)}
       </tbody></table></div>
       <p><Link href={`/closing?shop=${shop.id}&date=${from}`}>Close or reopen this date</Link></p>

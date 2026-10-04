@@ -41,8 +41,12 @@ export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onAct
     onStateChange({ hasDraft, uncertain });
   }, [amount, preselected, invoice, invoiceNumber, onStateChange, review, saved, uncertain]);
 
-  async function lookup() {
-    if (disabled || busy) return;
+  // The number comes from the form field itself, so one typed before the page
+  // finished loading (which never reached React state) is still looked up.
+  async function lookup(typed: string) {
+    if (disabled || busy || !typed.trim()) return;
+    const invoiceNumber = typed;
+    setInvoiceNumber(typed);
     const hasUncertainAttempt = uncertain && attempt !== null;
     if (!hasUncertainAttempt) {
       setInvoice(null);
@@ -148,9 +152,9 @@ export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onAct
       <div><p className={styles.eyebrow}>Existing invoice</p><h2 id="payment-title">Record Payment</h2></div>
       <p>Record cash against an existing invoice. This does not create an invoice.</p>
     </div>
-    {!initialInvoice && <form className={styles.lookup} onSubmit={(event) => { event.preventDefault(); void lookup(); }}>
-      <label>Invoice number<input aria-label="Invoice number" value={invoiceNumber} onChange={(event) => { if (!disabled && !busy) setInvoiceNumber(event.target.value); }} disabled={disabled || busy} maxLength={120} /></label>
-      <button type="submit" disabled={disabled || !invoiceNumber.trim() || busy}>Find invoice</button>
+    {!initialInvoice && <form className={styles.lookup} onSubmit={(event) => { event.preventDefault(); void lookup(String(new FormData(event.currentTarget).get("invoiceNumber") ?? "")); }}>
+      <label>Invoice number<input aria-label="Invoice number" name="invoiceNumber" required value={invoiceNumber} onChange={(event) => { if (!disabled && !busy) setInvoiceNumber(event.target.value); }} disabled={disabled || busy} maxLength={120} /></label>
+      <button type="submit" disabled={disabled || busy}>Find invoice</button>
     </form>}
     {lookupMessage && <p role="alert">{lookupMessage}</p>}
     {invoice && <div className={styles.paymentDetails}>

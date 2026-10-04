@@ -96,7 +96,7 @@ export function ExcelImport({ disabled, currentRows, draftIsBlank, validate, onA
     {parsed && <div className={styles.importPreview} role="region" aria-label="Import preview">
       <h3>Import preview — {imported.length} row{imported.length === 1 ? "" : "s"} from {source}</h3>
       <p>Not saved. Accepted rows join the draft and are saved only when you review and save the batch.</p>
-      <div className={styles.importTable}><table><thead><tr><th>Row</th><th>Invoice number</th><th>Total QAR</th><th>Received QAR</th><th>Delivered</th><th>Customer</th><th>Note</th></tr></thead><tbody>
+      <div className={styles.importTable}><table><thead><tr><th scope="col">Row</th><th scope="col">Invoice number</th><th scope="col">Total QAR</th><th scope="col">Received QAR</th><th scope="col">Delivered</th><th scope="col">Customer</th><th scope="col">Note</th></tr></thead><tbody>
         {imported.map((row) => <tr key={row.rowId} data-import-row={row.rowId}>
           <td>{parsed.sheetRows[row.rowId]}</td><td>{row.invoiceId}</td><td>{row.total}</td><td>{row.received || "0"}</td>
           <td>{row.delivered ? "Yes" : "No"}</td><td>{[row.customerName, row.customerMobile].filter(Boolean).join(" · ")}</td><td>{row.note}</td>

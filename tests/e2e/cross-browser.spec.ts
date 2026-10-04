@@ -1,0 +1,65 @@
+import { expect, test } from "@playwright/test";
+
+import { MANAGER, SHOP_1, fillRow, login, savedNotice, scalar } from "./offline-helpers";
+
+// The critical workflow on every browser engine (Chromium, Firefox, WebKit):
+// sign in, save an invoice with a part payment, read it back, take a follow-up
+// payment, record an expense, close and reopen a date, read a report, sign out.
+// The full financial suite stays on Chromium; this proves no engine is broken.
+test("the critical workflow works end to end", async ({ page, browserName }) => {
+  const stamp = `${browserName}-${Date.now()}`;
+  const invoice = `XB-${stamp}`;
+  await login(page, MANAGER);
+
+  await fillRow(page, 0, invoice, "80.00", "30.00");
+  await page.getByRole("button", { name: "Review batch" }).click();
+  await expect(page.getByLabel("New invoice batch").getByText("Due QAR 50.00", { exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Save batch" }).click();
+  await expect(savedNotice(page)).toBeVisible();
+
+  await page.getByRole("link", { name: `View invoice ${invoice}` }).click();
+  await expect(page.getByRole("heading", { name: "Invoice detail" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: invoice })).toBeVisible();
+  await expect(page.locator("span").filter({ hasText: "Effective due" }).getByText("QAR 50.00", { exact: true })).toBeVisible();
+
+  // Follow-up payment from the workspace.
+  await page.goto("/");
+  // The workspace marks its rows once it is interactive; a person cannot act sooner either.
+  await expect(page.locator("[data-entry-row][data-row-id]").first()).toBeVisible();
+  const payment = page.getByRole("region", { name: "Record Payment" });
+  await payment.getByLabel("Invoice number").fill(invoice);
+  await payment.getByRole("button", { name: "Find invoice" }).click();
+  await payment.getByLabel("Cash amount (QAR)").fill("20.00");
+  await payment.getByRole("button", { name: "Review payment" }).click();
+  await payment.getByRole("button", { name: "Confirm payment" }).click();
+  await expect(payment.getByRole("status")).toBeVisible();
+  expect(scalar(`select effective_due_dirham from public.effective_invoices where shop_id = '${SHOP_1}' and effective_invoice_number = '${invoice}'`)).toBe("3000");
+
+  await page.goto(`/expenses?shop=${SHOP_1}`);
+  const expense = page.getByRole("heading", { name: "Record expense" }).locator("..");
+  // Text typed before the page is interactive is not registered (a documented limitation), so
+  // clear and type again, as a person would, until the form accepts it.
+  await expect(async () => {
+    for (const [label, value] of [["Amount (QAR)", "7.25"], ["Description", `Cross-browser ${stamp}`]]) {
+      await expense.getByLabel(label, { exact: true }).fill("");
+      await expense.getByLabel(label, { exact: true }).fill(value);
+    }
+    await expect(expense.getByRole("button", { name: "Save expense" })).toBeEnabled({ timeout: 1_000 });
+  }).toPass();
+  await Promise.all([page.waitForEvent("load"), expense.getByRole("button", { name: "Save expense" }).click()]);
+  await expect(page.locator("article").filter({ hasText: `Cross-browser ${stamp}` }).first()).toContainText("QAR 7.25");
+
+  await page.goto(`/customers?shop=${SHOP_1}`);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+  await page.goto(`/reports?shop=${SHOP_1}&report=sales`);
+  await expect(page.getByRole("main")).toContainText(invoice);
+
+  await page.goto(`/closing?shop=${SHOP_1}`);
+  await expect(page.locator("[data-day-state]")).toHaveText(/^(Open|Closed)$/);
+
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page.getByRole("heading", { name: "Sign in to ShopKhata" })).toBeVisible();
+  await page.goto("/reports");
+  await expect(page).toHaveURL(/\/login/);
+});

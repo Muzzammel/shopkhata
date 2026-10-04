@@ -17,6 +17,10 @@ export default defineConfig({
       testIgnore: /pwa\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
+    // The other engines run the critical-workflow smoke only; the full
+    // financial suite stays on Chromium as the deterministic gate.
+    { name: "firefox", testMatch: /cross-browser\.spec\.ts/, use: { ...devices["Desktop Firefox"] } },
+    { name: "webkit", testMatch: /cross-browser\.spec\.ts/, use: { ...devices["Desktop Safari"] } },
     {
       // A development server cannot start a page without its hot-reload
       // connection, so real offline page loads are verified on a production build.
