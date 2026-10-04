@@ -212,15 +212,20 @@ describe("record_payment RPC (real network, real sessions)", () => {
     expect(staffError?.message).toBe("INSUFFICIENT_ROLE");
 
     const ownerClient = await signIn(OWNER_EMAIL, OWNER_PASSWORD);
+    const ownerCommand = {
+      shop_id: SHOP_1,
+      invoice_id: invoiceId,
+      amount_dirham: 100,
+      payment_method: "cash",
+      business_date: yesterday,
+      idempotency_key: `it-${invoiceId}-backdate-owner`,
+    };
+    const { error: noReasonError } = await ownerClient.rpc("record_payment", { command: ownerCommand });
+    expect(noReasonError?.message).toBe("PAYMENT_VALIDATION_FAILED");
+    expect(noReasonError?.details).toContain("BACKDATE_REASON_REQUIRED");
+
     const { data, error: ownerError } = await ownerClient.rpc("record_payment", {
-      command: {
-        shop_id: SHOP_1,
-        invoice_id: invoiceId,
-        amount_dirham: 100,
-        payment_method: "cash",
-        business_date: yesterday,
-        idempotency_key: `it-${invoiceId}-backdate-owner`,
-      },
+      command: { ...ownerCommand, backdated_reason: "payment collected yesterday, entered late" },
     });
     expect(ownerError).toBeNull();
     expect(data.ok).toBe(true);

@@ -320,7 +320,7 @@ select throws_ok(
     'shop_id', '10000000-0000-4000-8000-000000000001',
     'invoice_id', 'a1000000-0000-4000-8000-000000000003',
     'amount_dirham', 100, 'payment_method', 'cash',
-    'business_date', ((now() at time zone 'Asia/Qatar')::date - 2)::text, 'idempotency_key', 'rp-closed-1'
+    'business_date', ((now() at time zone 'Asia/Qatar')::date - 2)::text, 'idempotency_key', 'rp-closed-1', 'backdated_reason', 'late payment entry'
   ))$$,
   'P0001', 'CLOSED_DATE',
   'the owner is rejected against a closed historical date'
@@ -350,7 +350,7 @@ select lives_ok(
     'shop_id', '10000000-0000-4000-8000-000000000001',
     'invoice_id', 'a1000000-0000-4000-8000-000000000004',
     'amount_dirham', 100, 'payment_method', 'cash',
-    'business_date', ((now() at time zone 'Asia/Qatar')::date - 1)::text, 'idempotency_key', 'rp-backdate-owner'
+    'business_date', ((now() at time zone 'Asia/Qatar')::date - 1)::text, 'idempotency_key', 'rp-backdate-owner', 'backdated_reason', 'late payment entry'
   ))$$,
   'a backdated payment submitted by the owner succeeds'
 );
