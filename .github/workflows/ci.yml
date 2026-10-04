@@ -4,10 +4,23 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The fixed, publicly documented keys of the local Supabase stack. Not secrets:
+  # they only ever open the throwaway database this workflow starts.
+  NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:55321
+
 jobs:
+  # Everything that needs no database: fast feedback on every push.
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
 
     steps:
       - name: Check out repository
@@ -25,8 +38,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browser
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Production dependency audit
+        run: pnpm audit --prod
 
       - name: Lint
         run: pnpm lint
@@ -34,18 +47,29 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Run unit tests
-        run: pnpm test --run
+      - name: Unit tests with coverage
+        run: pnpm test --run --coverage
+
+      - name: Build refuses missing configuration
+        run: |
+          if NEXT_PUBLIC_SUPABASE_URL= pnpm build > build-without-config.log 2>&1; then
+            echo 'The build succeeded without its required configuration.' >&2
+            exit 1
+          fi
+          grep -q 'ShopKhata configuration is not deployable' build-without-config.log
 
       - name: Build
+        env:
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-build-only-placeholder
         run: pnpm build
 
-      - name: Run Playwright smoke tests
-        run: pnpm exec playwright test tests/e2e/smoke.spec.ts
+      - name: No whitespace errors
+        run: git diff --check
 
+  # The full gate against a real local Supabase stack, one suite at a time.
   integration:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 75
     needs: verify
 
     steps:
@@ -64,60 +88,91 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browser
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
 
       - name: Start local Supabase
         run: pnpm exec supabase start > /dev/null
 
-      - name: Run migration upgrade integration tests
+      - name: Migration upgrade tests
         run: pnpm test:migration-upgrade
 
       - name: Reset the complete database
         run: pnpm exec supabase db reset --local
 
-      - name: Run pgTAP
+      - name: Database tests (pgTAP)
         run: pnpm exec supabase test db --local
 
-      - name: Run database lint
+      - name: Database lint
         run: pnpm exec supabase db lint --local --level warning --fail-on error
 
-      - name: Run submit_batch integration tests
+      - name: Integration - invoice batches
         run: pnpm test:integration:batches
 
-      - name: Run record_payment integration tests
+      - name: Integration - payments
         run: pnpm test:integration:payments
 
-      - name: Run approve_overpayment integration tests
+      - name: Integration - overpayment
         run: pnpm test:integration:overpayment
 
-      - name: Run complete invoice operations integration tests
+      - name: Integration - invoice operations
         run: pnpm test:integration:operations
 
-      - name: Customer ledger and expenses integration tests
+      - name: Integration - customer ledger and expenses
         run: pnpm test:integration:customer-expenses
 
-      - name: Offline reconnect, conflict and Excel export integration tests
+      - name: Integration - offline and Excel
         run: pnpm test:integration:offline-excel
 
-      - name: Create local-only SSR environment configuration
+      - name: Integration - daily close and reports
+        run: pnpm test:integration:closing-reports
+
+      # Administration, the authorization attack matrix, the two-shop requirement, the largest
+      # batch, and a financial scenario that must survive a real backup and restore unchanged.
+      - name: Production acceptance, including the backup and restore drill
+        run: pnpm test:integration:acceptance
+
+      - name: Backup and restore rehearsal of the seeded database
+        env:
+          SHOPKHATA_BACKUP_DIR: ${{ runner.temp }}/shopkhata-backups
+        run: pnpm backup:verify
+
+      - name: Performance sanity at one year of data
+        run: pnpm perf:check
+
+      - name: Create local-only application configuration
         run: |
+          pnpm exec supabase db reset --local > /dev/null
           supabase_env="$(pnpm exec supabase status -o env 2>/dev/null)"
-          API_URL="$(printf '%s\n' "$supabase_env" | sed -n 's/^API_URL=//p' | head -n 1)"
-          PUBLISHABLE_KEY="$(printf '%s\n' "$supabase_env" | sed -n 's/^PUBLISHABLE_KEY=//p' | head -n 1)"
+          API_URL="$(printf '%s\n' "$supabase_env" | sed -n 's/^API_URL=//p' | head -n 1 | tr -d '"')"
+          PUBLISHABLE_KEY="$(printf '%s\n' "$supabase_env" | sed -n 's/^PUBLISHABLE_KEY=//p' | head -n 1 | tr -d '"')"
           if [ -z "$PUBLISHABLE_KEY" ]; then
-            PUBLISHABLE_KEY="$(printf '%s\n' "$supabase_env" | sed -n 's/^ANON_KEY=//p' | head -n 1)"
+            PUBLISHABLE_KEY="$(printf '%s\n' "$supabase_env" | sed -n 's/^ANON_KEY=//p' | head -n 1 | tr -d '"')"
           fi
           if [ -z "$API_URL" ] || [ -z "$PUBLISHABLE_KEY" ]; then
             echo 'Supabase status did not provide API_URL and a public key.' >&2
             exit 1
           fi
           printf 'NEXT_PUBLIC_SUPABASE_URL=%s\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=%s\n' "$API_URL" "$PUBLISHABLE_KEY" > .env.local
-          grep -qx 'NEXT_PUBLIC_SUPABASE_URL=.*' .env.local
-          grep -qx 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=.*' .env.local
 
-      - name: Run complete Playwright suite
+      # Chromium runs every browser test; Firefox and WebKit run the critical-workflow
+      # smoke; the PWA project runs against the production build.
+      - name: Complete browser suite on all engines
         run: pnpm test:e2e --workers=1
+
+      - name: Keep browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7
 
       - name: Stop local Supabase
         if: always()
