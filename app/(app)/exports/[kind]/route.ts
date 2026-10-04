@@ -12,6 +12,7 @@ import {
   MAX_REPORT_RANGE_DAYS, customerDueSheet, dailySummarySheet, expenseReportSheet, fetchCustomerDueReport, fetchDailySummary,
   fetchExpenseReport, fetchPaymentReport, fetchSalesReport, paymentReportSheet, salesReportSheet,
 } from "@/lib/reports";
+import { logFailure } from "@/lib/server-log";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const rangeSchema = z.object({ shop: z.uuid(), from: z.iso.date(), to: z.iso.date() }).refine((value) => value.from <= value.to);
@@ -70,7 +71,8 @@ export async function GET(request: NextRequest, context: RouteContext<"/exports/
     } else {
       return fail(404, "Unknown export.");
     }
-  } catch {
+  } catch (error) {
+    logFailure(`export:${kind}`, { message: error instanceof Error ? error.message : undefined }, { actorId: actor.id });
     return fail(503, "The export could not be prepared. Try again.");
   }
   if (sheet.data.length - 1 > MAX_EXPORT_ROWS) return fail(413, "Too many rows for one export. Choose a shorter date range.");

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { can, getCurrentActor, type Actor } from "@/lib/auth/permissions";
 import { isValidBatchReceipt, prepareInvoiceBatch, qatarBusinessDate, type EntryError } from "@/lib/invoice-entry";
 import { normalizeInvoiceNumber } from "@/lib/invoice-operations";
+import { logFailure } from "@/lib/server-log";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const rowSchema = z.object({
@@ -76,6 +77,8 @@ export async function saveInvoiceBatch(raw: unknown): Promise<SaveResult> {
 
   const { data, error } = await supabase.rpc("submit_batch", { command: prepared.command });
   if (error) {
+    // Also the path a queued offline draft takes when its replay is rejected.
+    logFailure("submit_batch", error, { shopId: input.shopId, actorId: actor.id });
     let errors: EntryError[] = [];
     try {
       const detail = JSON.parse(error.details ?? "null") as unknown;

@@ -3,6 +3,7 @@ import type { CookieOptions } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+import { safeReturnPath } from "@/lib/auth/return-path";
 import type { Database } from "@/lib/supabase/database.types";
 
 type CookieToSet = {
@@ -18,14 +19,8 @@ function publicSupabaseConfig(): { url: string; key: string } | null {
   return url && key ? { url, key } : null;
 }
 
-function safeReturnPath(request: NextRequest): string {
-  const returnPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
-
-  if (returnPath.startsWith("/") && !returnPath.startsWith("//")) {
-    return returnPath;
-  }
-
-  return "/";
+function requestReturnPath(request: NextRequest): string {
+  return safeReturnPath(`${request.nextUrl.pathname}${request.nextUrl.search}`, request.nextUrl.origin);
 }
 
 function copyAuthState(
@@ -58,7 +53,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.search = "";
-    loginUrl.searchParams.set("next", safeReturnPath(request));
+    loginUrl.searchParams.set("next", requestReturnPath(request));
     return NextResponse.redirect(loginUrl);
   }
 
@@ -102,7 +97,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   const loginUrl = request.nextUrl.clone();
   loginUrl.pathname = "/login";
   loginUrl.search = "";
-  loginUrl.searchParams.set("next", safeReturnPath(request));
+  loginUrl.searchParams.set("next", requestReturnPath(request));
 
   const redirectResponse = NextResponse.redirect(loginUrl);
   copyAuthState(redirectResponse, refreshedCookies, refreshedHeaders);

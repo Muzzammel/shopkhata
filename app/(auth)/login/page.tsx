@@ -4,23 +4,16 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { safeReturnPath } from "@/lib/auth/return-path";
 import { clearSessionMarker } from "@/lib/offline/draft-store";
 import { createBrowserClient } from "@/lib/supabase/browser";
 
 function safeDestination(): string {
-  const next = new URLSearchParams(window.location.search).get("next");
-
-  if (next && next.startsWith("/") && !next.startsWith("//")) {
-    return next;
-  }
-
-  return "/";
+  return safeReturnPath(new URLSearchParams(window.location.search).get("next"), window.location.origin);
 }
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isPending, setIsPending] = useState(false);
   // Reaching this page means there is no live session, so the offline page
@@ -30,6 +23,10 @@ export default function LoginPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isPending) return;
+    // Plain form fields: whatever was typed before the page finished loading is still there.
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") ?? "");
+    const password = String(form.get("password") ?? "");
 
     setErrorMessage("");
     setIsPending(true);
@@ -59,7 +56,8 @@ export default function LoginPage() {
     <main>
       <section aria-labelledby="login-heading">
         <h1 id="login-heading">Sign in to ShopKhata</h1>
-        <form onSubmit={handleSubmit}>
+        {/* method="post": a submit before the script has loaded must never put the password in the address bar. */}
+        <form method="post" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="email">Email</label>
             <input
@@ -68,8 +66,6 @@ export default function LoginPage() {
               type="email"
               autoComplete="username"
               required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
             />
           </div>
           <div>
@@ -80,8 +76,6 @@ export default function LoginPage() {
               type="password"
               autoComplete="current-password"
               required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
             />
           </div>
           {errorMessage ? (

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { can, getCurrentActor } from "@/lib/auth/permissions";
+import { logFailure } from "@/lib/server-log";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 import { expenseOperationError } from "@/lib/expense-operations";
@@ -24,6 +25,7 @@ export async function createCustomer(raw: unknown) {
   try {
     const supabase = await createServerSupabaseClient();
     const { data, error } = await supabase.rpc("create_customer", { command: parsed.data });
+    if (error) logFailure("create_customer", error, { shopId: parsed.data.shop_id, actorId: actor.id });
     if (error) return { ok: false as const, uncertain: !error.code, message: error.message === "DUPLICATE_CUSTOMER" ? "A customer with these details already exists in this shop." : "Customer could not be created." };
     if (!isRpcObject(data) || data.ok !== true || typeof data.customer_id !== "string") return { ok: false as const, uncertain: true, message: "Customer status is uncertain. Retry the same details." };
     revalidatePath("/customers");
@@ -39,6 +41,7 @@ export async function recordCustomerPayment(raw: unknown) {
   try {
     const supabase = await createServerSupabaseClient();
     const { data, error } = await supabase.rpc("record_customer_payment", { command: parsed.data });
+    if (error) logFailure("record_customer_payment", error, { shopId: parsed.data.shop_id, actorId: actor.id });
     if (error) return { ok: false as const, uncertain: !error.code, message: error.message === "AMOUNT_EXCEEDS_DUE" ? "The customer due changed. Refresh and review the allocation again." : error.message === "CLOSED_DATE" ? "This business date is closed." : "Payment could not be recorded." };
     if (!isRpcObject(data) || data.ok !== true || data.customer_id !== parsed.data.customer_id || !Array.isArray(data.allocations)) return { ok: false as const, uncertain: true, message: "Payment status is uncertain. Retry the exact payment." };
     revalidatePath(`/customers/${parsed.data.customer_id}`);
@@ -56,6 +59,7 @@ export async function applyCustomerCredit(raw: unknown) {
   try {
     const supabase = await createServerSupabaseClient();
     const { data, error } = await supabase.rpc("apply_customer_credit", { command: parsed.data });
+    if (error) logFailure("apply_customer_credit", error, { shopId: parsed.data.shop_id, actorId: actor.id });
     if (error) return { ok: false as const, uncertain: !error.code, message: error.message === "CREDIT_OR_DUE_INSUFFICIENT" ? "Available credit or outstanding due changed. Refresh and review again." : "Credit could not be applied." };
     if (!isRpcObject(data) || data.ok !== true || data.customer_id !== parsed.data.customer_id || !Array.isArray(data.allocations)) return { ok: false as const, uncertain: true, message: "Credit application status is uncertain. Retry the exact request." };
     revalidatePath(`/customers/${parsed.data.customer_id}`);
@@ -76,6 +80,7 @@ async function expenseRpc(name: "create_expense" | "request_expense_correction" 
   try {
     const supabase = await createServerSupabaseClient();
     const { data, error } = await supabase.rpc(name, { command: parsed.data as never });
+    if (error) logFailure(name, error, { shopId, actorId: actor.id });
     if (error) return { ok: false as const, uncertain: !error.code, message: name === "create_expense" && error.message === "INSUFFICIENT_ROLE" ? "Only an owner may record a backdated expense, with a reason." : expenseOperationError(error.message) };
     if (!isRpcObject(data) || data.ok !== true) return { ok: false as const, uncertain: true, message: "Expense status is uncertain. Retry the exact request." };
     revalidatePath("/expenses");
@@ -105,6 +110,8 @@ export async function registerExpenseAttachment(raw: unknown) {
     const supabase = await createServerSupabaseClient();
     const command = { ...parsed.data, file_path: parsed.data.file_path, file_name: parsed.data.file_name };
     const { data, error } = await supabase.rpc("register_expense_attachment", { command });
+    // The file itself is uploaded by the browser; this is where a failed or unfinished upload becomes visible.
+    if (error || !isRpcObject(data) || data.ok !== true) logFailure("register_expense_attachment", error, { shopId: parsed.data.shop_id, actorId: actor.id });
     if (error || !isRpcObject(data) || data.ok !== true) return { ok: false as const, uncertain: !error?.code, message: "The receipt could not be linked to this expense." };
     revalidatePath("/expenses");
     return { ok: true as const, attachmentId: data.attachment_id as string };

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { can, getCurrentActor } from "@/lib/auth/permissions";
 import { isValidPaymentReceipt, type PaymentCommand } from "@/lib/invoice-payment";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
+import { logFailure } from "@/lib/server-log";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const lookupSchema = z.object({ shopId: z.uuid(), invoiceNumber: z.string().trim().min(1).max(120) }).strict();
@@ -66,6 +67,7 @@ export async function recordInvoicePayment(raw: unknown): Promise<PaymentActionR
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase.rpc("record_payment", { command });
   if (error) {
+    logFailure("record_payment", error, { shopId: command.shop_id, actorId: actor.id });
     if (!error.code) {
       return { ok: false, uncertain: true, message: "Payment status is uncertain. Retry the same payment command." };
     }

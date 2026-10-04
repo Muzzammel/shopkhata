@@ -15,7 +15,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const availableShops = getVisibleShops(actor, shops);
   const query = await searchParams;
   const shop = availableShops.find((s) => s.id === query.shop) ?? availableShops[0];
-  if (!shop) throw new Error("SHOP_REQUIRED");
+  // A newly registered account, or one whose last shop was removed.
+  if (!shop) return <main style={{ maxWidth: 560, margin: "80px auto", padding: "0 16px", display: "grid", gap: 12 }}>
+    <h1>No shop assigned</h1>
+    <p role="alert">This account is not assigned to a shop yet, so there is nothing to show. Ask an owner to assign one under Accounts.</p>
+  </main>;
   const [{ data: profile, error: profileError }, workspace] = await Promise.all([
     supabase.from("profiles").select("display_name").eq("id", actor.id).single(),
     readShopWorkspace(actor, shop.id),
