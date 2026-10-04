@@ -6,8 +6,8 @@ Run on 2026-10-04 (Qatar time) on Windows 11, Node 24.15.0, pnpm 11.23.0, Supaba
 
 Every command below was run on its own, one after another, against one local Supabase instance, after the last code change. Nothing was deployed.
 
-> **Gate status: OPEN — one gate is incomplete, so the release candidate is not tagged.**
-> The complete browser run on the final code was stopped by the host at 30 of 70 tests (30 passed, 0 failed) because the machine ran low on memory; it was not a test failure. The remaining 40 tests have not run against the final code as one suite. Every other gate below passed. The tag `shopkhata-v1-rc1` must not be created until `pnpm exec playwright test --workers=1` completes green and this section is updated with its totals.
+> **Gate status: CLOSED — every gate passed; the release candidate is tagged `shopkhata-v1-rc1`.**
+> The first complete browser run on the final code was stopped by the host at 30 of 70 tests (30 passed, 0 failed, 40 not run) because the machine ran low on memory; it was a resource termination, not a test result. The run was repeated in full on 2026-10-04 and passed: see "Browser gate, final run" below.
 
 ## Final results
 
@@ -32,7 +32,7 @@ Every command below was run on its own, one after another, against one local Sup
 | Production acceptance (new) | `pnpm test:integration:acceptance` | PASS, **5**: administration, two-shop, authorization attack matrix, largest batch, financial scenario through a real backup and restore |
 | Performance sanity (new) | `pnpm perf:check` | PASS, **5**; 19 reads within budget at one year of data |
 | Build | `pnpm build` | PASS; `/admin` added as a dynamic route; fails with a named reason when configuration is missing |
-| Browser, all engines | `pnpm exec playwright test --workers=1` | **INCOMPLETE.** 70 tests (59 before this slice): 30 passed, 0 failed, 40 not run — the run was stopped by the host for low memory. Run separately earlier in the slice, before the row-level-security, balance-view and batch-limit migrations: `release-acceptance.spec.ts` 7/7 (Chromium), `cross-browser.spec.ts` 3/3 (Chromium, Firefox, WebKit), `pwa.spec.ts` 4/4 (production build). Those results are indicative only |
+| Browser, all engines | `pnpm exec playwright test --workers=1` | PASS, **70 passed, 0 failed, 0 skipped** in one invocation (7.5 min): Chromium 64, Firefox 1, WebKit 1, production-build PWA 4. A first attempt was stopped by the host for low memory at 30 passed, 0 failed, 40 not run. See "Browser gate, final run" |
 | Backup | `pnpm backup:db` | PASS |
 | Restore rehearsal | `pnpm backup:verify` | PASS, 9 checks, `RESTORE VERIFIED` |
 | Production audit | `pnpm audit --prod` | PASS, no known vulnerabilities |
@@ -239,7 +239,7 @@ On the **production build** (`pwa.spec.ts`, 4 tests):
 
 ## 12. Cross-browser result
 
-`cross-browser.spec.ts`, the critical workflow (sign in, save an invoice with a part payment, open Invoice Detail, record a follow-up payment, record an expense, open customers, a report and daily close, sign out, confirm the session is gone): **PASS on Chromium, Firefox and WebKit** when run on its own, before the later database migrations; to be confirmed by the full run. The full financial suite remains on Chromium as the deterministic gate. WebKit here is Playwright's WebKit build on Windows, not Safari on Apple hardware.
+`cross-browser.spec.ts`, the critical workflow (sign in, save an invoice with a part payment, open Invoice Detail, record a follow-up payment, record an expense, open customers, a report and daily close, sign out, confirm the session is gone): **PASS on Chromium, Firefox and WebKit** in the final full run, after every database migration of this slice. It signs in as a manager; owner administration is exercised in the browser on Chromium only (`release-acceptance.spec.ts`). The full financial suite remains on Chromium as the deterministic gate. WebKit here is Playwright's WebKit build on Windows, not Safari on Apple hardware.
 
 ## 13. CI
 
@@ -252,7 +252,7 @@ Least-privilege token (`contents: read`), superseded runs cancelled, pnpm store 
 
 ## Existing tests changed
 
-None removed, none weakened. `tests/e2e/pwa.spec.ts` gained one test; `playwright.config.ts` gained the Firefox and WebKit projects.
+None removed, none weakened. `tests/e2e/pwa.spec.ts` gained one test; `playwright.config.ts` gained the Firefox and WebKit projects. Two tests in `tests/e2e/invoice-entry.spec.ts` now read the date from `main header` instead of `header` (see "Browser gate, final run").
 
 ## Known exceptions and V1 decisions
 
@@ -267,9 +267,24 @@ None removed, none weakened. `tests/e2e/pwa.spec.ts` gained one test; `playwrigh
 - The workspace loads all of a shop's invoice numbers (see Performance).
 - Database timestamps in row hashes assume the source and the restore target use the same time zone setting (both UTC on Supabase).
 
-## Open before tagging
+## Browser gate, final run
 
-- Complete `pnpm exec playwright test --workers=1` on the final code (needs roughly 4 GB of free memory for the development server, the production server, the browsers and the local Supabase stack), record its totals above, and only then create the tag `shopkhata-v1-rc1`.
+- **Interrupted run (not hidden):** the first complete run was stopped by the host for low memory at 30 of 70 tests: 30 passed, 0 failed, 40 not run. A resource termination, not a pass and not a failure.
+- **Strategy:** `pnpm build` was run on its own first and `next start -p 3100` started before the tests, so the build's memory peak did not overlap the run; the configuration reuses a running server. Then one invocation of the complete configured suite, `pnpm exec playwright test --workers=1`. No project-by-project split was needed, no test was removed or skipped. About 2 GB of memory was available at the start and 0.8 GB at the lowest point observed.
+- **Result:** 70 passed, 0 failed, 0 skipped, 7.5 minutes.
+
+| Project | Tests | Passed | Failed | Skipped |
+| --- | --- | --- | --- | --- |
+| chromium (full suite, development server) | 64 | 64 | 0 | 0 |
+| firefox (`cross-browser.spec.ts`) | 1 | 1 | 0 | 0 |
+| webkit (`cross-browser.spec.ts`) | 1 | 1 | 0 | 0 |
+| pwa (production build) | 4 | 4 | 0 | 0 |
+
+- **Code tested:** application code at `41d0d04c22c1381abb75d5b98bb1e0a490e152fa`; no application code changed afterwards.
+- **Test defect found and fixed:** the run used the working copy of `tests/e2e/invoice-entry.spec.ts`, which differs from the committed file. Run on its own, the committed file failed 2 of 14 tests ("an open Shop 1 workspace advances its displayed Qatar date at midnight" and "a lost save response keeps the original date and retry key across midnight"): `locator("header")` matched two elements since the page gained a second header. The application was correct. The two selectors were changed to `main header` and committed; the committed file then passed 14 of 14 on Chromium. Lint and typecheck were rerun and passed.
+- **Counts at the tag:** the working copy also holds 4 invoice-detail tests that are not committed. They passed in the run above. The committed suite is therefore 66 tests (Chromium 60, Firefox 1, WebKit 1, PWA 4), each of which passed in its committed form.
+- **Text typed before a page is interactive (WebKit):** no further form showed the defect in the final WebKit run. The expense form still needs the retype described under Known exceptions, and the cross-browser test retypes there as a person would.
+- **Physical devices:** not tested; still manual (below).
 
 ## Manual checks still required before go-live
 
