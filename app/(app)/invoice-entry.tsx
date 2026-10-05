@@ -420,13 +420,15 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
         {restored && invoiceDraft && <span>Unsaved draft restored from this device.</span>}
         {(invoiceDraft || submission) && <button type="button" className={styles.textButton} disabled={busy || switching} onClick={discardDraft}>Discard draft</button>}
       </div>
-      <div className={styles.batchDate}>
-        <label>Business date<input aria-label="Business date" type="date" max={currentDate} value={displayDate} disabled={actorRole !== "owner" || workspaceLocked || batchUncertain} onChange={(event) => { editDraft(); setSelectedBusinessDate(event.target.value); }} /></label>
-        {displayBackdated && <label>Reason for backdated entry<input aria-label="Backdate reason" required maxLength={1000} value={displayReason} disabled={workspaceLocked || batchUncertain} onChange={(event) => { editDraft(); setBackdatedReason(event.target.value); }} /></label>}
+      <div className={styles.entryTopRow}>
+        <div className={styles.batchDate}>
+          <label>Business date<input aria-label="Business date" type="date" max={currentDate} value={displayDate} disabled={actorRole !== "owner" || workspaceLocked || batchUncertain} onChange={(event) => { editDraft(); setSelectedBusinessDate(event.target.value); }} /></label>
+          {displayBackdated && <label>Reason for backdated entry<input aria-label="Backdate reason" required maxLength={1000} value={displayReason} disabled={workspaceLocked || batchUncertain} onChange={(event) => { editDraft(); setBackdatedReason(event.target.value); }} /></label>}
+        </div>
+        <ExcelImport disabled={workspaceLocked || batchUncertain} currentRows={rows} draftIsBlank={!invoiceDraft} onApply={applyImport} validate={(candidate) => prepareInvoiceBatch({
+          shopId: currentShop.id, businessDate: displayDate, isBackdated: displayBackdated, backdatedReason: displayReason, idempotencyKey: key, rows: candidate,
+        }, duplicateNumbers, false, currentDate).errors} />
       </div>
-      <ExcelImport disabled={workspaceLocked || batchUncertain} currentRows={rows} draftIsBlank={!invoiceDraft} onApply={applyImport} validate={(candidate) => prepareInvoiceBatch({
-        shopId: currentShop.id, businessDate: displayDate, isBackdated: displayBackdated, backdatedReason: displayReason, idempotencyKey: key, rows: candidate,
-      }, duplicateNumbers, false, currentDate).errors} />
       <div className={styles.rows}>
         {rows.map((row, index) => <div className={styles.row} data-entry-row data-row-id={hydrated ? row.rowId : undefined} key={row.rowId}>
             <div className={styles.rowHeading}><strong>Invoice {index + 1}</strong>{rows.length > 1 && <button type="button" className={styles.textButton} disabled={workspaceLocked || batchUncertain} onClick={() => { setRows((current) => current.filter((item) => item.rowId !== row.rowId)); editDraft(); }}>Remove</button>}</div>
@@ -479,11 +481,12 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
     }} onStateChange={reportPaymentGuard} />}
     </div>
     {!offlineShell && <section id="recent-invoices" className={styles.panel} aria-labelledby="recent-title">
-      <div className={styles.sectionHeading}><h2 id="recent-title">Recent invoices</h2><p>{currentShop.name}</p></div>
+      <div className={styles.sectionHeading}><h2 id="recent-title">Recent invoices</h2><p>{currentShop.name} · last 30 days</p></div>
       {!online && <p className={styles.stale}>Offline — this list was loaded earlier and may be out of date.</p>}
-      {currentInvoices.length === 0 ? <p className={styles.empty}>No invoices saved yet.</p> : <div className={styles.savedList}><div className={styles.savedHead} aria-hidden="true"><span>Invoice</span><span>Date</span><span>Status</span><span>Total</span><span>Due</span></div>{currentInvoices.map((invoice) => <Link className={styles.saved} href={`/shops/${currentShop.id}/invoices/${invoice.id}`} key={invoice.id} aria-label={`View invoice ${invoice.invoice_id}`}>
+      {currentInvoices.length === 0 ? <p className={styles.empty}>No invoices in the last 30 days.</p> : <div className={styles.savedList}><div className={styles.savedHead} aria-hidden="true"><span>Invoice</span><span>Date</span><span>Status</span><span>Total</span><span>Due</span></div>{currentInvoices.map((invoice) => <Link className={styles.saved} href={`/shops/${currentShop.id}/invoices/${invoice.id}`} key={invoice.id} aria-label={`View invoice ${invoice.invoice_id}`}>
         <strong>{invoice.invoice_id}</strong><span>{invoice.business_date}</span><span className={styles.badge} data-tone={invoice.delivered ? invoice.effective_due_dirham <= 0 ? "success" : "warning" : undefined}>{invoice.delivered ? invoice.effective_due_dirham <= 0 ? "Delivered · paid" : "Delivered · due" : "Advance"}</span><span>QAR {formatQar(invoice.effective_total_dirham)}</span><span className={invoice.effective_due_dirham > 0 ? styles.due : undefined}>Due QAR {formatQar(invoice.effective_due_dirham)}</span>
       </Link>)}</div>}
+      <p><Link href={`/invoices?shop=${currentShop.id}`}>View all invoices</Link></p>
       <form className={styles.exportForm} action="/exports/invoices" method="get">
         <input type="hidden" name="shop" value={currentShop.id} />
         <label>Export from<input type="date" name="from" defaultValue={currentDate} max={currentDate} required /></label>

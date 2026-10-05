@@ -1345,6 +1345,8 @@ export type Database = {
       report_sales_totals: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { invoice_count: number; effective_total_dirham: number; effective_paid_dirham: number; credit_applied_dirham: number; effective_due_dirham: number; delivered_count: number; undelivered_count: number }[] }
       report_customer_due_totals: { Args: { p_shop_id: string }; Returns: { customers_with_due: number; outstanding_due_dirham: number; available_credit_dirham: number; unassigned_due_dirham: number }[] }
       report_expense_totals: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { category: string | null; expense_count: number; amount_dirham: number }[] }
+      report_top_customers_by_sales: { Args: { p_shop_id: string; p_from: string; p_to: string; p_limit?: number }; Returns: { customer_id: string; name: string; amount_dirham: number }[] }
+      report_top_customers_by_payments: { Args: { p_shop_id: string; p_from: string; p_to: string; p_limit?: number }; Returns: { customer_id: string; name: string; amount_dirham: number }[] }
     }
     Enums: {
       [_ in never]: never

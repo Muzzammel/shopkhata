@@ -384,13 +384,30 @@ test.describe("responsive usability and accessibility", () => {
         await check(`report ${report}`);
       }
 
+      // Invoices: the 30-day default history browser.
+      await page.goto(`/invoices?shop=${SHOP_1}`);
+      await expect(page.getByRole("heading", { name: "Invoices" })).toBeVisible();
+      await check("invoices");
+
+      // Payments: Record Payment plus history, at the same screen size as Overview's.
+      await page.goto(`/payments?shop=${SHOP_1}`);
+      await expect(page.getByRole("heading", { name: "Payments" })).toBeVisible();
+      await check("payments");
+
+      // Dashboard: KPIs, trend, and every section's empty/populated state.
+      await page.goto(`/dashboard?shop=${SHOP_1}`);
+      await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+      await check("dashboard today");
+      await page.goto(`/dashboard?shop=${SHOP_1}&period=30d`);
+      await check("dashboard 30 days");
+
       // Owner administration.
       await page.goto("/admin");
       await expect(page.getByRole("table")).toBeVisible();
       await check("administration");
 
       // The navigation reaches every workspace and the offline state is announced in words.
-      for (const link of ["Overview", "Customers", "Expenses", "Daily close", "Reports", "Accounts"]) {
+      for (const link of ["Overview", "Invoices", "Customers", "Payments", "Expenses", "Daily close", "Dashboard", "Reports", "Accounts"]) {
         await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: link, exact: true })).toBeInViewport({ ratio: 1 });
       }
       await page.goto("/");

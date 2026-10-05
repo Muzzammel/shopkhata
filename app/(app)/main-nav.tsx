@@ -8,11 +8,12 @@ import styles from "@/app/ui.module.css";
 // `group` starts a visual group; `under` is the path prefix that marks the link as current.
 const LINKS = [
   { href: "/", label: "Overview", under: "/" },
-  { href: "/#recent-invoices", label: "Invoices", under: "/shops" },
-  { href: "/#invoice-payments", label: "Payments" },
+  { href: "/invoices", label: "Invoices", under: "/invoices" },
   { href: "/customers", label: "Customers", under: "/customers", group: true },
+  { href: "/payments", label: "Payments", under: "/payments", group: true },
   { href: "/expenses", label: "Expenses", under: "/expenses" },
   { href: "/closing", label: "Daily close", under: "/closing", group: true },
+  { href: "/dashboard", label: "Dashboard", under: "/dashboard" },
   { href: "/reports", label: "Reports", under: "/reports" },
   { href: "/admin", label: "Accounts", under: "/admin", group: true, admin: true },
 ];

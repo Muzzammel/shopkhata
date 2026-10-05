@@ -141,6 +141,9 @@
 .draftBar:empty { display: none; }
 .draftBar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-4); min-height: 20px; color: var(--text-muted); font-size: 13px; }
 .workspace .draftStatus { color: var(--primary); font-weight: 650; }
+.entryTopRow { display: flex; flex-wrap: wrap; align-items: start; gap: var(--s-4); }
+.entryTopRow > .batchDate { flex: 1 1 260px; }
+.entryTopRow > .importPanel { flex: 2 1 380px; }
 .batchDate { display: flex; flex-wrap: wrap; gap: var(--s-4); }
 .batchDate label { flex: 0 1 180px; }
 .batchDate label + label { flex: 1 1 260px; }
@@ -175,6 +178,15 @@
 .saved > :nth-child(n + 4), .savedHead > :nth-child(n + 4) { text-align: right; }
 .saved > :last-child { color: var(--text-muted); }
 .saved > .due { color: var(--warning); font-weight: 650; }
+
+/* ---- Dashboard ---- */
+.quickActions { display: flex; flex-wrap: wrap; gap: var(--s-3); }
+.trendBars { display: grid; gap: var(--s-2); margin-bottom: var(--s-4); }
+.trendRow { display: grid; grid-template-columns: 92px 1fr auto; align-items: center; gap: var(--s-3); font-size: 12px; }
+.trendRow > span:first-child { color: var(--text-muted); }
+.trendBar { display: block; height: 10px; border-radius: 999px; background: var(--surface-muted); overflow: hidden; }
+.trendBar > span { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
+.trendRow > strong { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 
 /* ---- Payment ---- */
 .paymentDetails { display: grid; gap: var(--s-4); }

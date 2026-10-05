@@ -86,6 +86,7 @@ export async function recordInvoicePayment(raw: unknown): Promise<PaymentActionR
     return { ok: false, uncertain: true, message: "Payment status is uncertain. Retry the same payment command." };
   }
   revalidatePath("/");
+  revalidatePath("/payments");
   revalidatePath(`/shops/${command.shop_id}/invoices/${command.invoice_id}`);
   return { ok: true, receipt: data };
 }

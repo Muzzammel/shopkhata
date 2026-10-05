@@ -1,6 +1,13 @@
 import { can, type Actor } from "@/lib/auth/permissions";
+import { last30Days } from "@/lib/date-range";
+import { qatarBusinessDate } from "@/lib/invoice-entry";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getVisibleShops } from "@/lib/shop-switching";
+
+// Overview is a compact recent-activity preview, not the invoice history
+// browser — that is the dedicated /invoices page. This is why the window is
+// fixed at the last 30 Qatar business days and the list stays short.
+const RECENT_INVOICE_PREVIEW_SIZE = 20;
 
 export type WorkspaceCustomer = { id: string; name: string | null; mobile: string | null; public_id: string };
 export type WorkspaceInvoice = {
@@ -27,8 +34,11 @@ export async function readShopWorkspace(actor: Actor, shopId: string): Promise<S
   const shop = shops.find((item) => item.id === shopId);
   if (!shop) throw new Error("UNAUTHORIZED_SHOP");
 
+  const { from, to } = last30Days(qatarBusinessDate(new Date()));
   const { data: invoices, error: invoiceError } = await supabase.from("effective_invoices")
-    .select("*").eq("shop_id", shop.id).order("recorded_at", { ascending: false }).order("canonical_invoice_id").limit(30);
+    .select("*").eq("shop_id", shop.id).gte("business_date", from).lte("business_date", to)
+    .order("business_date", { ascending: false }).order("recorded_at", { ascending: false }).order("canonical_invoice_id", { ascending: false })
+    .limit(RECENT_INVOICE_PREVIEW_SIZE);
   if (invoiceError || !invoices) throw new Error("INVOICE_WORKSPACE_UNAVAILABLE");
   const registry: { invoice_number: string }[] = [];
   for (let offset = 0; ; offset += 1000) {
