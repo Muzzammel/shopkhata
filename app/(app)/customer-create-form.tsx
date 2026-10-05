@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createCustomer } from "./customer-actions";
-import styles from "./customers/operations.module.css";
+import styles from "@/app/ui.module.css";
 
 export function CustomerCreateForm({ shopId }: { shopId: string }) {
   const router = useRouter();

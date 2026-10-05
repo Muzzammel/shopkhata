@@ -22,7 +22,7 @@ import { ExcelImport } from "./excel-import";
 import { saveInvoiceBatch, type SaveResult } from "./invoice-actions";
 import { InvoicePayment } from "./invoice-payment";
 import { loadShopWorkspace } from "./workspace-actions";
-import styles from "./invoice-entry.module.css";
+import styles from "@/app/ui.module.css";
 
 const REAUTH_MESSAGE = "Sign in again to continue. Your draft is kept on this device and has not been confirmed as saved.";
 
@@ -412,8 +412,9 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
     </header>
     {switchMessage && <p role="alert">{switchMessage}</p>}
     {otherDraftShops.length > 0 && !offlineShell && <p>{otherDraftShops.map((item) => <Link key={item.id} href={`/?shop=${item.id}`}>Unsaved draft in {item.name}</Link>)}</p>}
+    <div className={styles.split}>
     <section className={styles.panel} aria-labelledby="entry-title">
-      <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Invoice operations</p><h2 id="entry-title">New invoice batch</h2></div><p>One save commits every row together.</p></div>
+      <div className={styles.sectionHeading}><h2 id="entry-title">New invoice batch</h2><p>One save commits every row together.</p></div>
       <div className={styles.draftBar}>
         {statusLabel && <p role="status" data-draft-status className={styles.draftStatus}>{statusLabel}</p>}
         {restored && invoiceDraft && <span>Unsaved draft restored from this device.</span>}
@@ -469,11 +470,19 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
       </div>}
       {notice && <p role={notice.ok ? "status" : "alert"} className={notice.ok ? styles.success : styles.errors}>{notice.message}{conflict?.kind === "reauth" && <> <a href={`/login?next=${encodeURIComponent(`/?shop=${currentShop.id}`)}`}>Sign in again</a></>}</p>}
     </section>
+    {!offlineShell && <InvoicePayment key={currentShop.id} shopId={currentShop.id} disabled={switching || busy} onActivityChange={reportPaymentActivity} onSaved={({ invoiceId, effectiveDue }) => {
+      const generation = workspaceGenerationRef.current;
+      if (!workspaceIsCurrent(currentShop.id, generation)) return;
+      setCurrentInvoices((current) => current.map((invoice) => invoice.id === invoiceId
+        ? { ...invoice, effective_due_dirham: effectiveDue }
+        : invoice));
+    }} onStateChange={reportPaymentGuard} />}
+    </div>
     {!offlineShell && <section id="recent-invoices" className={styles.panel} aria-labelledby="recent-title">
-      <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Saved records</p><h2 id="recent-title">Recent invoices</h2></div><p>{currentShop.name}</p></div>
+      <div className={styles.sectionHeading}><h2 id="recent-title">Recent invoices</h2><p>{currentShop.name}</p></div>
       {!online && <p className={styles.stale}>Offline — this list was loaded earlier and may be out of date.</p>}
-      {currentInvoices.length === 0 ? <p>No invoices saved yet.</p> : <div className={styles.savedList}>{currentInvoices.map((invoice) => <Link className={styles.saved} href={`/shops/${currentShop.id}/invoices/${invoice.id}`} key={invoice.id} aria-label={`View invoice ${invoice.invoice_id}`}>
-        <strong>{invoice.invoice_id}</strong><span>{invoice.business_date}</span><span>{invoice.delivered ? invoice.effective_due_dirham <= 0 ? "Delivered · paid" : "Delivered · due" : "Advance"}</span><span>QAR {formatQar(invoice.effective_total_dirham)}</span><span>Due QAR {formatQar(invoice.effective_due_dirham)}</span>
+      {currentInvoices.length === 0 ? <p className={styles.empty}>No invoices saved yet.</p> : <div className={styles.savedList}><div className={styles.savedHead} aria-hidden="true"><span>Invoice</span><span>Date</span><span>Status</span><span>Total</span><span>Due</span></div>{currentInvoices.map((invoice) => <Link className={styles.saved} href={`/shops/${currentShop.id}/invoices/${invoice.id}`} key={invoice.id} aria-label={`View invoice ${invoice.invoice_id}`}>
+        <strong>{invoice.invoice_id}</strong><span>{invoice.business_date}</span><span className={styles.badge} data-tone={invoice.delivered ? invoice.effective_due_dirham <= 0 ? "success" : "warning" : undefined}>{invoice.delivered ? invoice.effective_due_dirham <= 0 ? "Delivered · paid" : "Delivered · due" : "Advance"}</span><span>QAR {formatQar(invoice.effective_total_dirham)}</span><span className={invoice.effective_due_dirham > 0 ? styles.due : undefined}>Due QAR {formatQar(invoice.effective_due_dirham)}</span>
       </Link>)}</div>}
       <form className={styles.exportForm} action="/exports/invoices" method="get">
         <input type="hidden" name="shop" value={currentShop.id} />
@@ -482,12 +491,5 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
         <button type="submit" className={styles.secondary} disabled={!online}>Export invoices (.xlsx)</button>
       </form>
     </section>}
-    {!offlineShell && <InvoicePayment key={currentShop.id} shopId={currentShop.id} disabled={switching || busy} onActivityChange={reportPaymentActivity} onSaved={({ invoiceId, effectiveDue }) => {
-      const generation = workspaceGenerationRef.current;
-      if (!workspaceIsCurrent(currentShop.id, generation)) return;
-      setCurrentInvoices((current) => current.map((invoice) => invoice.id === invoiceId
-        ? { ...invoice, effective_due_dirham: effectiveDue }
-        : invoice));
-    }} onStateChange={reportPaymentGuard} />}
   </main>;
 }

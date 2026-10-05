@@ -6,7 +6,7 @@ import { can, getCurrentActor } from "@/lib/auth/permissions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 import { AccountForm, RegisterAccountForm } from "./account-forms";
-import styles from "../customers/operations.module.css";
+import styles from "@/app/ui.module.css";
 
 const qatarTime = (iso: string) => new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Qatar" });
 const ACTIONS: Record<string, string> = {
@@ -45,18 +45,20 @@ export default async function AdminPage() {
         <thead><tr><th scope="col">Account</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Effective access</th></tr></thead>
         <tbody>{accounts.map((account) => <tr key={account.id} data-account={account.email}>
           <th scope="row">{account.displayName}<small>{account.email}</small></th>
-          <td>{account.role}</td><td>{account.isActive ? "Active" : "Deactivated"}</td><td>{effectiveAccess(account)}</td>
+          <td><span className={styles.badge} data-tone={account.role === "owner" ? "info" : undefined}>{account.role}</span></td><td><span className={styles.badge} data-tone={account.isActive ? "success" : "danger"}>{account.isActive ? "Active" : "Deactivated"}</span></td><td>{effectiveAccess(account)}</td>
         </tr>)}</tbody>
       </table></div>
     </section>
 
-    {accounts.map((account) => <section key={account.id} className={styles.panel} data-manage={account.email}>
-      <h2>{account.displayName}</h2>
-      <p className={styles.muted}>{account.email}</p>
-      {account.id === actor.id
-        ? <p>This is your own account. Another owner must change your role or status, so the shops are never left without an owner.</p>
-        : <AccountForm account={account} shops={shops.data} />}
-    </section>)}
+    <section className={styles.panel}>
+      <h2>Role, status and shop access</h2>
+      <div className={styles.detailList}>{accounts.map((account) => <article key={account.id} data-manage={account.email}>
+        <h3>{account.displayName}<small>{account.email}</small></h3>
+        {account.id === actor.id
+          ? <p className={styles.muted}>This is your own account. Another owner must change your role or status, so the shops are never left without an owner.</p>
+          : <AccountForm account={account} shops={shops.data} />}
+      </article>)}</div>
+    </section>
 
     <section className={styles.panel}>
       <h2>Register an account</h2>
@@ -66,7 +68,7 @@ export default async function AdminPage() {
 
     <section className={styles.panel}>
       <h2>Recent account changes</h2>
-      {audit.data.length === 0 ? <p>No account change has been recorded.</p> : <div className={styles.detailList}>{audit.data.map((event) => <article key={event.id}>
+      {audit.data.length === 0 ? <p className={styles.empty}>No account change has been recorded.</p> : <div className={styles.detailList}>{audit.data.map((event) => <article key={event.id}>
         <strong>{ACTIONS[event.action] ?? event.action} · {name.get(event.entity_id ?? "") ?? event.entity_id}{event.shop_id ? ` · ${shopName.get(event.shop_id) ?? event.shop_id}` : ""}</strong>
         <span>{qatarTime(event.recorded_at)} (Qatar time) by {name.get(event.actor_id ?? "") ?? event.actor_id ?? "Unknown actor"}</span>
         {event.action === "account.update" && <span>{JSON.stringify((event.metadata as { before?: unknown }).before)} → {JSON.stringify((event.metadata as { after?: unknown }).after)}</span>}

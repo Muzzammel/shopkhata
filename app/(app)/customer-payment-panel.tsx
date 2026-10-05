@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { formatQar, parseQar } from "@/lib/domain/money";
 import { previewCustomerPaymentAllocation, type OutstandingInvoice } from "@/lib/customer-operations";
 import { applyCustomerCredit, recordCustomerPayment } from "./customer-actions";
-import styles from "./customers/operations.module.css";
+import styles from "@/app/ui.module.css";
 
 export function CustomerPaymentPanel({ shopId, customerId, invoices, availableCreditDirham, businessDate }: {
   shopId: string; customerId: string; invoices: OutstandingInvoice[]; availableCreditDirham: number; businessDate: string;
@@ -37,7 +37,7 @@ export function CustomerPaymentPanel({ shopId, customerId, invoices, availableCr
 
   return <section className={styles.panel}>
     <h2>Reduce outstanding due</h2>
-    {invoices.length === 0 ? <p>No outstanding invoices.</p> : <>
+    {invoices.length === 0 ? <p className={styles.empty}>No outstanding invoices.</p> : <>
       <div className={styles.formGrid}><label>Operation<select value={mode} disabled={uncertain} onChange={(e) => { setMode(e.target.value as typeof mode); setReview(false); setKey(crypto.randomUUID()); }}><option value="payment">Record cash payment</option>{availableCreditDirham > 0 && <option value="credit">Apply available credit</option>}</select></label>
       <label>{mode === "payment" ? "Payment amount (QAR)" : `Credit amount (QAR) · available ${formatQar(availableCreditDirham)}`}<input inputMode="decimal" value={amount} disabled={uncertain || busy} onChange={(e) => { setAmount(e.target.value); setReview(false); setMessage(""); setKey(crypto.randomUUID()); }}/></label>
       </div>

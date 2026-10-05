@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useActionState } from "react";
 
 import { registerAccount, setShopAssignment, updateAccount, type AccountAdminResult } from "./actions";
-import styles from "../customers/operations.module.css";
+import styles from "@/app/ui.module.css";
 
 type Shop = { id: string; name: string };
 export type AccountRow = { id: string; displayName: string; role: string; isActive: boolean; shopIds: string[] };
@@ -42,13 +42,13 @@ export function AccountForm({ account, shops }: { account: AccountRow; shops: Sh
     <label>Role
       <select name="role" defaultValue={account.role}><option value="staff">Staff</option><option value="manager">Manager</option><option value="owner">Owner</option></select>
     </label>
-    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <input type="checkbox" name="is_active" defaultChecked={account.isActive} style={{ width: "auto" }} />Account is active
+    <label>
+      <input type="checkbox" name="is_active" defaultChecked={account.isActive} />Account is active
     </label>
-    <fieldset style={{ border: 0, padding: 0, display: "flex", flexWrap: "wrap", gap: 16 }}>
-      <legend className={styles.muted}>Shop access{account.role === "owner" ? " (an owner can always use every shop)" : ""}</legend>
-      {shops.map((shop) => <label key={shop.id} style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
-        <input type="checkbox" name={`shop-${shop.id}`} defaultChecked={account.shopIds.includes(shop.id)} style={{ width: "auto" }} />{shop.name}
+    <fieldset className={styles.checks}>
+      <legend>Shop access{account.role === "owner" ? " (an owner can always use every shop)" : ""}</legend>
+      {shops.map((shop) => <label key={shop.id}>
+        <input type="checkbox" name={`shop-${shop.id}`} defaultChecked={account.shopIds.includes(shop.id)} />{shop.name}
       </label>)}
     </fieldset>
     <button disabled={busy}>{busy ? "Saving…" : "Save account"}</button>

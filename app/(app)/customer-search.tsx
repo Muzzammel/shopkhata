@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { WorkspaceCustomer } from "@/lib/shop-workspace";
 
 import { searchShopCustomers } from "./workspace-actions";
-import styles from "./invoice-entry.module.css";
+import styles from "@/app/ui.module.css";
 
 export function CustomerSearch({ shopId, disabled, onSelect, initial = null }: {
   shopId: string;

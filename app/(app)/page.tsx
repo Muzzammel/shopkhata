@@ -5,6 +5,8 @@ import { qatarBusinessDate } from "@/lib/invoice-entry";
 import { getVisibleShops } from "@/lib/shop-switching";
 import { readShopWorkspace } from "@/lib/shop-workspace";
 
+import styles from "@/app/ui.module.css";
+
 import { InvoiceEntry } from "./invoice-entry";
 
 export default async function Home({ searchParams }: PageProps<"/">) {
@@ -16,7 +18,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const query = await searchParams;
   const shop = availableShops.find((s) => s.id === query.shop) ?? availableShops[0];
   // A newly registered account, or one whose last shop was removed.
-  if (!shop) return <main style={{ maxWidth: 560, margin: "80px auto", padding: "0 16px", display: "grid", gap: 12 }}>
+  if (!shop) return <main className={styles.notice}>
     <h1>No shop assigned</h1>
     <p role="alert">This account is not assigned to a shop yet, so there is nothing to show. Ask an owner to assign one under Accounts.</p>
   </main>;

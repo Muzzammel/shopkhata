@@ -4,6 +4,8 @@ import { useEffect } from "react";
 
 import { useOnline } from "@/lib/offline/use-online";
 
+import styles from "./ui.module.css";
+
 /** Registers the service worker and shows the app-wide offline indicator. */
 export function Pwa() {
   const online = useOnline();
@@ -15,7 +17,7 @@ export function Pwa() {
     }
   }, []);
   if (online) return null;
-  return <div role="status" data-offline-banner style={{ background: "#7c2d12", color: "#fff", padding: "8px 16px", textAlign: "center", fontWeight: 700 }}>
+  return <div role="status" data-offline-banner className={styles.offlineBanner}>
     You are offline. Drafts stay on this device; nothing is saved to ShopKhata until you reconnect.
   </div>;
 }

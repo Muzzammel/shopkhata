@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { clearSessionMarker, deleteUserDrafts, listDraftShopIds } from "@/lib/offline/draft-store";
 import { createBrowserClient } from "@/lib/supabase/browser";
 
+import styles from "@/app/ui.module.css";
+
 export function SignOut({ userId }: { userId: string }) {
   const router = useRouter();
   async function signOut() {
@@ -18,5 +20,5 @@ export function SignOut({ userId }: { userId: string }) {
     router.replace("/login");
     router.refresh();
   }
-  return <button type="button" onClick={() => void signOut()} style={{ border: 0, background: "none", color: "#155a7c", font: "inherit", cursor: "pointer", padding: 0 }}>Sign out</button>;
+  return <button type="button" onClick={() => void signOut()} className={styles.ghost}>Sign out</button>;
 }

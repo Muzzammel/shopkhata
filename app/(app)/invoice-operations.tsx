@@ -9,7 +9,7 @@ import type { InvoiceOperation } from "@/lib/invoice-operations";
 import { runInvoiceOperation } from "./invoice-operation-actions";
 import { CustomerSearch } from "./customer-search";
 import { InvoicePayment } from "./invoice-payment";
-import styles from "./invoice-entry.module.css";
+import styles from "@/app/ui.module.css";
 
 export function InvoiceOperations({ detail, permissions }: { detail: InvoiceDetail; permissions: { payment: boolean; requestCorrection: boolean; requestReplacement: boolean; approveCorrection: boolean; approveReplacement: boolean } }) {
   const router = useRouter();
@@ -67,10 +67,10 @@ export function InvoiceOperations({ detail, permissions }: { detail: InvoiceDeta
     </div>}
     <section className={styles.panel} aria-labelledby="invoice-operations-heading">
       <h2 id="invoice-operations-heading">Invoice operations</h2>
-      <p>Committed records stay immutable. Requests take effect only after manager or owner approval.</p>
+      <p className={styles.muted}>Committed records stay immutable. Requests take effect only after manager or owner approval.</p>
       <div className={styles.actions}>
-        {permissions.requestCorrection && <button disabled={locked || paymentGuard.hasDraft} onClick={() => { setTab("correction"); setReason(""); setMessage(""); }}>Request financial correction</button>}
-        {permissions.requestReplacement && <button disabled={locked || paymentGuard.hasDraft} onClick={() => { setTab("replacement"); setReason(""); setMessage(""); setNumber(detail.invoiceNumber); setCustomer(detail.customer); setDelivered(detail.delivered); }}>Request non-financial replacement</button>}
+        {permissions.requestCorrection && <button className={styles.secondary} disabled={locked || paymentGuard.hasDraft} onClick={() => { setTab("correction"); setReason(""); setMessage(""); }}>Request financial correction</button>}
+        {permissions.requestReplacement && <button className={styles.secondary} disabled={locked || paymentGuard.hasDraft} onClick={() => { setTab("replacement"); setReason(""); setMessage(""); setNumber(detail.invoiceNumber); setCustomer(detail.customer); setDelivered(detail.delivered); }}>Request non-financial replacement</button>}
       </div>
       {tab && <form aria-label={tab === "correction" ? "Financial correction request" : "Replacement request"} onSubmit={(event) => { event.preventDefault(); request(); }}>
         <fieldset disabled={locked} className={styles.operationFields}>
@@ -84,12 +84,12 @@ export function InvoiceOperations({ detail, permissions }: { detail: InvoiceDeta
             <label>Replacement invoice number<input value={number} onChange={(e) => setNumber(e.target.value)} maxLength={120} required /></label>
             <p>Requested customer: {customer ? `${customer.name ?? "Unnamed customer"} · ${customer.publicId}` : "No customer"}</p>
             <CustomerSearch key={tab} shopId={detail.shopId} disabled={locked} onSelect={(c) => setCustomer(c ? { id: c.id, name: c.name, mobile: c.mobile, publicId: c.public_id } : null)} />
-            <button type="button" onClick={() => setCustomer(null)}>Use no customer</button>
+            <button type="button" className={styles.secondary} onClick={() => setCustomer(null)}>Use no customer</button>
             <label><input type="checkbox" checked={delivered} onChange={(e) => setDelivered(e.target.checked)} />Replacement delivered</label>
           </>}
           <label>Request reason<textarea value={reason} onChange={(e) => setReason(e.target.value)} required maxLength={2000} /></label>
           <button type="submit">Submit request</button>
-          <button type="button" onClick={() => setTab(null)}>Cancel draft</button>
+          <button type="button" className={styles.ghost} onClick={() => setTab(null)}>Cancel draft</button>
         </fieldset>
       </form>}
       {message && <p role={success ? "status" : "alert"}>{message}</p>}
@@ -97,8 +97,8 @@ export function InvoiceOperations({ detail, permissions }: { detail: InvoiceDeta
     </section>
     <section className={styles.panel} aria-labelledby="change-history-heading">
       <h2 id="change-history-heading">Requests and version history</h2>
-      <p>Original version 0: {detail.originalInvoiceNumber}; customer {detail.originalCustomerId ?? "none"}; {detail.originalDelivered ? "delivered" : "advance"}. Current approved version {detail.revision}.</p>
-      {!detail.changes.length && <p>No correction or replacement requests.</p>}
+      <p className={styles.muted}>Original version 0: {detail.originalInvoiceNumber}; customer {detail.originalCustomerId ?? "none"}; {detail.originalDelivered ? "delivered" : "advance"}. Current approved version {detail.revision}.</p>
+      {!detail.changes.length && <p className={styles.empty}>No correction or replacement requests.</p>}
       <div className={styles.detailList}>{detail.changes.map((change) => <article key={change.id} aria-label={`${change.kind} request ${change.id}`}>
         <strong>{change.kind === "replacement" ? "Non-financial replacement" : "Financial correction"} — {change.decision?.outcome ?? "Pending approval"}</strong>
         <span>{change.reason}</span>

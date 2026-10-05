@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useActionState } from "react";
 
 import { closeBusinessDate, reopenBusinessDate } from "./actions";
-import styles from "../customers/operations.module.css";
+import styles from "@/app/ui.module.css";
 
 /**
  * Close or reopen one shop date. The fields are plain form fields: the browser
@@ -28,17 +28,17 @@ export function DayCloseForm({ mode, shopId, shopName, businessDate }: { mode: "
     }
   }, "");
 
-  return <form className={styles.formGrid} action={submit}>
+  return <form className={styles.formStack} action={submit}>
     <label>{closing ? "Close note (optional)" : "Reason for reopening"}
       <textarea name="text" maxLength={2000} required={!closing} />
     </label>
-    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <input type="checkbox" name="confirmed" required style={{ width: "auto" }} />
+    <label>
+      <input type="checkbox" name="confirmed" required />
       {closing
         ? `I understand that closing blocks every new entry for ${shopName} on ${businessDate} until it is reopened.`
         : `I understand that reopening allows new entries for ${shopName} on ${businessDate} again.`}
     </label>
-    <button disabled={busy}>{busy ? "Saving…" : closing ? "Close business date" : "Reopen business date"}</button>
+    <button className={styles.danger} disabled={busy}>{busy ? "Saving…" : closing ? "Close business date" : "Reopen business date"}</button>
     {message && <p role="alert">{message}</p>}
   </form>;
 }

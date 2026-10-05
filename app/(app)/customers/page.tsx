@@ -4,7 +4,7 @@ import { getVisibleShops } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { formatQar } from "@/lib/domain/money";
 import { CustomerCreateForm } from "../customer-create-form";
-import styles from "./operations.module.css";
+import styles from "@/app/ui.module.css";
 
 const PAGE_SIZE = 30;
 export default async function CustomersPage({ searchParams }: PageProps<"/customers">) {
@@ -39,13 +39,13 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
     <header className={styles.header}><div><p className={styles.eyebrow}>{shop.name}</p><h1>Customers</h1></div><Link href="/">Back to overview</Link></header>
     {shops.length > 1 && <nav className={styles.shops} aria-label="Choose shop">{shops.map((s) => <Link key={s.id} aria-current={s.id === shop.id ? "page" : undefined} href={`/customers?shop=${s.id}`}>{s.name}</Link>)}</nav>}
     <section className={styles.panel}>
-      <form className={styles.search} action="/customers"><input type="hidden" name="shop" value={shop.id}/><label>Search name, mobile or customer ID<input name="q" defaultValue={term} minLength={2} maxLength={100}/></label><button>Search</button>{term && <Link href={`/customers?shop=${shop.id}`}>Clear</Link>}</form>
+      <form className={styles.search} action="/customers"><input type="hidden" name="shop" value={shop.id}/><label>Search name, mobile or customer ID<input name="q" defaultValue={term} minLength={2} maxLength={100}/></label><button className={styles.secondary}>Search</button>{term && <Link className={styles.ghost} href={`/customers?shop=${shop.id}`}>Clear</Link>}</form>
       <p className={styles.muted}>{count ?? page.length} customers in {shop.name}</p>
-      <div className={styles.tableWrap}><table><thead><tr><th scope="col">Customer</th><th scope="col">Mobile</th><th scope="col">Outstanding due</th><th scope="col">Invoices</th><th scope="col">Last activity</th></tr></thead><tbody>
+      <div className={styles.tableWrap}><table><thead><tr><th scope="col">Customer</th><th scope="col">Mobile</th><th scope="col" className={styles.num}>Outstanding due</th><th scope="col" className={styles.num}>Invoices</th><th scope="col">Last activity</th></tr></thead><tbody>
         {page.map((customer) => { const balance = byCustomer.get(customer.id); const due = balance?.outstanding_due_dirham ?? 0; return <tr key={customer.id}>
           <td><Link href={`/customers/${customer.id}?shop=${shop.id}`}><strong>{customer.name || "Unnamed customer"}</strong><small>{customer.public_id}</small></Link></td><td>{customer.mobile || "—"}</td>
-          <td><strong>{due ? `QAR ${formatQar(due)}` : "Settled"}</strong>{(balance?.available_credit_dirham ?? 0) > 0 && <small>Credit QAR {formatQar(balance!.available_credit_dirham!)}</small>}</td>
-          <td>{balance?.invoice_count ?? 0}</td><td>{balance?.last_activity_date ?? "—"}</td>
+          <td className={styles.num}><strong className={due ? styles.due : styles.muted}>{due ? `QAR ${formatQar(due)}` : "Settled"}</strong>{(balance?.available_credit_dirham ?? 0) > 0 && <small>Credit QAR {formatQar(balance!.available_credit_dirham!)}</small>}</td>
+          <td className={styles.num}>{balance?.invoice_count ?? 0}</td><td>{balance?.last_activity_date ?? "—"}</td>
         </tr>; })}
         {page.length === 0 && <tr><td colSpan={5}>No customers match this search.</td></tr>}
       </tbody></table></div>

@@ -11,13 +11,14 @@ import {
 import { getVisibleShops } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-import styles from "../customers/operations.module.css";
+import styles from "@/app/ui.module.css";
 
 const qar = (dirham: number) => `QAR ${formatQar(dirham)}`;
 const qatarTime = (iso: string | null) => iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Qatar" }) : "—";
 
-function Table({ head, children, empty }: { head: string[]; children: ReactNode[]; empty: string }) {
-  return <div className={styles.tableWrap}><table><thead><tr>{head.map((title) => <th key={title} scope="col">{title}</th>)}</tr></thead>
+/** `num` lists the right-aligned (numeric) column positions. */
+function Table({ head, num = [], children, empty }: { head: string[]; num?: number[]; children: ReactNode[]; empty: string }) {
+  return <div className={styles.tableWrap}><table><thead><tr>{head.map((title, index) => <th key={title} scope="col" className={num.includes(index) ? styles.num : undefined}>{title}</th>)}</tr></thead>
     <tbody>{children.length ? children.slice(0, SCREEN_ROW_LIMIT) : <tr><td colSpan={head.length}>{empty}</td></tr>}</tbody></table>
     {children.length > SCREEN_ROW_LIMIT && <p className={styles.muted}>Showing the first {SCREEN_ROW_LIMIT} rows. The totals above cover every row; export the report for the full list.</p>}
   </div>;
@@ -46,8 +47,8 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
     const day = (await fetchDailySummary(supabase, shop.id, from, to))[0] ?? emptyDailySummary(from);
     body = <>
       <p className={styles.muted}>Everything recorded for business date {from}, whenever it was typed in. Sales, receipts, dues and expenses only — ShopKhata holds no cost of goods, so no figure here is profit.</p>
-      <div className={styles.tableWrap}><table><thead><tr><th scope="col">Metric</th><th scope="col">Value</th><th scope="col">Meaning</th></tr></thead><tbody>
-        {DAILY_METRICS.map((metric) => <tr key={metric.key}><td>{metric.label}</td><td><strong data-metric={metric.key}>{metric.kind === "money" ? qar(day[metric.key]) : day[metric.key]}</strong></td><td>{metric.meaning}</td></tr>)}
+      <div className={styles.tableWrap}><table className={styles.metricTable}><thead><tr><th scope="col">Metric</th><th scope="col" className={styles.num}>Value</th><th scope="col">Meaning</th></tr></thead><tbody>
+        {DAILY_METRICS.map((metric) => <tr key={metric.key}><td>{metric.label}</td><td className={styles.num}><strong data-metric={metric.key}>{metric.kind === "money" ? qar(day[metric.key]) : day[metric.key]}</strong></td><td className={styles.muted}>{metric.meaning}</td></tr>)}
       </tbody></table></div>
       <p><Link href={`/closing?shop=${shop.id}&date=${from}`}>Close or reopen this date</Link></p>
     </>;
@@ -64,8 +65,8 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
         <div><span>Delivered</span><strong>{totals.deliveredCount}</strong></div>
         <div><span>Advance (not delivered)</span><strong>{totals.undeliveredCount}</strong></div>
       </div>
-      <Table head={["Invoice", "Business date", "Recorded (Qatar)", "Customer", "Total", "Paid", "Credit applied", "Due", "Status"]} empty="No invoices in this range.">
-        {rows.map((row) => <tr key={row.invoiceId}><td><Link href={`/shops/${shop.id}/invoices/${row.invoiceId}`}>{row.invoiceNumber}</Link></td><td>{row.businessDate}</td><td>{qatarTime(row.recordedAt)}</td><td>{row.customerName || "—"}</td><td>{qar(row.totalDirham)}</td><td>{qar(row.paidDirham)}</td><td>{qar(row.creditAppliedDirham)}</td><td>{qar(row.dueDirham)}</td><td>{row.delivered ? "Delivered" : "Advance"}</td></tr>)}
+      <Table num={[4, 5, 6, 7]} head={["Invoice", "Business date", "Recorded (Qatar)", "Customer", "Total", "Paid", "Credit applied", "Due", "Status"]} empty="No invoices in this range.">
+        {rows.map((row) => <tr key={row.invoiceId}><td><Link href={`/shops/${shop.id}/invoices/${row.invoiceId}`}>{row.invoiceNumber}</Link></td><td>{row.businessDate}</td><td>{qatarTime(row.recordedAt)}</td><td>{row.customerName || "—"}</td><td className={styles.num}>{qar(row.totalDirham)}</td><td className={styles.num}>{qar(row.paidDirham)}</td><td className={styles.num}>{qar(row.creditAppliedDirham)}</td><td className={styles.num}>{qar(row.dueDirham)}</td><td><span className={styles.badge} data-tone={row.delivered ? "info" : undefined}>{row.delivered ? "Delivered" : "Advance"}</span></td></tr>)}
       </Table>
     </>;
   } else if (kind === "dues") {
@@ -78,8 +79,8 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
         <div><span>Available customer credit</span><strong data-total="credit">{qar(totals.availableCreditDirham)}</strong></div>
         <div><span>Due on invoices without a customer</span><strong>{qar(totals.unassignedDueDirham)}</strong></div>
       </div>
-      <Table head={["Customer", "Mobile", "Outstanding due", "Available credit", "Invoices", "Latest activity"]} empty="No customer owes money or holds credit.">
-        {rows.map((row) => <tr key={row.customerId}><td><Link href={`/customers/${row.customerId}?shop=${shop.id}`}><strong>{row.name || "Unnamed customer"}</strong><small>{row.publicId}</small></Link></td><td>{row.mobile || "—"}</td><td>{qar(row.outstandingDueDirham)}</td><td>{qar(row.availableCreditDirham)}</td><td>{row.invoiceCount}</td><td>{row.lastActivity || "—"}</td></tr>)}
+      <Table num={[2, 3, 4]} head={["Customer", "Mobile", "Outstanding due", "Available credit", "Invoices", "Latest activity"]} empty="No customer owes money or holds credit.">
+        {rows.map((row) => <tr key={row.customerId}><td><Link href={`/customers/${row.customerId}?shop=${shop.id}`}><strong>{row.name || "Unnamed customer"}</strong><small>{row.publicId}</small></Link></td><td>{row.mobile || "—"}</td><td className={styles.num}>{qar(row.outstandingDueDirham)}</td><td className={styles.num}>{qar(row.availableCreditDirham)}</td><td className={styles.num}>{row.invoiceCount}</td><td>{row.lastActivity || "—"}</td></tr>)}
       </Table>
     </>;
   } else if (kind === "expenses") {
@@ -91,8 +92,8 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
         <div><span>Effective expense amount</span><strong data-total="expenses">{qar(totals.totalDirham)}</strong></div>
         {totals.byCategory.map((item) => <div key={item.category}><span>{item.category} ({item.count})</span><strong>{qar(item.amountDirham)}</strong></div>)}
       </div>
-      <Table head={["Business date", "Recorded (Qatar)", "Category", "Description", "Amount", "Correction", "Created by"]} empty="No expenses in this range.">
-        {rows.map((row) => <tr key={row.expenseId}><td>{row.businessDate}{row.backdatedReason && <small>Backdated: {row.backdatedReason}</small>}</td><td>{qatarTime(row.recordedAt)}</td><td>{row.category}</td><td>{row.description}</td><td>{qar(row.amountDirham)}</td><td>{row.corrected ? "Corrected" : "As entered"}</td><td>{row.createdBy || "—"}</td></tr>)}
+      <Table num={[4]} head={["Business date", "Recorded (Qatar)", "Category", "Description", "Amount", "Correction", "Created by"]} empty="No expenses in this range.">
+        {rows.map((row) => <tr key={row.expenseId}><td>{row.businessDate}{row.backdatedReason && <small>Backdated: {row.backdatedReason}</small>}</td><td>{qatarTime(row.recordedAt)}</td><td>{row.category}</td><td>{row.description}</td><td className={styles.num}>{qar(row.amountDirham)}</td><td>{row.corrected ? "Corrected" : "As entered"}</td><td>{row.createdBy || "—"}</td></tr>)}
       </Table>
     </>;
   } else {
@@ -104,25 +105,27 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
         <div><span>Customer credit applied (not cash)</span><strong data-total="credit">{qar(totals.creditDirham)}</strong></div>
         {totals.bySource.map((item) => <div key={`${item.source}-${item.method}`}><span>{PAYMENT_SOURCES[item.source]} ({item.count})</span><strong>{qar(item.amountDirham)}</strong></div>)}
       </div>
-      <Table head={["Business date", "Recorded (Qatar)", "Type", "Method", "Amount", "Invoice", "Customer", "Reference"]} empty="No payments in this range.">
-        {rows.map((row) => <tr key={`${row.source}-${row.entryId}`}><td>{row.businessDate}</td><td>{qatarTime(row.recordedAt)}</td><td>{PAYMENT_SOURCES[row.source]}</td><td>{row.method}</td><td>{qar(row.amountDirham)}</td><td>{row.invoiceNumber || "—"}</td><td>{row.customerName || "—"}</td><td><small>{row.reference}</small></td></tr>)}
+      <Table num={[4]} head={["Business date", "Recorded (Qatar)", "Type", "Method", "Amount", "Invoice", "Customer", "Reference"]} empty="No payments in this range.">
+        {rows.map((row) => <tr key={`${row.source}-${row.entryId}`}><td>{row.businessDate}</td><td>{qatarTime(row.recordedAt)}</td><td>{PAYMENT_SOURCES[row.source]}</td><td>{row.method}</td><td className={styles.num}>{qar(row.amountDirham)}</td><td>{row.invoiceNumber || "—"}</td><td>{row.customerName || "—"}</td><td><small>{row.reference}</small></td></tr>)}
       </Table>
     </>;
   }
 
   return <main className={styles.workspace}>
     <header className={styles.header}><div><p className={styles.eyebrow}>{shop.name}</p><h1>Reports</h1><p>Dates are Qatar business dates.</p></div><Link href="/">Back to overview</Link></header>
+    <div className={styles.toolbar}>
     {shops.length > 1 && <nav className={styles.shops} aria-label="Choose shop">{shops.map((item) => <Link key={item.id} aria-current={item.id === shop.id ? "page" : undefined} href={`/reports?shop=${item.id}&report=${kind}&${range}`}>{item.name}</Link>)}</nav>}
     <nav className={styles.shops} aria-label="Choose report">{REPORT_KINDS.map((item) => <Link key={item} aria-current={item === kind ? "page" : undefined} href={`/reports?shop=${shop.id}&report=${item}`}>{REPORT_TITLES[item]}</Link>)}</nav>
+    </div>
     <section className={styles.panel}>
       <h2>{REPORT_TITLES[kind]}</h2>
-      {kind !== "dues" && <form className={styles.search} action="/reports"><input type="hidden" name="shop" value={shop.id} /><input type="hidden" name="report" value={kind} />
+      <div className={styles.toolbar}>{kind !== "dues" && <form className={styles.search} action="/reports"><input type="hidden" name="shop" value={shop.id} /><input type="hidden" name="report" value={kind} />
         {kind === "daily"
           ? <label>Business date<input type="date" name="date" defaultValue={from} max={today} required /></label>
           : <><label>From<input type="date" name="from" defaultValue={from} max={today} required /></label><label>To<input type="date" name="to" defaultValue={to} max={today} required /></label></>}
         <button>Show report</button></form>}
+      {can(actor, "records.export", shop.id) && <a className={styles.secondary} href={exportHref}>Export this report (.xlsx)</a>}</div>
       {error && <p role="alert">{error} Showing {today} instead.</p>}
-      {can(actor, "records.export", shop.id) && <p><a href={exportHref}>Export this report (.xlsx)</a></p>}
       {body}
     </section>
   </main>;

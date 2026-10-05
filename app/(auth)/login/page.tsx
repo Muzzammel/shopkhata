@@ -8,6 +8,8 @@ import { safeReturnPath } from "@/lib/auth/return-path";
 import { clearSessionMarker } from "@/lib/offline/draft-store";
 import { createBrowserClient } from "@/lib/supabase/browser";
 
+import styles from "@/app/ui.module.css";
+
 function safeDestination(): string {
   return safeReturnPath(new URLSearchParams(window.location.search).get("next"), window.location.origin);
 }
@@ -53,11 +55,11 @@ export default function LoginPage() {
   }
 
   return (
-    <main>
-      <section aria-labelledby="login-heading">
+    <main className={styles.authShell}>
+      <section className={`${styles.panel} ${styles.authCard}`} aria-labelledby="login-heading">
         <h1 id="login-heading">Sign in to ShopKhata</h1>
         {/* method="post": a submit before the script has loaded must never put the password in the address bar. */}
-        <form method="post" onSubmit={handleSubmit}>
+        <form className={styles.formStack} method="post" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="email">Email</label>
             <input

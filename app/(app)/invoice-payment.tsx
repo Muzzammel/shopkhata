@@ -6,7 +6,7 @@ import { formatQar } from "@/lib/domain/money";
 import { isValidPaymentReceipt, preparePaymentAttempt, type PaymentCommand } from "@/lib/invoice-payment";
 
 import { lookupInvoiceForPayment, recordInvoicePayment, type PaymentLookup } from "./payment-actions";
-import styles from "./invoice-entry.module.css";
+import styles from "@/app/ui.module.css";
 
 type PaymentInvoice = Extract<PaymentLookup, { ok: true }>["invoice"];
 
@@ -149,12 +149,12 @@ export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onAct
 
   return <section id="invoice-payments" className={styles.panel} aria-labelledby="payment-title">
     <div className={styles.sectionHeading}>
-      <div><p className={styles.eyebrow}>Existing invoice</p><h2 id="payment-title">Record Payment</h2></div>
+      <h2 id="payment-title">Record Payment</h2>
       <p>Record cash against an existing invoice. This does not create an invoice.</p>
     </div>
     {!initialInvoice && <form className={styles.lookup} onSubmit={(event) => { event.preventDefault(); void lookup(String(new FormData(event.currentTarget).get("invoiceNumber") ?? "")); }}>
       <label>Invoice number<input aria-label="Invoice number" name="invoiceNumber" required value={invoiceNumber} onChange={(event) => { if (!disabled && !busy) setInvoiceNumber(event.target.value); }} disabled={disabled || busy} maxLength={120} /></label>
-      <button type="submit" disabled={disabled || busy}>Find invoice</button>
+      <button type="submit" className={styles.secondary} disabled={disabled || busy}>Find invoice</button>
     </form>}
     {lookupMessage && <p role="alert">{lookupMessage}</p>}
     {invoice && <div className={styles.paymentDetails}>
@@ -162,12 +162,12 @@ export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onAct
       {!initialInvoice && <div className={styles.totals}>
         <span>Effective total<strong>QAR {formatQar(invoice.effectiveTotal)}</strong></span>
         <span>Paid<strong>QAR {formatQar(invoice.effectivePaid)}</strong></span>
-        <span>Due<strong>QAR {formatQar(invoice.effectiveDue)}</strong></span>
+        <span>Due<strong className={invoice.effectiveDue > 0 ? styles.due : undefined}>QAR {formatQar(invoice.effectiveDue)}</strong></span>
       </div>}
       {uncertain && attempt ? <div className={styles.paymentReview}>
         <p role="alert">Payment status is uncertain. This exact payment command is still pending. Retry it before starting another payment.</p>
         <button type="button" onClick={savePayment} disabled={disabled || busy}>{busy ? "Retrying…" : "Retry payment"}</button>
-      </div> : invoice.effectiveDue <= 0 ? <p role="alert" className={styles.paidWarning}>Already paid — no amount due</p> : <>
+      </div> : invoice.effectiveDue <= 0 ? <p role="alert" className={styles.callout}>Already paid — no amount due</p> : <>
         {!review && <>
           <label className={styles.paymentAmount}>Cash amount (QAR)
             <input aria-label="Cash amount (QAR)" inputMode="decimal" value={amount} disabled={disabled || busy} onChange={(event) => { if (disabled || busy) return; setAmount(event.target.value); if (attempt) editPayment(); }} />

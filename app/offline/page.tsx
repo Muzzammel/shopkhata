@@ -8,6 +8,7 @@ import { readSessionMarker, type SessionMarker } from "@/lib/offline/draft-store
 import { assumeOffline } from "@/lib/offline/use-online";
 
 import { InvoiceEntry } from "../(app)/invoice-entry";
+import styles from "../ui.module.css";
 
 async function serverReachable(): Promise<boolean> {
   try {
@@ -51,10 +52,10 @@ export default function OfflinePage() {
       window.removeEventListener("online", leave);
     };
   }, []);
-  if (!state) return <main style={{ padding: 24 }}><p role="status">Loading…</p></main>;
+  if (!state) return <main className={styles.notice}><p role="status">Loading…</p></main>;
   const shop = state.marker?.shops.find((item) => item.id === state.marker?.shopId) ?? state.marker?.shops[0];
   if (!state.marker || !shop) {
-    return <main style={{ padding: 24 }}>
+    return <main className={styles.notice}>
       <h1>{APP_NAME} is offline</h1>
       <p>Reconnect and sign in to continue. Any unsaved draft on this device opens again after you sign in.</p>
     </main>;

@@ -11,6 +11,14 @@ test("the critical workflow works end to end", async ({ page, browserName }) => 
   const invoice = `XB-${stamp}`;
   await login(page, MANAGER);
 
+  // The sales report lists only its first 200 rows, so the new invoice is proven by the
+  // Invoices summary count, which covers the whole range.
+  const invoiceCount = page.locator('[data-total="invoiceCount"]');
+  await page.goto(`/reports?shop=${SHOP_1}&report=sales`);
+  const invoicesBefore = Number(await invoiceCount.innerText());
+  await page.goto("/");
+  await expect(page.locator("[data-entry-row][data-row-id]").first()).toBeVisible();
+
   await fillRow(page, 0, invoice, "80.00", "30.00");
   await page.getByRole("button", { name: "Review batch" }).click();
   await expect(page.getByLabel("New invoice batch").getByText("Due QAR 50.00", { exact: true }).first()).toBeVisible();
@@ -53,7 +61,7 @@ test("the critical workflow works end to end", async ({ page, browserName }) => 
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
   await page.goto(`/reports?shop=${SHOP_1}&report=sales`);
-  await expect(page.getByRole("main")).toContainText(invoice);
+  await expect(invoiceCount).toHaveText(String(invoicesBefore + 1));
 
   await page.goto(`/closing?shop=${SHOP_1}`);
   await expect(page.locator("[data-day-state]")).toHaveText(/^(Open|Closed)$/);

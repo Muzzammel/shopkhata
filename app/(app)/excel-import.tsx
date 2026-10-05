@@ -10,7 +10,7 @@ import {
 } from "@/lib/excel/invoice-import";
 import type { EntryError, EntryRow } from "@/lib/invoice-entry";
 
-import styles from "./invoice-entry.module.css";
+import styles from "@/app/ui.module.css";
 
 async function downloadTemplate() {
   const url = URL.createObjectURL(await writeXlsxFile(importTemplateSheets()).toBlob());

@@ -10,7 +10,7 @@ import { getVisibleShops } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 import { DayCloseForm } from "./close-forms";
-import styles from "../customers/operations.module.css";
+import styles from "@/app/ui.module.css";
 
 const qatarTime = (iso: string) => new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Qatar" });
 
@@ -62,10 +62,10 @@ export default async function ClosingPage({ searchParams }: PageProps<"/closing"
     {shops.length > 1 && <nav className={styles.shops} aria-label="Choose shop">{shops.map((item) => <Link key={item.id} aria-current={item.id === shop.id ? "page" : undefined} href={`/closing?shop=${item.id}&date=${date}`}>{item.name}</Link>)}</nav>}
 
     <section className={styles.panel}>
-      <form className={styles.search} action="/closing"><input type="hidden" name="shop" value={shop.id} /><label>Business date<input type="date" name="date" defaultValue={date} max={today} required /></label><button>Show date</button></form>
+      <form className={styles.search} action="/closing"><input type="hidden" name="shop" value={shop.id} /><label>Business date<input type="date" name="date" defaultValue={date} max={today} required /></label><button className={styles.secondary}>Show date</button></form>
       <div className={styles.metrics}>
         <div><span>Business date</span><strong>{date}</strong></div>
-        <div><span>State</span><strong data-day-state={state}>{state === "closed" ? "Closed" : "Open"}</strong></div>
+        <div><span>State</span><strong data-day-state={state} className={styles.badge} data-tone={state === "closed" ? "solid" : "success"}>{state === "closed" ? "Closed" : "Open"}</strong></div>
         <div><span>Closed by</span><strong>{state === "closed" && lastClose ? who(lastClose.actorId) : "—"}</strong></div>
         <div><span>Closed at (Qatar time)</span><strong>{state === "closed" && lastClose ? qatarTime(lastClose.recordedAt) : "—"}</strong></div>
       </div>
@@ -77,17 +77,17 @@ export default async function ClosingPage({ searchParams }: PageProps<"/closing"
       <p className={styles.muted}>Amounts are grouped by business date, not by the time they were typed in. ShopKhata records sales, receipts, dues and expenses; it holds no cost of goods, so none of these figures is profit.</p>
       <div className={styles.metrics}>{DAILY_METRICS.map((metric) => <div key={metric.key} title={metric.meaning}><span>{metric.label}</span><strong data-metric={metric.key}>{metric.kind === "money" ? `QAR ${formatQar(summary[metric.key])}` : summary[metric.key]}</strong></div>)}</div>
       <p><Link href={`/reports?shop=${shop.id}&report=daily&date=${date}`}>Open the daily report</Link></p>
-      {pendingCount > 0 && <p className={styles.pending}>Waiting for a decision on records dated {date}: {pending.pending_invoice_corrections} invoice corrections, {pending.pending_invoice_replacements} invoice replacements, {pending.pending_expense_corrections} expense corrections. They do not stop a close. An expense correction cannot be approved while its date is closed.</p>}
+      {pendingCount > 0 && <p className={styles.callout}>Waiting for a decision on records dated {date}: {pending.pending_invoice_corrections} invoice corrections, {pending.pending_invoice_replacements} invoice replacements, {pending.pending_expense_corrections} expense corrections. They do not stop a close. An expense correction cannot be approved while its date is closed.</p>}
     </section>
 
-    {mayClose && <section className={styles.panel}><h2>Close {date}</h2><p className={styles.muted}>Entries still waiting on a device that is offline are not part of this summary. They are rejected when they arrive after the close and stay on that device.</p><DayCloseForm mode="close" shopId={shop.id} shopName={shop.name} businessDate={date} /></section>}
-    {mayReopen && <section className={styles.panel}><h2>Reopen {date}</h2><DayCloseForm mode="reopen" shopId={shop.id} shopName={shop.name} businessDate={date} /></section>}
+    {mayClose && <section className={`${styles.panel} ${styles.governance}`}><h2>Close {date}</h2><p className={styles.muted}>Entries still waiting on a device that is offline are not part of this summary. They are rejected when they arrive after the close and stay on that device.</p><DayCloseForm mode="close" shopId={shop.id} shopName={shop.name} businessDate={date} /></section>}
+    {mayReopen && <section className={`${styles.panel} ${styles.governance}`}><h2>Reopen {date}</h2><DayCloseForm mode="reopen" shopId={shop.id} shopName={shop.name} businessDate={date} /></section>}
     {state === "closed" && !mayReopen && <section className={styles.panel}><p>{can(actor, "date.reopen", shop.id) ? "Only the owner can reopen an earlier business date." : "Only a manager or owner can reopen this date."}</p></section>}
     {state === "open" && !mayClose && <section className={styles.panel}><p>Only a manager or owner can close this date.</p></section>}
 
     <section className={styles.panel}>
       <h2>Backdated entries for {date}</h2>
-      {batchesResult.data.length + expensesResult.data.length === 0 ? <p>No backdated entry was recorded for this date.</p> : <div className={styles.detailList}>
+      {batchesResult.data.length + expensesResult.data.length === 0 ? <p className={styles.empty}>No backdated entry was recorded for this date.</p> : <div className={styles.detailList}>
         {batchesResult.data.map((batch) => <article key={batch.id}><strong>Backdated invoice batch</strong><span>Business date {date} · recorded {qatarTime(batch.recorded_at)} by {who(batch.created_by)}</span><span>Reason: {batch.backdated_reason}</span></article>)}
         {expensesResult.data.map((expense) => <article key={expense.id}><strong>Backdated expense · QAR {formatQar(expense.amount_dirham!)} · {expense.description}</strong><span>Business date {date} · recorded {qatarTime(expense.recorded_at!)} by {who(expense.created_by)}</span><span>Reason: {expense.backdated_reason}</span></article>)}
       </div>}
@@ -95,7 +95,7 @@ export default async function ClosingPage({ searchParams }: PageProps<"/closing"
 
     <section className={styles.panel}>
       <h2>Close and reopen history</h2>
-      {events.length === 0 ? <p>This date has never been closed.</p> : <div className={styles.detailList}>{events.map((event) => <article key={event.sequence}>
+      {events.length === 0 ? <p className={styles.empty}>This date has never been closed.</p> : <div className={styles.detailList}>{events.map((event) => <article key={event.sequence}>
         <strong>{event.type === "closed" ? "Closed" : "Reopened"} · {shop.name} · {date}</strong>
         <span>{qatarTime(event.recordedAt)} (Qatar time) by {who(event.actorId)}</span>
         {(event.reason || event.note) && <span>{event.type === "closed" ? "Note" : "Reason"}: {event.reason ?? event.note}</span>}
