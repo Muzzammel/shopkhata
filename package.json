@@ -10,6 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest",
     "test:e2e": "playwright test",
+    "verify:release": "node scripts/verify-release.mjs",
+    "smoke:production": "node scripts/smoke-production.mjs",
     "backup:db": "node scripts/backup.mjs",
     "backup:verify": "node scripts/backup.mjs verify",
     "test:migration-upgrade": "vitest run --config vitest.integration.config.mts",
@@ -40,7 +42,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1",
+    "@playwright/test": "^1.63.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^20",

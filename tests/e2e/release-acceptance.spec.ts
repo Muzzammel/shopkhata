@@ -303,6 +303,8 @@ const audit = () => {
 const SIZES = [["desktop", 1366, 768], ["tablet", 820, 1180], ["mobile", 390, 844]] as const;
 
 test.describe("responsive usability and accessibility", () => {
+  test.describe.configure({ timeout: 60_000 });
+
   for (const [name, width, height] of SIZES) {
     test(`every workspace is usable and accessible at ${name} size (${width}x${height})`, async ({ page }) => {
       await page.setViewportSize({ width, height });

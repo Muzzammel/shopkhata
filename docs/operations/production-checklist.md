@@ -18,7 +18,7 @@ Related: [deployment.md](deployment.md) (the exact sequence), [backup-restore.md
 ## 2. Database
 
 - [ ] From a checkout of the release tag: `pnpm exec supabase db push --db-url "<production database URL>"` finished without error.
-- [ ] `pnpm exec supabase migration list --db-url "<production database URL>"` shows every migration in `supabase/migrations` as applied, ending with `20261004120000`.
+- [ ] `pnpm exec supabase migration list --db-url "<production database URL>"` shows every migration in `supabase/migrations` as applied, ending with the latest ordered migration in the target release (currently `20261005090000`).
 - [ ] The seed file was **not** run. No `@shopkhata.local` account exists: in the SQL editor, `select count(*) from auth.users where email like '%@shopkhata.local';` returns 0.
 
 ## 3. Shops and the first owner
@@ -63,6 +63,8 @@ For each person: create the sign-in in the Supabase dashboard (Authentication �
 
 - [ ] `NEXT_PUBLIC_SUPABASE_URL` = the production project URL (`https://…supabase.co`).
 - [ ] `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` = the **publishable/anon** key. Not the service-role key.
+- [ ] Production `pnpm build` rejects a local Supabase URL and completes with the production project's public values; changing these build-time values requires a rebuild.
+- [ ] `/api/health` returns only `status` and a release identifier; the release identifier matches the deployment record.
 - [ ] No service-role key, database URL or password is set anywhere in the hosting settings.
 - [ ] `SHOPKHATA_ENABLE_HSTS=true` is set only after the final domain serves HTTPS.
 
@@ -98,6 +100,7 @@ On the real production site:
 - [ ] Reports → Daily summary for today shows that invoice in the right shop only.
 - [ ] Daily close: the owner closed and reopened a past date with a reason; the history shows both events.
 - [ ] The hosting platform's log shows no `"level":"error"` line from `"app":"shopkhata"` during these steps.
+- [ ] Production smoke (`pnpm smoke:production -- https://YOUR-PRODUCTION-DOMAIN`) passes read-only URL, header, manifest/icon, service worker, health and unauthenticated protected-route checks.
 - [ ] Rollback plan agreed: who decides, which previous release, where the pre-deployment backup is ([deployment.md](deployment.md), "Rollback").
 
 ## What V1 does and does not do (agreed limits)

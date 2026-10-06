@@ -74,6 +74,12 @@ The copy on the computer that ran the backup does not count as off-host.
 
 Take a backup at least once every trading day, after the daily close. Delete older folders by hand; nothing is deleted automatically.
 
+## Recovery point and recovery process expectations
+
+The practical recovery point is the newest **complete, successfully copied off-host** backup, not the time an operator started the command. With one verified backup per trading day, activity since that copy may need to be reconciled from source documents; the possible gap can approach a trading day if the backup is delayed or fails. Provider database snapshots do not include receipts, so they are not a complete ShopKhata recovery point by themselves.
+
+Expected recovery requires an operator, the backup folder and its receipt bytes, the compatible release/migration files, a new Supabase project with database/storage/Auth configured, Docker/PostgreSQL tooling, operator credentials, and enough time to restore and reconcile. Duration depends on data/receipt volume, network throughput and provider availability. No recovery-time or recovery-point guarantee is made. Run a monthly isolated drill to measure the actual workflow and update the owner's expectations.
+
 ## Proving a backup can be restored
 
 A backup that has never been restored is a hope, not a backup.

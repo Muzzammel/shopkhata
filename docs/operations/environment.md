@@ -17,6 +17,47 @@
 | `SHOPKHATA_RESTORE_SUPABASE_URL` | Operator-only | Shell, one session | API URL of the project receipts are being restored into |
 | `SHOPKHATA_RESTORE_SERVICE_ROLE_KEY` | Operator-only, **secret** | Shell, one session | Service-role key of that project |
 | `CI` | Local/CI-only | Set by the CI system | Makes Playwright start its own servers and retry |
+| `SHOPKHATA_RELEASE` | Server-only, optional | Hosting runtime/build settings | Short release identifier exposed by `/api/health`; use a tag or commit, never a secret |
+| `SHOPKHATA_ENV` | Server-only deployment profile (defaults to production if omitted) | `local`, `test`, or `production` | Selects the Supabase URL validation profile for a production-mode build. Hosting should explicitly set `production`; use `local` only for a local production-build/PWA rehearsal |
+
+`NODE_ENV` is assigned by Next.js (`development`, `test` in test runners, `production` for build/start); do not set it to choose a Supabase project. The hosting platform's canonical application URL is the base URL. It is intentionally not duplicated as an app environment variable: use that exact HTTPS origin in Supabase Auth's Site URL and redirect allowlist. There are no auth callback secrets because login is password-based and session cookies are managed by `@supabase/ssr`.
+
+## Environment boundaries
+
+| Environment | App URL and Supabase | Identity/data | Commands and restrictions |
+| --- | --- | --- | --- |
+| Local development | `http://localhost:3000`; local Supabase URL/key from `pnpm exec supabase status` | Local-only seed accounts and disposable data | `pnpm dev`; never point seeds/resets at a hosted project |
+| Test/CI | Local Supabase project and documented public local keys; Playwright starts app servers | Isolated fixture users and shops | `pnpm test`, integration scripts, `pnpm exec playwright test --workers=1`; test credentials are not hosting variables |
+| Production | Hosting-assigned HTTPS domain; production Supabase URL and publishable key | Real owner/staff, real data; public signup disabled | Production build/start; no seed, local reset or test account creation. Database and service-role credentials stay with operators for backup/restore only |
+
+Next.js inlines every `NEXT_PUBLIC_*` value into browser bundles at build time. Changing either Supabase public variable requires a new build. Production `next build` and `next start` validate presence and structure, reject secret-looking public names, reject service-role keys, and reject a local Supabase URL. Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are browser-safe app variables.
+
+## Complete repository environment inventory
+
+The app and scripts use these environment names (the screenshot crawler under `tools/shopkhata-screenshot-crawler` is a local-only artifact, not release automation):
+
+| Names | Classification | Use |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser-safe; required to build/start all app modes; environment-specific | Supabase endpoint and publishable/anon key |
+| `SHOPKHATA_ENABLE_HSTS` | Deployment-only optional | Adds HSTS after final HTTPS domain is confirmed |
+| `SHOPKHATA_RELEASE`, `VERCEL_GIT_COMMIT_SHA` | Server-only optional metadata | Release identifier at health endpoint; fallback is `unknown` |
+| `SHOPKHATA_BACKUP_ENV`, `SHOPKHATA_BACKUP_DB_URL`, `SHOPKHATA_BACKUP_SUPABASE_URL`, `SHOPKHATA_BACKUP_SERVICE_ROLE_KEY`, `SHOPKHATA_BACKUP_DIR` | Operator-only; DB URL and service-role key secret | Remote backup source and destination; never app-hosting config |
+| `SHOPKHATA_RESTORE_SUPABASE_URL`, `SHOPKHATA_RESTORE_SERVICE_ROLE_KEY` | Operator-only; service-role key secret | Explicit receipt restore command only |
+| `CI` | Test-only | Playwright worker/retry/server behavior |
+| `ComSpec`, `PATH` | OS/runtime-provided, not app configuration | Windows integration subprocesses and CLI resolution |
+| `SHOPKHATA_URL`, `SHOPKHATA_SCREENSHOT_SET`, `SHOPKHATA_CRAWLER_EMAIL`, `SHOPKHATA_CRAWLER_PASSWORD`, `CRAWLER_WIDTH`, `CRAWLER_HEIGHT`, `CRAWLER_MAX_PAGES` | Local-only crawler inputs | Optional screenshot-crawler target and fixtures; never production release inputs |
+| `NODE_ENV` | Runtime-controlled | Next.js mode; production mode enables deploy validation |
+
+`SUPABASE_AUTH_*` names in `supabase/config.toml` refer to optional local-stack provider integrations only. They are not required by the production password-login path. Production Auth, database SSL/backups, and `expense-receipts` bucket settings are configured and verified in the Supabase project dashboard as described below.
+
+## Runtime/toolchain contract
+
+- Node.js 22 (matches `.github/workflows/ci.yml`).
+- pnpm 11.23.0 (the `packageManager` value in `package.json`).
+- `pnpm install --frozen-lockfile`; do not update the lockfile during release install.
+- Next.js 16.3.8 / React 19.2.8 from the lockfile. Run the tracked production build with the target environment config.
+- Supabase CLI 2.115.0 from the locked project dependency (`pnpm exec supabase`); Docker Desktop is required for local DB reset, tests and restore rehearsal. No global CLI is required.
+- Production hosting must support the locked Next.js Node runtime, HTTPS, dynamic App Router pages/Server Actions, response headers, runtime environment configuration, and retaining server logs. Configure Supabase Auth's Site URL/redirects to the exact deployed origin.
 
 There are **no server-only application secrets**. The deployed application runs every request as the signed-in user with the publishable key; it never holds the service-role key, a database password or a JWT secret. Account administration is done by owner-only database functions, not by a privileged key.
 

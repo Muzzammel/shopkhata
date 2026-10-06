@@ -38,6 +38,7 @@ export default defineConfig({
     {
       command: "pnpm build && pnpm exec next start -p 3100",
       url: "http://localhost:3100/login",
+      env: { SHOPKHATA_ENV: "local" },
       reuseExistingServer: !process.env.CI,
       timeout: 300_000,
     },

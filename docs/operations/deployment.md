@@ -6,7 +6,7 @@ Use the [production checklist](production-checklist.md) for the first deployment
 
 ## Before you start
 
-- The release is a tag (`shopkhata-v1-rc1` or later) whose CI run is green.
+- The release is an immutable tag whose CI run is green and whose exact commit passed [release-checklist.md](release-checklist.md).
 - You have read the release's verification document in `docs/release/` and its list of manual checks.
 - Deploy outside trading hours, after the daily close.
 - You have, in a password manager and not in any file: the production database URL and the service-role key.
@@ -16,6 +16,7 @@ Use the [production checklist](production-checklist.md) for the first deployment
 git fetch --tags
 git checkout <release tag>
 pnpm install --frozen-lockfile
+pnpm verify:release
 ```
 
 ## 1. Back up production
@@ -58,7 +59,7 @@ Never run `supabase db reset` against production. It deletes everything.
 
 Deploy the release tag through the hosting platform (promote the build of that tag, or trigger a deployment from it). The build stops with `ShopKhata configuration is not deployable` if a required variable is missing or a secret key was put in a public variable; fix the settings and build again.
 
-Because migrations are applied first, there is a short window in which the previous application runs against the new schema. Migrations in this project only add tables, columns, functions, policies and indexes, so the previous release keeps working during that window.
+Because migrations are applied first, there is a short window in which the previous application runs against the new schema. Do not assume the previous release remains compatible: the release record must include an explicit old-app/new-schema compatibility review and test evidence for the exact migration range. If compatibility is uncertain, schedule a maintenance window and prevent writes until the new app is verified.
 
 ## 6. Smoke test
 
@@ -66,6 +67,7 @@ Open the production site in a fresh browser window.
 
 - The sign-in page loads over HTTPS.
 - Developer tools → Network → the page response has `content-security-policy` and `x-frame-options: DENY`.
+- Run the safe read-only smoke: `pnpm smoke:production -- https://YOUR-PRODUCTION-DOMAIN`. It checks HTTPS, security headers, PWA manifest/icons, no-cache service worker, release health endpoint, and unauthenticated protected-route redirect. It never signs in or writes financial data.
 
 ## 7. Verify authentication
 

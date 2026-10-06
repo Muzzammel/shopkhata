@@ -48,10 +48,17 @@ async function reopenDate(page: Page, reason: string) {
 async function fillExpense(page: Page, shop: string, date: string, amount: string, description: string, reason: string) {
   await page.goto(`/expenses?shop=${shop}`);
   const form = page.getByRole("heading", { name: "Record expense" }).locator("..");
-  await form.getByLabel("Date", { exact: true }).fill(date);
-  await form.getByLabel("Reason for backdating").fill(reason);
   await form.getByLabel("Amount (QAR)", { exact: true }).fill(amount);
   await form.getByLabel("Description", { exact: true }).fill(description);
+  // The page can finish its load event before React hydrates the controlled
+  // form. Wait for a state-driven change before filling Date, or the browser
+  // may show the requested value while React still holds today's date.
+  await expect(form.getByRole("button", { name: "Save expense" })).toBeEnabled();
+  const dateInput = form.getByLabel("Date", { exact: true });
+  await dateInput.fill(date);
+  await expect(dateInput).toHaveValue(date);
+  await expect(form.getByLabel("Reason for backdating")).toBeVisible();
+  await form.getByLabel("Reason for backdating").fill(reason);
   return form;
 }
 

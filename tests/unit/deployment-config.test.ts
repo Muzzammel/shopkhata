@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { accountAdminError, effectiveAccess, registerAccountInput, shopAssignmentInput, updateAccountInput } from "@/lib/account-admin";
 import { safeReturnPath } from "@/lib/auth/return-path";
 import { deploymentConfigProblems, securityHeaders } from "@/lib/deployment-config";
+import { safeFailureLogEntry } from "@/lib/server-log";
 
 const jwt = (role: string) => `x.${Buffer.from(JSON.stringify({ role })).toString("base64url")}.y`;
 const valid = { NEXT_PUBLIC_SUPABASE_URL: "https://project.supabase.co", NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_abc" };
@@ -20,6 +21,17 @@ describe("deployment configuration", () => {
     expect(deploymentConfigProblems({ ...valid, NEXT_PUBLIC_SUPABASE_URL: "http://project.supabase.co" })).toEqual(["NEXT_PUBLIC_SUPABASE_URL must use https."]);
   });
 
+  it("refuses the local Supabase stack when validating a production deployment", () => {
+    expect(deploymentConfigProblems({
+      ...valid,
+      NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:55321",
+    }, { production: true })).toContain("Production cannot use a local Supabase URL.");
+    expect(deploymentConfigProblems({
+      ...valid,
+      NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:55321",
+    })).toEqual([]);
+  });
+
   it("refuses a secret key or secret-named variable that would reach the browser", () => {
     expect(deploymentConfigProblems({ ...valid, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: jwt("service_role") })[0]).toContain("service-role");
     expect(deploymentConfigProblems({ ...valid, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_secret_abc" })[0]).toContain("service-role");
@@ -35,6 +47,21 @@ describe("deployment configuration", () => {
     expect(headers["Strict-Transport-Security"]).toBeUndefined();
     expect(securityHeaders({ ...valid, SHOPKHATA_ENABLE_HSTS: "true" }, false).some((header) => header.key === "Strict-Transport-Security")).toBe(true);
     expect(securityHeaders(valid, true)[0].value).toContain("'unsafe-eval'");
+  });
+});
+
+describe("production failure logging", () => {
+  it("correlates failures without logging untrusted database error text", () => {
+    const entry = safeFailureLogEntry("record_payment", {
+      code: "P0001",
+      message: "payment amount 125.00 for customer@example.com token=secret-value",
+    }, { shopId: "shop-id", actorId: "actor-id" });
+
+    expect(entry).toMatchObject({ app: "shopkhata", operation: "record_payment", code: "P0001", shopId: "shop-id", actorId: "actor-id" });
+    expect(entry.requestId).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(JSON.stringify(entry)).not.toContain("125.00");
+    expect(JSON.stringify(entry)).not.toContain("customer@example.com");
+    expect(JSON.stringify(entry)).not.toContain("secret-value");
   });
 });
 

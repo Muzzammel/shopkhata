@@ -38,6 +38,10 @@ function copyAuthState(
 }
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
+  // The health response contains no business data and is intentionally public
+  // so a host monitor can check readiness without holding an account session.
+  if (request.nextUrl.pathname === "/api/health") return NextResponse.next();
+
   const config = publicSupabaseConfig();
   const refreshedCookies: CookieToSet[] = [];
   const refreshedHeaders: Record<string, string> = {};

@@ -61,6 +61,7 @@ jobs:
       - name: Build
         env:
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-build-only-placeholder
+          SHOPKHATA_ENV: test
         run: pnpm build
 
       - name: No whitespace errors

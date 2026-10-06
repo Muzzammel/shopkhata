@@ -3,10 +3,13 @@ import type { NextConfig } from "next";
 import { deploymentConfigProblems, securityHeaders } from "./lib/deployment-config";
 
 const development = process.env.NODE_ENV === "development";
+const typeGeneration = process.argv.includes("typegen");
 
 // `next build` and `next start` stop here when the configuration is missing or unsafe.
-if (process.env.NODE_ENV === "production") {
-  const problems = deploymentConfigProblems(process.env);
+if (process.env.NODE_ENV === "production" && !typeGeneration) {
+  const mode = process.env.SHOPKHATA_ENV ?? "production";
+  if (!["local", "test", "production"].includes(mode)) throw new Error("SHOPKHATA_ENV must be local, test, or production.");
+  const problems = deploymentConfigProblems(process.env, { production: mode === "production" });
   if (problems.length) throw new Error(`ShopKhata configuration is not deployable:\n  - ${problems.join("\n  - ")}\nSee docs/operations/environment.md.`);
 }
 

@@ -9,7 +9,7 @@ function jwtRole(key: string): string | null {
 }
 
 /** Returns every problem found; an empty list means the configuration is deployable. */
-export function deploymentConfigProblems(env: Env): string[] {
+export function deploymentConfigProblems(env: Env, options: { production?: boolean } = {}): string[] {
   const problems: string[] = [];
   const url = env.NEXT_PUBLIC_SUPABASE_URL;
   const key = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -19,6 +19,7 @@ export function deploymentConfigProblems(env: Env): string[] {
   if (!url) problems.push("NEXT_PUBLIC_SUPABASE_URL is not set.");
   else if (!parsed) problems.push("NEXT_PUBLIC_SUPABASE_URL is not a valid URL.");
   else if (parsed.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(parsed.hostname)) problems.push("NEXT_PUBLIC_SUPABASE_URL must use https.");
+  else if (options.production && parsed && ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname)) problems.push("Production cannot use a local Supabase URL.");
 
   if (!key) problems.push("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is not set.");
   else if (key.startsWith("sb_secret_") || jwtRole(key) === "service_role") {
