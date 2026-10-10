@@ -1,7 +1,22 @@
 import { z } from "zod";
 
 const base = { shop_id: z.uuid(), invoice_id: z.uuid(), idempotency_key: z.uuid(), reason: z.string().trim().min(1).max(2000) };
-export const correctionInput = z.object({ ...base, payment_id: z.uuid().nullable(), amount_delta_dirham: z.number().int().safe().refine((n) => n !== 0) }).strict();
+// An invoice-total correction states the corrected total and the total it was made against; the
+// database derives the delta. Only a payment correction still carries a signed delta.
+const totalCorrection = z.object({ ...base, payment_id: z.null(), expected_total_dirham: z.number().int().safe().min(0), corrected_total_dirham: z.number().int().safe().min(0) }).strict()
+  .refine((value) => value.corrected_total_dirham !== value.expected_total_dirham);
+const paymentCorrection = z.object({ ...base, payment_id: z.uuid(), amount_delta_dirham: z.number().int().safe().refine((n) => n !== 0) }).strict();
+export const correctionInput = z.union([totalCorrection, paymentCorrection]);
+
+export type CorrectionPreview = { differenceDirham: number; resultingDueDirham: number; error: "UNCHANGED" | "BELOW_SETTLED" | null };
+/** What a corrected invoice total would do. Shown before submit; the database decides again on its own. */
+export function previewTotalCorrection(current: { totalDirham: number; paidDirham: number; creditAppliedDirham: number }, correctedTotalDirham: number): CorrectionPreview {
+  const resultingDueDirham = correctedTotalDirham - current.paidDirham - current.creditAppliedDirham;
+  return {
+    differenceDirham: correctedTotalDirham - current.totalDirham, resultingDueDirham,
+    error: correctedTotalDirham === current.totalDirham ? "UNCHANGED" : resultingDueDirham < 0 ? "BELOW_SETTLED" : null,
+  };
+}
 export const replacementInput = z.object({ ...base, expected_revision: z.number().int().min(0).max(2147483646), invoice_number: z.string().trim().min(1).max(120), customer_id: z.uuid().nullable(), delivered: z.boolean() }).strict();
 export const decisionInput = z.object({ shop_id: z.uuid(), request_id: z.uuid(), expected_revision: z.number().int().min(0).max(2147483646), decision: z.enum(["approved", "rejected"]), reason: z.string().trim().max(2000).nullable(), idempotency_key: z.uuid() }).strict();
 export type InvoiceOperation = "request_invoice_correction" | "request_invoice_replacement" | "decide_invoice_correction" | "decide_invoice_replacement";
@@ -17,7 +32,9 @@ export function operationError(code: string): string {
     PAYMENT_NOT_FOUND: "The payment was not found on this invoice.",
     CUSTOMER_NOT_FOUND: "Select a customer belonging to this shop.",
     CUSTOMER_REQUIRED: "A delivered invoice with due requires a customer.",
-    INVALID_FINANCIAL_RESULT: "This correction would produce invalid balances. Review the current total and payments.",
+    INVALID_FINANCIAL_RESULT: "This correction would leave invalid balances: an invoice total cannot be less than the amount already paid, and a payment cannot go below zero.",
+    STALE_TOTAL: "The invoice total changed since this correction was requested. Refresh and request it again against the current total.",
+    CORRECTION_NO_CHANGE: "The corrected total is the same as the current total.",
     NUMBER_ALREADY_REGISTERED: "This number belongs to another invoice in this shop.",
     STALE_REVISION: "The invoice version changed. Refresh and make a new request against the current version.",
     ALREADY_DECIDED: "This request already has a decision. Refresh to see its status.",

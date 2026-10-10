@@ -1,16 +1,42 @@
 import Link from "next/link";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { can, getCurrentActor } from "@/lib/auth/permissions";
 import { DASHBOARD_PERIODS, loadDashboard, parseDashboardPeriod, type DashboardPeriod } from "@/lib/dashboard";
 import { formatQar } from "@/lib/domain/money";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
 import { getVisibleShops } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { cn } from "@/lib/utils";
 
 import styles from "@/app/ui.module.css";
 
 const qar = (dirham: number) => `QAR ${formatQar(dirham)}`;
 const qatarTime = (iso: string) => new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Qatar" });
+// One accent per kind of money, used the same way everywhere on this page.
+const TONES = { sales: "border-l-primary", cash: "border-l-success", expense: "border-l-muted-foreground", due: "border-l-warning", neutral: "border-l-border" } as const;
+const BARS = { salesDirham: "bg-primary", paymentsDirham: "bg-success", expensesDirham: "bg-muted-foreground" } as const;
+
+/** A headline figure. The label stays a <span> and the figure a <strong>, as on every other screen. */
+function Kpi({ label, value, tone = "neutral", emphasis }: { label: string; value: string | number; tone?: keyof typeof TONES; emphasis?: "due" }) {
+  return <Card size="sm" className={cn("justify-between gap-1 border-l-4 px-3", TONES[tone])}>
+    <span className="text-xs leading-snug text-muted-foreground">{label}</span>
+    <strong className={cn("text-lg font-semibold tabular-nums sm:text-xl", emphasis === "due" && "text-warning")}>{value}</strong>
+  </Card>;
+}
+/** A supporting count or amount inside a section. */
+function Stat({ label, value, emphasis }: { label: string; value: string | number; emphasis?: "due" }) {
+  return <div className="grid content-start gap-0.5 border-t-2 pt-1.5">
+    <span className="text-xs text-muted-foreground">{label}</span>
+    <strong className={cn("text-base font-semibold tabular-nums", emphasis === "due" && "text-warning")}>{value}</strong>
+  </div>;
+}
+const KPI_GRID = "grid grid-cols-2 gap-3 lg:grid-cols-4";
+const STAT_GRID = "grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-3 lg:grid-cols-5";
+const GROUP_LABEL = "text-xs font-semibold tracking-wide text-muted-foreground uppercase";
+
 const PERIOD_LABELS: Record<DashboardPeriod, string> = { today: "Today", "7d": "Last 7 days", "30d": "Last 30 days", custom: "Custom" };
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
@@ -47,18 +73,38 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <button className={styles.secondary}>Show range</button>
         </form>}
       </div>
-      {range.error && <p role="alert">{range.error} Showing {PERIOD_LABELS[range.period]} instead.</p>}
-      <p className={styles.muted}>Showing {range.from === range.to ? range.from : `${range.from} to ${range.to}`} (Qatar business dates). Outstanding due and credit below are the current balance, not limited to this period.</p>
-      <div className={styles.metrics}>
-        <div><span>Invoices</span><strong>{data.kpi.invoiceCount}</strong></div>
-        <div><span>Sales (effective)</span><strong>{qar(data.kpi.salesDirham)}</strong></div>
-        <div><span>Average invoice</span><strong>{qar(data.kpi.averageInvoiceDirham)}</strong></div>
-        <div><span>Payments received (cash)</span><strong>{qar(data.kpi.paymentsReceivedDirham)}</strong></div>
-        <div><span>Expenses</span><strong>{qar(data.kpi.expensesDirham)}</strong></div>
-        <div><span>Net cash movement</span><strong>{qar(data.kpi.netCashMovementDirham)}</strong></div>
-        <div><span>Outstanding due · current balance</span><strong className={data.kpi.outstandingDueDirham > 0 ? styles.due : undefined}>{qar(data.kpi.outstandingDueDirham)}</strong></div>
-        <div><span>Available customer credit · current balance</span><strong>{qar(data.kpi.availableCreditDirham)}</strong></div>
-        <div><span>Customers with due · current balance</span><strong>{data.kpi.customersWithDue}</strong></div>
+      {range.error && <Alert variant="destructive" className="border-destructive/50 bg-danger-soft"><AlertDescription className="text-destructive">{range.error} Showing {PERIOD_LABELS[range.period]} instead.</AlertDescription></Alert>}
+      <p className={styles.muted}>Showing {range.from === range.to ? range.from : `${range.from} to ${range.to}`} (Qatar business dates).</p>
+      <h2 className={GROUP_LABEL}>{PERIOD_LABELS[range.period]}</h2>
+      <div className={KPI_GRID}>
+        <Kpi tone="sales" label="Sales (effective)" value={qar(data.kpi.salesDirham)} />
+        <Kpi tone="cash" label="Payments received (cash)" value={qar(data.kpi.paymentsReceivedDirham)} />
+        <Kpi tone="expense" label="Expenses" value={qar(data.kpi.expensesDirham)} />
+        <Kpi label="Net cash movement" value={qar(data.kpi.netCashMovementDirham)} />
+      </div>
+      <div className={STAT_GRID}>
+        <Stat label="Invoices" value={data.kpi.invoiceCount} />
+        <Stat label="Average invoice" value={qar(data.kpi.averageInvoiceDirham)} />
+      </div>
+      <h2 className={GROUP_LABEL}>Current balances · not limited to this period</h2>
+      <div className={KPI_GRID}>
+        <Kpi tone="due" emphasis={data.kpi.outstandingDueDirham > 0 ? "due" : undefined} label="Outstanding due · current balance" value={qar(data.kpi.outstandingDueDirham)} />
+        <Kpi tone="due" label="Customers with due · current balance" value={data.kpi.customersWithDue} />
+        <Kpi tone="cash" label="Available customer credit · current balance" value={qar(data.kpi.availableCreditDirham)} />
+      </div>
+    </section>
+
+    <section className={styles.panel}>
+      <h2>Quick actions</h2>
+      <div className={styles.quickActions}>
+        <Link className={styles.secondary} href="/">New invoice</Link>
+        {can(actor, "payment.record", shop.id) && <Link className={styles.secondary} href={`/payments?shop=${shop.id}`}>Record payment</Link>}
+        {can(actor, "expense.create", shop.id) && <Link className={styles.secondary} href={`/expenses?shop=${shop.id}`}>Add expense</Link>}
+        <Link className={styles.secondary} href="/">Import Excel</Link>
+        <Link className={styles.secondary} href={`/invoices?shop=${shop.id}`}>Find invoice</Link>
+        <Link className={styles.secondary} href={`/customers?shop=${shop.id}`}>Find customer</Link>
+        {can(actor, "date.close", shop.id) && <Link className={styles.secondary} href={`/closing?shop=${shop.id}`}>Daily close</Link>}
+        <Link className={styles.secondary} href={`/reports?shop=${shop.id}`}>Reports</Link>
       </div>
     </section>
 
@@ -77,36 +123,36 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           const series: { label: string; key: "salesDirham" | "paymentsDirham" | "expensesDirham" }[] = [
             { label: "Gross invoice amount", key: "salesDirham" }, { label: "Cash received", key: "paymentsDirham" }, { label: "Expenses", key: "expensesDirham" },
           ];
-          return series.map((item) => <div key={item.key}>
+          return <div className="grid gap-x-8 gap-y-2 xl:grid-cols-3">{series.map((item) => <div key={item.key}>
             <h3>{item.label}</h3>
             <div className={styles.trendBars}>{data.trend.days.map((day) => <div className={styles.trendRow} key={`${item.key}-${day.businessDate}`}>
               <span>{day.businessDate}</span>
-              <span className={styles.trendBar}><span style={{ width: `${Math.round((day[item.key] / max) * 100)}%` }} /></span>
+              <span className={styles.trendBar}><span className={BARS[item.key]} style={{ width: `${Math.round((day[item.key] / max) * 100)}%` }} /></span>
               <strong>{qar(day[item.key])}</strong>
             </div>)}</div>
-          </div>);
+          </div>)}</div>;
         })()}
       </>}
     </section>
 
     <section className={styles.panel}>
       <h2>Invoice health</h2>
-      <div className={styles.metrics}>
-        <div><span>Total invoices</span><strong>{data.invoiceHealth.total}</strong></div>
-        <div><span>Delivered</span><strong>{data.invoiceHealth.delivered}</strong></div>
-        <div><span>Advance (not delivered)</span><strong>{data.invoiceHealth.advance}</strong></div>
-        <div><span>Fully paid</span><strong>{data.invoiceHealth.fullyPaid}</strong></div>
-        <div><span>With outstanding due</span><strong>{data.invoiceHealth.withDue}</strong></div>
+      <div className={STAT_GRID}>
+        <Stat label="Total invoices" value={data.invoiceHealth.total} />
+        <Stat label="Delivered" value={data.invoiceHealth.delivered} />
+        <Stat label="Advance (not delivered)" value={data.invoiceHealth.advance} />
+        <Stat label="Fully paid" value={data.invoiceHealth.fullyPaid} />
+        <Stat label="With outstanding due" value={data.invoiceHealth.withDue} emphasis={data.invoiceHealth.withDue > 0 ? "due" : undefined} />
       </div>
     </section>
 
     <section className={styles.panel}>
       <h2>Collection health</h2>
-      <div className={styles.metrics}>
-        <div><span>Outstanding due · current balance</span><strong className={data.collection.outstandingDueDirham > 0 ? styles.due : undefined}>{qar(data.collection.outstandingDueDirham)}</strong></div>
-        <div><span>Customers with due</span><strong>{data.collection.customersWithDue}</strong></div>
-        <div><span>Payments received (cash) this period</span><strong>{qar(data.collection.paymentsReceivedDirham)}</strong></div>
-        <div><span>Available customer credit · current balance</span><strong>{qar(data.collection.availableCreditDirham)}</strong></div>
+      <div className={STAT_GRID}>
+        <Stat label="Outstanding due · current balance" value={qar(data.collection.outstandingDueDirham)} emphasis={data.collection.outstandingDueDirham > 0 ? "due" : undefined} />
+        <Stat label="Customers with due" value={data.collection.customersWithDue} />
+        <Stat label="Payments received (cash) this period" value={qar(data.collection.paymentsReceivedDirham)} />
+        <Stat label="Available customer credit · current balance" value={qar(data.collection.availableCreditDirham)} />
       </div>
       {data.collection.largestDues.length > 0 && <div><h3>Largest outstanding balances</h3><div className={styles.detailList}>{data.collection.largestDues.map((row) => <article key={row.customerId}><Link href={`/customers/${row.customerId}?shop=${shop.id}`}><strong>{row.name || "Unnamed customer"}</strong></Link><span>Due {qar(row.outstandingDueDirham)}</span></article>)}</div></div>}
     </section>
@@ -124,9 +170,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
     <section className={styles.panel}>
       <h2>Expenses</h2>
-      <div className={styles.metrics}>
-        <div><span>Expenses this period</span><strong>{qar(data.expenses.totalDirham)}</strong></div>
-        {data.expenses.byCategory.map((item) => <div key={item.category}><span>{item.category} ({item.count})</span><strong>{qar(item.amountDirham)}</strong></div>)}
+      <div className={STAT_GRID}>
+        <Stat label="Expenses this period" value={qar(data.expenses.totalDirham)} />
+        {data.expenses.byCategory.map((item) => <Stat key={item.category} label={`${item.category} (${item.count})`} value={qar(item.amountDirham)} />)}
       </div>
       <div className={styles.detailGrid}>
         <div><dt>Largest expenses (period)</dt>{data.expenses.largest.length === 0 ? <p className={styles.empty}>No expenses in this period.</p> : <div className={styles.detailList}>{data.expenses.largest.map((row) => <article key={row.id}><strong>{qar(row.amountDirham)} · {row.category}</strong><span>{row.description}</span><span>{row.businessDate}</span></article>)}</div>}</div>
@@ -137,9 +183,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
     <section className={styles.panel}>
       <h2>Daily closing health</h2>
-      <div className={styles.metrics}>
-        <div><span>Today&apos;s state</span><strong data-day-state={data.closing.state} className={styles.badge} data-tone={data.closing.state === "closed" ? "solid" : "success"}>{data.closing.state === "closed" ? "Closed" : "Open"}</strong></div>
-        <div><span>Last close</span><strong>{data.closing.lastClose ? qatarTime(data.closing.lastClose.recordedAt) : "Never closed"}</strong></div>
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+        <div className="grid gap-1"><span className="text-xs text-muted-foreground">Today&apos;s state</span><Badge data-day-state={data.closing.state} className={data.closing.state === "closed" ? "bg-foreground text-background" : "bg-success-soft text-success"}>{data.closing.state === "closed" ? "Closed" : "Open"}</Badge></div>
+        <Stat label="Last close" value={data.closing.lastClose ? qatarTime(data.closing.lastClose.recordedAt) : "Never closed"} />
       </div>
       {data.closing.recentlyReopened.length > 0 && <p className={styles.callout}>Recently reopened dates: {data.closing.recentlyReopened.join(", ")}.</p>}
       {data.closing.recentEvents.length > 0 && <div className={styles.detailList}>{data.closing.recentEvents.slice(0, 5).map((event) => <article key={event.sequence}><strong>{event.type === "closed" ? "Closed" : "Reopened"}</strong><span>{qatarTime(event.recordedAt)} by {event.actorName}{(event.reason || event.note) && ` · ${event.reason ?? event.note}`}</span></article>)}</div>}
@@ -148,24 +194,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
     {data.activity.visible && <section className={styles.panel}>
       <h2>Recent activity</h2>
-      {data.activity.events.length === 0 ? <p className={styles.empty}>No recorded activity yet.</p> : <div className={styles.detailList}>{data.activity.events.map((event) => <article key={event.id}>
-        <strong>{event.href ? <Link href={event.href}>{event.label}</Link> : event.label}</strong>
-        <span>{qatarTime(event.recordedAt)} by {event.actorName}</span>
-      </article>)}</div>}
+      {data.activity.events.length === 0 ? <p className={styles.empty}>No recorded activity yet.</p> : <ol className="grid list-none divide-y pl-0">{data.activity.events.map((event) => <li key={event.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2 first:pt-0 last:pb-0">
+        <span className="font-medium">{event.href ? <Link href={event.href}>{event.label}</Link> : event.label}</span>
+        <span className="text-[13px] text-muted-foreground tabular-nums">{qatarTime(event.recordedAt)} · {event.actorName}</span>
+      </li>)}</ol>}
     </section>}
 
-    <section className={styles.panel}>
-      <h2>Quick actions</h2>
-      <div className={styles.quickActions}>
-        <Link className={styles.secondary} href="/">New invoice</Link>
-        {can(actor, "payment.record", shop.id) && <Link className={styles.secondary} href={`/payments?shop=${shop.id}`}>Record payment</Link>}
-        {can(actor, "expense.create", shop.id) && <Link className={styles.secondary} href={`/expenses?shop=${shop.id}`}>Add expense</Link>}
-        <Link className={styles.secondary} href="/">Import Excel</Link>
-        <Link className={styles.secondary} href={`/invoices?shop=${shop.id}`}>Find invoice</Link>
-        <Link className={styles.secondary} href={`/customers?shop=${shop.id}`}>Find customer</Link>
-        {can(actor, "date.close", shop.id) && <Link className={styles.secondary} href={`/closing?shop=${shop.id}`}>Daily close</Link>}
-        <Link className={styles.secondary} href={`/reports?shop=${shop.id}`}>Reports</Link>
-      </div>
-    </section>
   </main>;
 }

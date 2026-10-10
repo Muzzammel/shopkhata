@@ -5,6 +5,8 @@
 //   pnpm backup:verify --from <dir>     rehearse an existing (for example production) backup locally
 //   node scripts/backup.mjs restore-receipts --from <dir> --confirm <host>
 //                                       upload a backup's receipt files into the project being recovered
+//   node scripts/backup.mjs record --from <dir>
+//                                       re-check a backup's file hashes and list it in Admin > Backup & Recovery
 //
 // Source: the local Supabase stack, or a remote project when SHOPKHATA_BACKUP_DB_URL is set
 // (see docs/operations/backup-restore.md for every variable). The restore rehearsal only ever
@@ -201,6 +203,47 @@ async function restoreReceiptsTo(from, confirmHost) {
   log(`Receipts restored: ${manifest.receipts.length} file(s) uploaded and read back byte-identical.`);
 }
 
+function checkArtifacts(dir, manifest) {
+  for (const name of DUMPS) {
+    if (sha256(readFileSync(join(dir, name))) !== manifest.files[name]?.sha256) fail(`${name} does not match the hash recorded when the backup was taken.`);
+  }
+  for (const receipt of manifest.receipts) {
+    if (sha256(readFileSync(receiptPath(dir, receipt.name))) !== receipt.sha256) fail(`Receipt file ${receipt.name} does not match its recorded hash.`);
+  }
+}
+
+// Lists a backup in the application's owner-only Backup & Recovery screen. Deliberately a separate,
+// explicit step: taking a backup stays read-only against its source. Only a summary is written
+// (times, sizes, the manifest hash, the rehearsal result); the backup itself never leaves this computer.
+async function recordBackup(from) {
+  const dir = resolve(from);
+  if (!existsSync(join(dir, "manifest.json"))) fail(`${dir} is not a ShopKhata backup (manifest.json is missing).`);
+  const manifestBytes = readFileSync(join(dir, "manifest.json"));
+  const manifest = JSON.parse(manifestBytes.toString("utf8"));
+  checkArtifacts(dir, manifest);
+  log(`Integrity: ${DUMPS.length} dump files and ${manifest.receipts.length} receipt file(s) match their recorded SHA-256`);
+
+  // The record goes to the environment the backup was taken from, never to another one.
+  let apiUrl = process.env.SHOPKHATA_BACKUP_SUPABASE_URL;
+  let serviceKey = process.env.SHOPKHATA_BACKUP_SERVICE_ROLE_KEY;
+  if (manifest.environment === "local") {
+    if (apiUrl) fail("This is a backup of the local stack. Unset SHOPKHATA_BACKUP_SUPABASE_URL to record it there.");
+    ({ apiUrl, serviceKey } = localSource());
+  } else if (!apiUrl || !serviceKey || process.env.SHOPKHATA_BACKUP_ENV !== manifest.environment) {
+    fail(`Set SHOPKHATA_BACKUP_ENV=${manifest.environment}, SHOPKHATA_BACKUP_SUPABASE_URL and SHOPKHATA_BACKUP_SERVICE_ROLE_KEY to the project this backup was taken from.`);
+  }
+  const rehearsalPath = join(dir, "restore-verification.json");
+  const rehearsal = existsSync(rehearsalPath) ? JSON.parse(readFileSync(rehearsalPath, "utf8")) : null;
+  const { error } = await createClient(apiUrl, serviceKey, { auth: { persistSession: false } }).from("backup_records").upsert({
+    backup_created_at: manifest.createdAt, environment: manifest.environment, source: manifest.source,
+    app_version: manifest.app?.version ?? null, git_commit: manifest.app?.gitCommit ?? null, latest_migration: manifest.migrations.at(-1),
+    dump_bytes: DUMPS.reduce((sum, name) => sum + manifest.files[name].bytes, 0), receipt_count: manifest.receipts.length,
+    manifest_sha256: sha256(manifestBytes), restore_verified_at: rehearsal?.verifiedAt ?? null, restore_verified_ok: rehearsal ? rehearsal.ok === true : null,
+  }, { onConflict: "manifest_sha256,restore_verified_at", ignoreDuplicates: true });
+  if (error) fail(`The backup could not be recorded: ${error.message}`);
+  log(`Recorded the ${manifest.environment} backup of ${manifest.createdAt} (${rehearsal ? `restore rehearsal ${rehearsal.ok ? "passed" : "FAILED"} at ${rehearsal.verifiedAt}` : "no restore rehearsal yet"}).`);
+}
+
 async function verifyRestore(from) {
   const dir = from ? resolve(from) : await createBackup();
   if (!existsSync(join(dir, "manifest.json"))) fail(`${dir} is not a ShopKhata backup (manifest.json is missing).`);
@@ -208,12 +251,7 @@ async function verifyRestore(from) {
   const checks = [];
   const pass = (name, detail) => { checks.push({ name, detail }); log(`PASS ${name}: ${detail}`); };
 
-  for (const name of DUMPS) {
-    if (sha256(readFileSync(join(dir, name))) !== manifest.files[name]?.sha256) fail(`${name} does not match the hash recorded when the backup was taken.`);
-  }
-  for (const receipt of manifest.receipts) {
-    if (sha256(readFileSync(receiptPath(dir, receipt.name))) !== receipt.sha256) fail(`Receipt file ${receipt.name} does not match its recorded hash.`);
-  }
+  checkArtifacts(dir, manifest);
   pass("artifact integrity", `${DUMPS.length} dump files and ${manifest.receipts.length} receipt file(s) match their recorded SHA-256`);
 
   const repoMigrations = readdirSync(join(REPO, "supabase", "migrations")).filter((name) => name.endsWith(".sql")).map((name) => name.split("_")[0]).sort();
@@ -281,8 +319,9 @@ try {
   const hasBackup = flag === "--from" && value && statSync(value).isDirectory();
   if (mode === undefined) await createBackup();
   else if (mode === "verify" && (flag === undefined || hasBackup)) await verifyRestore(value);
+  else if (mode === "record" && hasBackup && confirmFlag === undefined) await recordBackup(value);
   else if (mode === "restore-receipts" && hasBackup && confirmFlag === "--confirm" && confirmHost) await restoreReceiptsTo(value, confirmHost);
-  else fail("Usage: node scripts/backup.mjs [verify [--from <backup directory>] | restore-receipts --from <backup directory> --confirm <target host>]");
+  else fail("Usage: node scripts/backup.mjs [verify [--from <backup directory>] | record --from <backup directory> | restore-receipts --from <backup directory> --confirm <target host>]");
 } catch (error) {
   console.error(`[backup] FAILED: ${error instanceof BackupError ? error.message : error.stack}`);
   process.exit(1);

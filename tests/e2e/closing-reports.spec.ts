@@ -130,7 +130,8 @@ test("an owner reviews, closes and reopens a business date, and the close blocks
 
 test("staff cannot backdate; an owner backdates with a reason and the entry is shown as backdated", async ({ page, browser }) => {
   const date = oldDate(5);
-  const description = `Backdate E2E ${Date.now()}`;
+  test.setTimeout(60_000);   // two sign-ins and four screens; the default 30 s leaves no margin for the form to become interactive under a full parallel run
+  const description = `Backdate E2E ${crypto.randomUUID()}`;
   await login(page, STAFF);
   await expect(page.getByLabel("Business date")).toBeDisabled();
   await expect(page.getByLabel("Business date")).toHaveValue(today());
@@ -144,9 +145,16 @@ test("staff cannot backdate; an owner backdates with a reason and the entry is s
   await login(owner, OWNER);
   await owner.goto(`/expenses?shop=${SHOP_2}`);
   const form = owner.getByRole("heading", { name: "Record expense" }).locator("..");
-  await form.getByLabel("Date", { exact: true }).fill(date);
+  // Text typed before the page is interactive is not registered (a documented limitation), so
+  // fill again until the form has taken the earlier date: only then does it ask for a reason.
+  await expect(async () => {
+    await form.getByLabel("Date", { exact: true }).fill("");
+    await form.getByLabel("Date", { exact: true }).fill(date);
+    await expect(form.getByLabel("Reason for backdating")).toBeVisible({ timeout: 1_000 });
+  }).toPass();
   await form.getByLabel("Amount (QAR)", { exact: true }).fill("45.00");
   await form.getByLabel("Description", { exact: true }).fill(description);
+  await expect(form.getByLabel("Date", { exact: true })).toHaveValue(date);
   // No reason, no backdated entry.
   await expect(form.getByRole("button", { name: "Save expense" })).toBeDisabled();
   await form.getByLabel("Reason for backdating").fill("receipt found during stock count");

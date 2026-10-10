@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, type Download, type Page } from "@playwright/test";
 import readXlsxFile from "read-excel-file/universal";
@@ -16,11 +17,15 @@ export const OWNER = { email: "owner@shopkhata.local", password: "ShopKhata-Loca
 export const MANAGER = { email: "manager@shopkhata.local", password: "ShopKhata-Local-Manager-E2E-Only-2026!" };
 export const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
+// The Supabase CLI rewrites a state file in the home directory on every run. Parallel workers
+// racing on that one file make a query fail now and then, so each worker gets its own.
+const CLI_HOME = join(tmpdir(), `shopkhata-e2e-supabase-${process.pid}`);
+
 export function localDbQuery(sql: string) {
   return execFileSync(process.execPath, [
     join(process.cwd(), "node_modules", "supabase", "dist", "supabase.js"),
     "--agent", "no", "db", "query", "--local", sql,
-  ], { encoding: "utf8", timeout: 30_000 });
+  ], { encoding: "utf8", timeout: 30_000, env: { ...process.env, HOME: CLI_HOME, USERPROFILE: CLI_HOME } });
 }
 /** Runs a single-value SQL expression and returns it as text. */
 export function scalar(expression: string): string {
@@ -29,6 +34,22 @@ export function scalar(expression: string): string {
 }
 export const invoiceCount = (number: string, shop = SHOP_1) => scalar(`select count(*) from public.invoices where shop_id = '${shop}' and lower(invoice_id) = lower('${number}')`);
 export const paymentCount = (number: string) => scalar(`select count(*) from public.payments p join public.invoices i on i.id = p.invoice_id where i.shop_id = '${SHOP_1}' and i.invoice_id = '${number}'`);
+
+/**
+ * A sign-in of its own for one test. Signing out ends every session of that account, so a test
+ * that signs out must not share an account with tests running beside it.
+ */
+export function createAccount(role: "manager" | "staff", shopId = SHOP_1) {
+  const id = crypto.randomUUID();
+  const user = { email: `e2e-${id}@shopkhata.local`, password: `E2E-Local-Only-${id}!` };
+  localDbQuery(`with u as (insert into auth.users(id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, confirmation_token, recovery_token, email_change, email_change_token_new, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+      values ('${id}', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', '${user.email}', extensions.crypt('${user.password}', extensions.gen_salt('bf')), now(), '', '', '', '', '{"provider":"email","providers":["email"]}', '{}', now(), now()) returning id),
+    i as (insert into auth.identities(id, user_id, identity_data, provider, provider_id, created_at, updated_at, last_sign_in_at)
+      select gen_random_uuid(), id, jsonb_build_object('sub', id::text, 'email', '${user.email}'), 'email', id::text, now(), now(), now() from u),
+    p as (insert into public.profiles(id, email, display_name, role, is_active) select id, '${user.email}', 'E2E ${role} ${id.slice(0, 8)}', '${role}', true from u)
+    insert into public.user_shop_assignments(user_id, shop_id) select id, '${shopId}' from u`);
+  return user;
+}
 
 export async function login(page: Page, user = STAFF) {
   await page.goto("/login");

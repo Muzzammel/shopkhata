@@ -1,5 +1,16 @@
-/* Design tokens and base element styles. Layout and components live in ui.module.css. */
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design tokens. One palette feeds both the legacy screens (ui.module.css) and the shadcn
+ * components (components/ui): the shadcn names below are aliases of the ShopKhata tokens,
+ * so redefining the tokens under .dark themes everything at once.
+ */
 :root {
+  color-scheme: light;
   --background: #f3f5f8;
   --surface: #ffffff;
   --surface-muted: #f7f9fb;
@@ -10,14 +21,18 @@
   --primary: #14607f;
   --primary-hover: #0f4c66;
   --primary-soft: #e5f0f5;
+  --primary-foreground: #ffffff;
   --danger: #b3261e;
   --danger-hover: #8f1d17;
   --danger-soft: #fcebea;
+  --on-danger: #ffffff;
   --success: #17663a;
   --success-soft: #e6f4ec;
   --warning: #8a4b08;
   --warning-soft: #fdf2df;
+  --on-warning: #ffffff;
   --focus: #1f7fb0;
+  --placeholder: #8893a1;
   --radius-sm: 6px;
   --radius-md: 10px;
   --shadow-sm: 0 1px 2px rgb(16 24 40 / 6%);
@@ -33,139 +48,220 @@
   --s-8: 32px;
 
   --control-h: 34px;
+
+  /* shadcn aliases */
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface);
+  --popover-foreground: var(--text);
+  --secondary: var(--surface-muted);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface-muted);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--primary-soft);
+  --accent-foreground: var(--text);
+  --destructive: var(--danger);
+  --input: var(--border-strong);
+  --ring: var(--focus);
+  --radius: 0.5rem;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Arial, Helvetica, sans-serif;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+.dark {
+  color-scheme: dark;
+  --background: #0e1318;
+  --surface: #161c23;
+  --surface-muted: #1c242d;
+  --border: #29333e;
+  --border-strong: #3b4756;
+  --text: #e6ebf1;
+  --text-muted: #9ba8b7;
+  --primary: #5ab4d6;
+  --primary-hover: #7cc6e2;
+  --primary-soft: #12303d;
+  --primary-foreground: #06202b;
+  --danger: #f0766e;
+  --danger-hover: #f59891;
+  --danger-soft: #3a1a18;
+  --on-danger: #2b0907;
+  --success: #4cc38a;
+  --success-soft: #12301f;
+  --warning: #f0b45a;
+  --warning-soft: #33250c;
+  --on-warning: #2b1a02;
+  --focus: #5ab4d6;
+  --placeholder: #6f7c8b;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
 }
 
-html {
-  height: 100%;
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger-soft: var(--danger-soft);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
+/*
+ * Legacy base element styles, used by the screens not yet moved to components/ui.
+ * They sit in the base layer and skip anything carrying data-slot (every shadcn part does),
+ * so the two systems never restyle each other. ui.module.css stays unlayered and wins.
+ */
+@layer base {
+  * { @apply border-border; }
 
-body {
-  min-height: 100%;
-  color: var(--text);
-  background: var(--background);
-  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+  html {
+    height: 100%;
+  }
 
-h1 { font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; }
-h2 { font-size: 16px; line-height: 1.3; font-weight: 650; }
-h3 { font-size: 14px; line-height: 1.3; font-weight: 650; }
-h4 { font-size: 13px; line-height: 1.3; font-weight: 650; }
-small { font-size: 12px; font-weight: 400; color: var(--text-muted); }
-ul, ol { padding-left: var(--s-6); }
+  html,
+  body {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
 
-a { color: var(--primary); text-underline-offset: 2px; }
-a:hover { color: var(--primary-hover); }
+  body {
+    min-height: 100%;
+    color: var(--text);
+    background: var(--background);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial, Helvetica, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  h1:not([data-slot]) { font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; }
+  h2:not([data-slot]) { font-size: 16px; line-height: 1.3; font-weight: 650; }
+  h3:not([data-slot]) { font-size: 14px; line-height: 1.3; font-weight: 650; }
+  h4:not([data-slot]) { font-size: 13px; line-height: 1.3; font-weight: 650; }
+  small:not([data-slot]) { font-size: 12px; font-weight: 400; color: var(--text-muted); }
+  ul, ol { padding-left: var(--s-6); }
+  ul { list-style: disc; }
+  ol { list-style: decimal; }
 
-/* A bare button is the primary action; ui.module.css holds the quieter variants. */
-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--control-h);
-  padding: var(--s-2) var(--s-4);
-  border: 1px solid var(--primary);
-  border-radius: var(--radius-sm);
-  background: var(--primary);
-  color: #fff;
-  font: inherit;
-  font-weight: 600;
-  line-height: 1.2;
-  cursor: pointer;
-}
-button:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
+  a:not([data-slot]) { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
+  a:not([data-slot]):hover { color: var(--primary-hover); }
 
-label {
-  display: grid;
-  gap: var(--s-1);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-label:has(> input[type="checkbox"]) {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text);
-}
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-input,
-select,
-textarea {
-  width: 100%;
-  min-width: 0;
-  min-height: var(--control-h);
-  padding: var(--s-2) var(--s-3);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-weight: 400;
-}
-textarea { display: block; min-height: 56px; resize: vertical; }
-input::placeholder, textarea::placeholder { color: #8893a1; }
-input:disabled, select:disabled, textarea:disabled, input:read-only:not([type="checkbox"]):not([type="file"]) {
-  background: var(--surface-muted);
-  color: var(--text-muted);
-}
-input[inputmode="decimal"] { text-align: right; font-variant-numeric: tabular-nums; }
-input[type="checkbox"] {
-  flex: none;
-  width: 16px;
-  height: 16px;
-  min-height: 0;
-  padding: 0;
-  accent-color: var(--primary);
-}
-input[type="file"] { min-height: 0; padding: 0; border: 0; background: none; font-size: 13px; }
-input[type="file"]::file-selector-button {
-  min-height: calc(var(--control-h) - 4px);
-  margin-right: var(--s-3);
-  padding: var(--s-1) var(--s-4);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
+  /* A bare button is the primary action; ui.module.css holds the quieter variants. */
+  button:not([data-slot]) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--control-h);
+    padding: var(--s-2) var(--s-4);
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-sm);
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font: inherit;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+  }
+  button:not([data-slot]):hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
+  button:not([data-slot]):disabled { opacity: 0.5; cursor: not-allowed; }
 
-fieldset { min-width: 0; border: 0; }
-legend { font-size: 13px; font-weight: 600; color: var(--text-muted); }
-summary { cursor: pointer; color: var(--primary); font-size: 13px; font-weight: 600; }
+  label:not([data-slot]) {
+    display: grid;
+    gap: var(--s-1);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  label:not([data-slot]):has(> input:not([data-slot])[type="checkbox"]) {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+  }
 
-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-caption { padding: var(--s-2) var(--s-4); text-align: left; }
-th, td { padding: var(--s-2) var(--s-4); border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
-thead th { background: var(--surface-muted); border-bottom-color: var(--border-strong); color: var(--text-muted); font-size: 12px; font-weight: 600; white-space: nowrap; }
-tbody th { font-weight: 600; }
-tbody tr:hover { background: var(--surface-muted); }
-tbody tr:last-child > * { border-bottom: 0; }
-td small, th small { display: block; }
+  input:not([data-slot]),
+  select:not([data-slot]),
+  textarea:not([data-slot]) {
+    width: 100%;
+    min-width: 0;
+    min-height: var(--control-h);
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-weight: 400;
+  }
+  textarea:not([data-slot]) { display: block; min-height: 56px; resize: vertical; }
+  input:not([data-slot])::placeholder, textarea:not([data-slot])::placeholder { color: var(--placeholder); }
+  input:not([data-slot]):disabled, select:not([data-slot]):disabled, textarea:not([data-slot]):disabled, input:not([data-slot]):read-only:not([type="checkbox"]):not([type="file"]) {
+    background: var(--surface-muted);
+    color: var(--text-muted);
+  }
+  input:not([data-slot])[inputmode="decimal"] { text-align: right; font-variant-numeric: tabular-nums; }
+  input:not([data-slot])[type="checkbox"] {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    min-height: 0;
+    padding: 0;
+    accent-color: var(--primary);
+  }
+  input:not([data-slot])[type="file"] { min-height: 0; padding: 0; border: 0; background: none; font-size: 13px; }
+  input:not([data-slot])[type="file"]::file-selector-button {
+    min-height: calc(var(--control-h) - 4px);
+    margin-right: var(--s-3);
+    padding: var(--s-1) var(--s-4);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
 
-@media (max-width: 760px) {
-  :root { --control-h: 40px; }
-  h1 { font-size: 22px; }
-  /* 16px stops iOS zooming the page when a field takes focus. */
-  input, select, textarea { font-size: 16px; }
+  fieldset { min-width: 0; border: 0; }
+  legend:not([data-slot]) { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+  summary:not([data-slot]) { cursor: pointer; color: var(--primary); font-size: 13px; font-weight: 600; }
+
+  table:not([data-slot]) { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  caption:not([data-slot]) { padding: var(--s-2) var(--s-4); text-align: left; }
+  th:not([data-slot]), td:not([data-slot]) { padding: var(--s-2) var(--s-4); border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  thead:not([data-slot]) th:not([data-slot]) { background: var(--surface-muted); border-bottom-color: var(--border-strong); color: var(--text-muted); font-size: 12px; font-weight: 600; white-space: nowrap; }
+  tbody:not([data-slot]) th:not([data-slot]) { font-weight: 600; }
+  tbody:not([data-slot]) tr:hover { background: var(--surface-muted); }
+  tbody:not([data-slot]) tr:last-child > * { border-bottom: 0; }
+  td:not([data-slot]) small:not([data-slot]), th:not([data-slot]) small:not([data-slot]) { display: block; }
+
+  @media (max-width: 760px) {
+    :root { --control-h: 40px; }
+    h1:not([data-slot]) { font-size: 22px; }
+    /* 16px stops iOS zooming the page when a field takes focus. */
+    input:not([data-slot]), select:not([data-slot]), textarea:not([data-slot]) { font-size: 16px; }
+  }
 }

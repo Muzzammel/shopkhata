@@ -53,7 +53,8 @@ test("7-day and 30-day periods widen the window, and a custom range is validated
   await expect(page.getByRole("link", { name: "Last 30 days" })).toHaveAttribute("aria-current", "page");
 
   await page.goto(`/dashboard?shop=${SHOP_1}&period=custom&from=2026-10-03&to=2026-10-01`);
-  await expect(page.getByRole("alert")).toContainText("must not be after");
+  // Scoped to the page: with a loading skeleton Next also mounts its own (empty) route announcer alert.
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("must not be after");
 });
 
 test("outstanding due and available credit are labeled as the current balance, not the selected period", async ({ page }) => {

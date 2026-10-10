@@ -43,7 +43,8 @@ test("complete staff invoice lifecycle with separate owner approvals, canonical 
   await expect(totals(page).getByText("QAR 80.00", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Request financial correction", exact: true }).click();
   const financial = page.getByRole("form", { name: "Financial correction request" });
-  await financial.getByLabel("Adjustment amount (QAR)").fill("10.00");
+  // The corrected total is entered, not the amount to take off: 100.00 becomes 90.00.
+  await financial.getByLabel("Corrected invoice total (QAR)").fill("90.00");
   await financial.getByLabel("Request reason").fill("Total entered ten QAR too high");
   await financial.getByRole("button", { name: "Submit request" }).click();
   await expect(page.getByText("Financial correction — Pending approval", { exact: true })).toBeVisible();
@@ -108,6 +109,60 @@ test("complete staff invoice lifecycle with separate owner approvals, canonical 
   expect((await staff.rpc("decide_invoice_replacement", { command: { shop_id: SHOP1, request_id: requests.data![0].id, expected_revision: 1, decision: "approved", reason: null, idempotency_key: crypto.randomUUID() } })).error?.message).toBe("INSUFFICIENT_ROLE");
   expect((await staff.rpc("request_invoice_replacement", { command: { shop_id: SHOP2, invoice_id: shop2Id, expected_revision: 0, invoice_number: "HACK", customer_id: null, delivered: false, reason: "hack", idempotency_key: crypto.randomUUID() } })).error?.message).toBe("UNAUTHORIZED_SHOP");
   expect((await staff.from("effective_invoices").select("*").eq("shop_id", SHOP2)).data).toEqual([]);
+  await context.close();
+});
+
+test("a financial correction replaces the invoice total: 1000 becomes 1500, not 2500", async ({ page, browser }) => {
+  test.setTimeout(120000);
+  const number = `TARGET-${crypto.randomUUID()}`;
+  await login(page);
+  const row = page.locator("[data-entry-row]").first();
+  await row.getByLabel("Invoice ID").fill(number);
+  await row.getByLabel("Total QAR").fill("1000.00");
+  await row.getByLabel("Received QAR").fill("400.00");
+  await page.getByRole("button", { name: "Review batch" }).click();
+  await page.getByRole("button", { name: "Save batch" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Batch saved" })).toBeVisible();
+  await page.getByRole("link", { name: `View invoice ${number}`, exact: true }).click();
+  await expect(totals(page)).toContainText("Effective totalQAR 1000.00");
+  const canonicalUrl = page.url();
+
+  await page.getByRole("button", { name: "Request financial correction", exact: true }).click();
+  const form = page.getByRole("form", { name: "Financial correction request" });
+  const field = form.getByLabel("Corrected invoice total (QAR)");
+  const summary = form.getByLabel("Correction summary");
+
+  // A total below what is already paid is refused on the field, before anything is sent.
+  await field.fill("399.99");
+  await form.getByLabel("Request reason").fill("Total was entered wrong");
+  await form.getByRole("button", { name: "Submit request" }).click();
+  await expect(field).toHaveAttribute("aria-invalid", "true");
+  await expect(form.locator("#correction-total-error")).toContainText("cannot be less than the QAR 400.00 already paid");
+  await expect(page.getByText("Financial correction — Pending approval", { exact: true })).toHaveCount(0);
+
+  await field.fill("1500.00");
+  await expect(field).not.toHaveAttribute("aria-invalid", "true");
+  await expect(summary).toContainText("Current invoice totalQAR 1000.00");
+  await expect(summary).toContainText("Corrected invoice totalQAR 1500.00");
+  await expect(summary).toContainText("Calculated difference+QAR 500.00");
+  await expect(summary).toContainText("Current paymentsQAR 400.00");
+  await expect(summary).toContainText("Resulting due after correctionQAR 1100.00");
+  await form.getByRole("button", { name: "Submit request" }).click();
+  await expect(page.getByText("Operation confirmed and saved.")).toBeVisible();   // toast
+  await expect(page.getByText("Financial correction — Pending approval", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Requests and version history" })).toContainText("Invoice total: QAR 1000.00 → QAR 1500.00 (+QAR 500.00)");
+
+  const context = await browser.newContext(); const owner = await context.newPage();
+  await login(owner, "owner"); await owner.goto(canonicalUrl);
+  await owner.getByRole("button", { name: "Save decision" }).click();
+  await expect(totals(owner).getByText("QAR 1500.00", { exact: true })).toBeVisible();
+  await expect(totals(owner).getByText("QAR 1100.00", { exact: true })).toBeVisible();
+  await owner.reload();
+  await expect(totals(owner).getByText("QAR 1500.00", { exact: true })).toBeVisible();
+  await expect(totals(owner)).not.toContainText("2500.00");
+  // The original stays on record beside the effective total.
+  await expect(totals(owner)).toContainText("Original totalQAR 1000.00");
+  expect(sql(`select total_amount_dirham from public.invoices where invoice_id = '${number}'`)).toContain("100000");
   await context.close();
 });
 

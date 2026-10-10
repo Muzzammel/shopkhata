@@ -142,6 +142,10 @@ export type Database = {
         id: string; shop_id: string; customer_id: string; batch_id: string; credit_id: string; invoice_id: string;
         amount_dirham: number; business_date: string; recorded_at: string; created_by: string;
       }>
+      backup_records: TableShape<{
+        id: string; backup_created_at: string; environment: string; source: string; app_version: string | null; git_commit: string | null; latest_migration: string;
+        dump_bytes: number; receipt_count: number; manifest_sha256: string; restore_verified_at: string | null; restore_verified_ok: boolean | null; recorded_at: string;
+      }>
       expense_correction_requests: TableShape<{
         id: string; shop_id: string; expense_id: string; amount_dirham: number; expected_correction_request_id: string | null; category: string; description: string;
         reason: string; requested_by: string; requested_at: string; idempotency_key: string; fingerprint: string;
@@ -324,6 +328,8 @@ export type Database = {
       correction_requests: {
         Row: {
           amount_delta_dirham: number
+          corrected_total_dirham: number | null
+          expected_total_dirham: number | null
           fingerprint: string
           id: string
           idempotency_key: string
@@ -336,6 +342,8 @@ export type Database = {
         }
         Insert: {
           amount_delta_dirham: number
+          corrected_total_dirham?: number | null
+          expected_total_dirham?: number | null
           fingerprint: string
           id?: string
           idempotency_key: string
@@ -348,6 +356,8 @@ export type Database = {
         }
         Update: {
           amount_delta_dirham?: number
+          corrected_total_dirham?: number | null
+          expected_total_dirham?: number | null
           fingerprint?: string
           id?: string
           idempotency_key?: string

@@ -1,18 +1,22 @@
 import { expect, test } from "@playwright/test";
 
-import { MANAGER, SHOP_1, fillRow, login, savedNotice, scalar } from "./offline-helpers";
+import { SHOP_1, createAccount, fillRow, login, savedNotice, scalar } from "./offline-helpers";
 
 // The critical workflow on every browser engine (Chromium, Firefox, WebKit):
 // sign in, save an invoice with a part payment, read it back, take a follow-up
 // payment, record an expense, close and reopen a date, read a report, sign out.
 // The full financial suite stays on Chromium; this proves no engine is broken.
 test("the critical workflow works end to end", async ({ page, browserName }) => {
-  const stamp = `${browserName}-${Date.now()}`;
+  test.setTimeout(60_000);   // ten screens and a sign-in of its own; the default 30 s leaves no margin under a full parallel run
+  const stamp = `${browserName}-${crypto.randomUUID().slice(0, 8)}`;
   const invoice = `XB-${stamp}`;
-  await login(page, MANAGER);
+  // Its own manager: this workflow ends by signing out, which would end the sessions of any
+  // other test signed in as the shared manager.
+  await login(page, createAccount("manager"));
 
   // The sales report lists only its first 200 rows, so the new invoice is proven by the
-  // Invoices summary count, which covers the whole range.
+  // Invoices summary count, which covers the whole range. Other tests save invoices in this
+  // shop at the same time, so the count is only required to have grown.
   const invoiceCount = page.locator('[data-total="invoiceCount"]');
   await page.goto(`/reports?shop=${SHOP_1}&report=sales`);
   const invoicesBefore = Number(await invoiceCount.innerText());
@@ -61,7 +65,11 @@ test("the critical workflow works end to end", async ({ page, browserName }) => 
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
   await page.goto(`/reports?shop=${SHOP_1}&report=sales`);
-  await expect(invoiceCount).toHaveText(String(invoicesBefore + 1));
+  // Exact for this invoice in the database; in the report the count can only have grown by at
+  // least this one, whatever the tests running beside it saved meanwhile.
+  expect(scalar(`select count(*) from public.effective_invoices where shop_id = '${SHOP_1}' and effective_invoice_number = '${invoice}' and business_date = (now() at time zone 'Asia/Qatar')::date`)).toBe("1");
+  await expect(invoiceCount).toBeVisible();
+  expect(Number(await invoiceCount.innerText())).toBeGreaterThan(invoicesBefore);
 
   await page.goto(`/closing?shop=${SHOP_1}`);
   await expect(page.locator("[data-day-state]")).toHaveText(/^(Open|Closed)$/);

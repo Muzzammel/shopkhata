@@ -8,13 +8,29 @@ export const MAX_IMPORT_ROWS = 100; // matches the server's rows-per-batch limit
 export const MAX_IMPORT_FILE_BYTES = 1_048_576;
 
 export type ImportCell = string | number | boolean | Date | null | undefined | object;
+/** A cell the import could not read: where it is, what it held and what is accepted there. */
+export type ImportCellError = EntryError & { sheetRow: number; column: string; received: string; expected: string };
 export type ImportResult = {
   rows: EntryRow[];
   /** Spreadsheet row number (1-based, header is row 1) for each imported row ID. */
   sheetRows: Record<string, number>;
   /** Cell-level problems; rowId "" marks a file-level problem that blocks the whole import. */
-  errors: EntryError[];
+  errors: (EntryError | ImportCellError)[];
 };
+
+/** The template column a draft-row field is shown under in the import preview. */
+export const IMPORT_FIELD_COLUMN: Record<string, string> = {
+  invoiceId: "Invoice Number", total: "Total QAR", received: "Received QAR", delivered: "Delivered", customer: "Customer", note: "Note", row: "(extra columns)",
+};
+
+/** The cell as the workbook supplied it; text is quoted so stray spaces and look-alike characters show. */
+export function describeCell(value: ImportCell): string {
+  if (value === null || value === undefined) return "(blank)";
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
+  if (value instanceof Date) return `date ${Number.isNaN(value.getTime()) ? "(invalid)" : value.toISOString().slice(0, 10)}`;
+  return typeof value === "number" ? String(value) : "(unsupported cell)";
+}
 
 const normalizeHeader = (value: ImportCell) => typeof value === "string" ? value.trim().replace(/\s+/g, " ").toLowerCase() : "";
 const isBlank = (value: ImportCell) => value === null || value === undefined || (typeof value === "string" && value.trim() === "");
@@ -45,6 +61,7 @@ function moneyCell(value: ImportCell): string | null {
   return null;
 }
 
+/** Yes/No in any case with surrounding spaces, a real Excel TRUE/FALSE cell, or blank (No). */
 function deliveredCell(value: ImportCell): boolean | null {
   if (typeof value === "boolean") return value;
   const text = isBlank(value) ? "" : typeof value === "string" || typeof value === "number" ? String(value).trim().toLowerCase() : null;
@@ -77,23 +94,25 @@ export function parseImportSheet(data: readonly (readonly ImportCell[])[], newRo
   const result: ImportResult = { rows: [], sheetRows: {}, errors: [] };
   for (const { cells, sheetRow } of body) {
     const rowId = newRowId();
-    const fail = (field: string, message: string) => result.errors.push({ rowId, field, message: `Row ${sheetRow}: ${message}` });
-    if (cells.slice(IMPORT_HEADERS.length).some((cell) => !isBlank(cell))) fail("row", "has values outside the template columns.");
+    const fail = (field: string, message: string, column: string, cell: ImportCell, expected: string) =>
+      result.errors.push({ rowId, field, message: `Row ${sheetRow}: ${message}`, sheetRow, column, received: describeCell(cell), expected });
+    const extra = cells.slice(IMPORT_HEADERS.length).find((cell) => !isBlank(cell));
+    if (extra !== undefined) fail("row", "has values outside the template columns.", IMPORT_FIELD_COLUMN.row, extra, "No values after the Note column");
     const [number, total, received, delivered, name, mobile, note] = cells;
     const invoiceId = textCell(number);
-    if (invoiceId === null) fail("invoiceId", "Invoice Number must be text or a whole number.");
+    if (invoiceId === null) fail("invoiceId", "Invoice Number must be text or a whole number.", "Invoice Number", number, "Text or a whole number");
     const totalText = moneyCell(total);
-    if (totalText === null) fail("total", "Total QAR must be a number.");
+    if (totalText === null) fail("total", "Total QAR must be a number.", "Total QAR", total, "A number with at most two decimals");
     const receivedText = moneyCell(received);
-    if (receivedText === null) fail("received", "Received QAR must be a number.");
+    if (receivedText === null) fail("received", "Received QAR must be a number.", "Received QAR", received, "A number with at most two decimals, or blank");
     const deliveredValue = deliveredCell(delivered);
-    if (deliveredValue === null) fail("delivered", "Delivered must be Yes or No.");
+    if (deliveredValue === null) fail("delivered", "Delivered must be Yes or No.", "Delivered", delivered, "Yes or No (any letter case), TRUE or FALSE, or blank for No");
     const customerName = textCell(name);
-    if (customerName === null) fail("customer", "Customer Name must be text.");
+    if (customerName === null) fail("customer", "Customer Name must be text.", "Customer Name", name, "Text");
     const customerMobile = textCell(mobile);
-    if (customerMobile === null) fail("customer", "Customer Mobile must be text or digits.");
+    if (customerMobile === null) fail("customer", "Customer Mobile must be text or digits.", "Customer Mobile", mobile, "Text or digits");
     const noteText = textCell(note);
-    if (noteText === null) fail("note", "Note must be text.");
+    if (noteText === null) fail("note", "Note must be text.", "Note", note, "Text");
     result.rows.push({
       rowId, invoiceId: invoiceId ?? "", total: totalText ?? "", received: receivedText ?? "",
       delivered: deliveredValue ?? false, customerId: "", customerName: customerName ?? "",

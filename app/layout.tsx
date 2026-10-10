@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { APP_NAME } from "@/lib/domain/constants";
 
 import "./globals.css";
@@ -12,8 +15,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en">
-      <body><Pwa />{children}</body>
+    // suppressHydrationWarning: the theme class is set on <html> before React hydrates.
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <ThemeProvider>
+          <TooltipProvider><Pwa />{children}</TooltipProvider>
+          <Toaster position="top-center" richColors closeButton />
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

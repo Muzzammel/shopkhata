@@ -6,6 +6,8 @@ import Link from "next/link";
 
 import styles from "@/app/ui.module.css";
 
+import { ThemeToggle } from "@/components/theme-toggle";
+
 import { MainNav } from "./main-nav";
 import { SignOut } from "./sign-out";
 
@@ -32,6 +34,6 @@ export default async function AppLayout({
   return <><header className={styles.appBar}>
     <Link href="/" className={styles.brand}>ShopKhata</Link>
     <MainNav showAccounts={can(actor, "users.manage")} />
-    <SignOut userId={actor.id} />
+    <div className={styles.appBarEnd}><ThemeToggle /><SignOut userId={actor.id} /></div>
   </header>{children}</>;
 }

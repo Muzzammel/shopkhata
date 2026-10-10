@@ -9,7 +9,7 @@
 .nav a[aria-current="page"] { background: var(--primary-soft); color: var(--primary); font-weight: 650; }
 .nav a[data-group] { margin-left: var(--s-4); }
 .nav a[data-group]::before { content: ""; position: absolute; left: -7px; top: 25%; width: 1px; height: 50%; background: var(--border-strong); }
-.appBar > button { margin-left: auto; }
+.appBar > .appBarEnd { display: flex; align-items: center; gap: var(--s-3); margin-left: auto; }
 
 /* ---- Buttons (a bare <button> is primary) ---- */
 .secondary, .ghost, .danger, .textButton, .pager a, .header > a { display: inline-flex; align-items: center; justify-content: center; min-height: var(--control-h); padding: var(--s-2) var(--s-4); border: 1px solid transparent; border-radius: var(--radius-sm); font: inherit; font-weight: 600; line-height: 1.2; text-decoration: none; cursor: pointer; }
@@ -18,7 +18,7 @@
 .ghost, .header > a { background: transparent; color: var(--text-muted); }
 .ghost:hover:not(:disabled), .header > a:hover { background: var(--surface-muted); border-color: transparent; color: var(--text); }
 .header > a:hover { background: var(--border); }
-.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.danger { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
 .danger:hover:not(:disabled) { background: var(--danger-hover); border-color: var(--danger-hover); }
 .textButton { min-height: calc(var(--control-h) - 8px); padding: 0 var(--s-2); background: transparent; color: var(--danger); font-size: 13px; }
 .textButton:hover:not(:disabled) { background: var(--danger-soft); border-color: transparent; }
@@ -26,7 +26,7 @@
 /* ---- Page shell ---- */
 .workspace { display: grid; align-content: start; gap: var(--s-5); max-width: 1280px; margin: 0 auto; padding: var(--s-6) var(--s-7) var(--s-8); }
 .workspace > *, .panel > *, .split > * { min-width: 0; }
-.workspace button, .workspace .secondary { justify-self: start; }
+.workspace button:not([data-slot]), .workspace .secondary { justify-self: start; }
 .header { display: flex; justify-content: space-between; align-items: end; gap: var(--s-5); padding-bottom: var(--s-4); border-bottom: 1px solid var(--border); }
 .header p:not(.eyebrow) { margin-top: 2px; color: var(--text-muted); font-size: 13px; }
 .eyebrow { color: var(--primary); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
@@ -42,7 +42,7 @@
 .authShell { display: grid; place-items: center; min-height: 100vh; padding: var(--s-5); }
 .authCard { width: min(100%, 360px); gap: var(--s-5); }
 .authCard button { width: 100%; }
-.offlineBanner { padding: var(--s-2) var(--s-5); background: var(--warning); color: #fff; font-size: 13px; font-weight: 600; text-align: center; }
+.offlineBanner { padding: var(--s-2) var(--s-5); background: var(--warning); color: var(--on-warning); font-size: 13px; font-weight: 600; text-align: center; }
 
 /* ---- Section / card ---- */
 .panel { display: grid; align-content: start; gap: var(--s-4); padding: var(--s-5) var(--s-6); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
@@ -62,9 +62,9 @@
 .badge[data-tone="warning"] { background: var(--warning-soft); border-color: transparent; color: var(--warning); }
 .badge[data-tone="danger"] { background: var(--danger-soft); border-color: transparent; color: var(--danger); }
 .badge[data-tone="info"] { background: var(--primary-soft); border-color: transparent; color: var(--primary); }
-.badge[data-tone="solid"] { background: var(--text); border-color: var(--text); color: #fff; }
-.workspace [role="alert"], .authCard [role="alert"], .errors { color: var(--danger); font-size: 13px; font-weight: 550; }
-.workspace [role="status"], .success { color: var(--success); font-size: 13px; font-weight: 550; }
+.badge[data-tone="solid"] { background: var(--text); border-color: var(--text); color: var(--surface); }
+.workspace [role="alert"]:not([data-slot]), .authCard [role="alert"]:not([data-slot]), .errors { color: var(--danger); font-size: 13px; font-weight: 550; }
+.workspace [role="status"]:not([data-slot]), .success { color: var(--success); font-size: 13px; font-weight: 550; }
 .workspace .callout { padding: var(--s-3) var(--s-4); border-left: 3px solid var(--warning); border-radius: var(--radius-sm); background: var(--warning-soft); color: var(--warning); font-size: 13px; font-weight: 550; }
 .stale { color: var(--warning); font-size: 13px; }
 
@@ -113,7 +113,7 @@
 .metrics strong, .totals strong { color: var(--text); font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .metrics strong.badge { justify-self: start; font-size: 12px; }
 .metrics strong.badge[data-tone="success"] { color: var(--success); }
-.metrics strong.badge[data-tone="solid"] { color: #fff; }
+.metrics strong.badge[data-tone="solid"] { color: var(--surface); }
 .totals > span { min-width: 120px; }
 .totals strong { font-size: 18px; }
 .totals strong.due { color: var(--warning); }

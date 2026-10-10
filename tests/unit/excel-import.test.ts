@@ -101,6 +101,34 @@ describe("Excel invoice import", () => {
     expect(result.rows[0].delivered).toBe(expected);
   });
 
+  it.each([
+    ["Yes", true], ["No", false], ["yes", true], ["no", false], ["YES", true], ["nO", false],
+    ["  Yes  ", true], [" no\t", false], [" Yes ", true], [true, true], [false, false],
+  ])("normalizes delivered cell %j to the boolean %s", (cell, expected) => {
+    const result = parseImportSheet([[...IMPORT_HEADERS], ["A", 10, 0, cell, "", "", ""]], ids());
+    expect(result.errors).toEqual([]);
+    expect(result.rows[0].delivered).toStrictEqual(expected);
+  });
+
+  it.each([
+    ["maybe", '"maybe"'], ["Yes please", '"Yes please"'], ["Y e s", '"Y e s"'], [2, "2"], [new Date("2026-01-01"), "date 2026-01-01"],
+  ])("rejects delivered cell %j and reports what it received", (cell, received) => {
+    const result = parseImportSheet([[...IMPORT_HEADERS], ["GOOD", 10, 0, "Yes", "", "", ""], ["BAD", 10, 0, cell, "", "", ""]], ids());
+    expect(result.errors).toEqual([{
+      rowId: "row-2", field: "delivered", message: "Row 3: Delivered must be Yes or No.",
+      sheetRow: 3, column: "Delivered", received, expected: "Yes or No (any letter case), TRUE or FALSE, or blank for No",
+    }]);
+  });
+
+  it("reads real Excel TRUE/FALSE boolean cells and padded text from a workbook file", async () => {
+    const data = [[...IMPORT_HEADERS], ["B-1", 10, 0, true, null, null, null], ["B-2", 10, 0, false, null, null, null], ["B-3", 10, 0, "  yEs ", null, null, null]];
+    const [sheet] = await readXlsxFile(await writeXlsxFile([{ sheet: IMPORT_SHEET_NAME, data }]).toBlob());
+    expect(sheet.data.slice(1, 3).map((row) => typeof row[3])).toEqual(["boolean", "boolean"]);
+    const result = parseImportSheet(sheet.data, ids());
+    expect(result.errors).toEqual([]);
+    expect(result.rows.map((row) => row.delivered)).toStrictEqual([true, false, true]);
+  });
+
   it("reports unsupported cell types and stray columns against the spreadsheet row", () => {
     const result = parseImportSheet([
       [...IMPORT_HEADERS],
@@ -108,7 +136,15 @@ describe("Excel invoice import", () => {
       [new Date("2026-01-01"), true, new Date("2026-01-01"), "no", 12.5, 1.5, 3.25],
       ["C", 10, 0, "no", "", "", "", "extra"],
     ], ids());
-    expect(result.errors).toEqual([
+    // Each problem names the spreadsheet row, the column, what the cell held and what is accepted there.
+    expect(result.errors[0]).toEqual({
+      rowId: "row-1", field: "delivered", message: "Row 2: Delivered must be Yes or No.",
+      sheetRow: 2, column: "Delivered", received: '"maybe"', expected: "Yes or No (any letter case), TRUE or FALSE, or blank for No",
+    });
+    expect(result.errors[1]).toMatchObject({ sheetRow: 3, column: "Invoice Number", received: "date 2026-01-01" });
+    expect(result.errors[2]).toMatchObject({ sheetRow: 3, column: "Total QAR", received: "TRUE" });
+    expect(result.errors[7]).toMatchObject({ sheetRow: 4, column: "(extra columns)", received: '"extra"' });
+    expect(result.errors.map(({ rowId, field, message }) => ({ rowId, field, message }))).toEqual([
       { rowId: "row-1", field: "delivered", message: "Row 2: Delivered must be Yes or No." },
       { rowId: "row-2", field: "invoiceId", message: "Row 3: Invoice Number must be text or a whole number." },
       { rowId: "row-2", field: "total", message: "Row 3: Total QAR must be a number." },

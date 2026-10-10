@@ -6,6 +6,7 @@ import { can, getCurrentActor } from "@/lib/auth/permissions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 import { AccountForm, RegisterAccountForm } from "./account-forms";
+import { AdminTabs } from "./admin-tabs";
 import styles from "@/app/ui.module.css";
 
 const qatarTime = (iso: string) => new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Qatar" });
@@ -37,6 +38,7 @@ export default async function AdminPage() {
 
   return <main className={styles.workspace}>
     <header className={styles.header}><div><p className={styles.eyebrow}>Owner only</p><h1>Accounts and shop access</h1><p>Changes apply to an account&apos;s next action. Every change is recorded below.</p></div><Link href="/">Back to overview</Link></header>
+    <AdminTabs current="/admin" />
 
     <section className={styles.panel}>
       <h2>Accounts</h2>

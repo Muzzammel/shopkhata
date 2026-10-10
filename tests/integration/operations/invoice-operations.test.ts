@@ -208,4 +208,107 @@ describe("complete invoice operations through real authenticated Supabase", () =
     const effective = await staff.from("effective_invoices").select("*").eq("canonical_invoice_id", i.canonical_invoice_id).single();
     expect(effective.data.effective_due_dirham).toBe(0); expect(effective.data.effective_paid_dirham).toBe(10000);
   });
+
+  // --- Corrected-total corrections: the request states the total the invoice should have. ---
+  const corrected = (i: string, expected: number, total: number) => ({ shop_id: SHOP1, invoice_id: i, payment_id: null, expected_total_dirham: expected, corrected_total_dirham: total, reason: "Fix total", idempotency_key: key() });
+  const effectiveOf = async (i: string) => (await staff.from("effective_invoices").select("*").eq("canonical_invoice_id", i).single()).data;
+  const pay = async (i: string, amount: number) => expect((await staff.rpc("record_payment", { command: { shop_id: SHOP1, invoice_id: i, amount_dirham: amount, payment_method: "cash", business_date: qatarBusinessDate(new Date()), idempotency_key: key() } })).error).toBeNull();
+
+  it("corrects 1000 to exactly 1500, not 2500, idempotently, leaving the original invoice and history unchanged", async () => {
+    const i = await create(staff, SHOP1, "TOTAL-UP-" + key(), 100000, "Total correction customer " + key());
+    const id = i.canonical_invoice_id as string;
+    await pay(id, 40000);
+    const original = (await staff.from("invoices").select("*").eq("id", id).single()).data;
+
+    const cmd = corrected(id, 100000, 150000);
+    const first = await staff.rpc("request_invoice_correction", { command: cmd }); expect(first.error).toBeNull();
+    // An exact retry returns the same request and stores nothing more.
+    expect((await staff.rpc("request_invoice_correction", { command: cmd })).data).toEqual(first.data);
+    const requests = await staff.from("correction_requests").select("*").eq("invoice_id", id);
+    expect(requests.data).toHaveLength(1);
+    // The database derived the delta itself: +500.00, not the +1500.00 the old screen would have sent.
+    expect(requests.data![0]).toMatchObject({ expected_total_dirham: 100000, corrected_total_dirham: 150000, amount_delta_dirham: 50000, payment_id: null });
+    // The same key with a different total is a conflict, never a second request.
+    expect((await staff.rpc("request_invoice_correction", { command: { ...cmd, corrected_total_dirham: 160000 } })).error?.message).toBe("IDEMPOTENCY_CONFLICT");
+    // Nothing takes effect before approval.
+    expect((await effectiveOf(id)).effective_total_dirham).toBe(100000);
+
+    const d = decision(first.data.request_id);
+    const approved = await manager.rpc("decide_invoice_correction", { command: d }); expect(approved.error).toBeNull();
+    expect((await manager.rpc("decide_invoice_correction", { command: d })).data).toEqual(approved.data);
+
+    const after = await effectiveOf(id);
+    expect(after.effective_total_dirham).toBe(150000);
+    expect(after.effective_paid_dirham).toBe(40000);
+    expect(after.effective_due_dirham).toBe(110000);
+    // Exactly one ledger row, and the committed invoice and request rows are untouched.
+    const ledger = await staff.from("corrections").select("amount_delta_dirham, request_id").eq("invoice_id", id);
+    expect(ledger.data).toEqual([{ amount_delta_dirham: 50000, request_id: first.data.request_id }]);
+    expect((await staff.from("invoices").select("*").eq("id", id).single()).data).toEqual(original);
+    expect(original.total_amount_dirham).toBe(100000);
+    expect((await staff.from("correction_requests").select("*").eq("invoice_id", id)).data).toEqual(requests.data);
+    expect((await owner.from("correction_requests").update({ corrected_total_dirham: 1 }).eq("id", first.data.request_id).select()).data ?? []).toEqual([]);
+    expect((await owner.from("correction_requests").delete().eq("id", first.data.request_id).select()).data ?? []).toEqual([]);
+    expect((await staff.from("correction_requests").select("corrected_total_dirham").eq("id", first.data.request_id).single()).data).toEqual({ corrected_total_dirham: 150000 });
+
+    // Every projection that reports this invoice agrees with the corrected total.
+    const balance = await staff.from("customer_financial_balances").select("outstanding_due_dirham").eq("customer_id", after.effective_customer_id).single();
+    expect(balance.data?.outstanding_due_dirham).toBe(110000);
+    const entries = await staff.from("customer_ledger").select("debit_dirham, credit_dirham").eq("customer_id", after.effective_customer_id);
+    expect(entries.error).toBeNull();
+    expect(entries.data!.reduce((sum, row) => sum + row.debit_dirham - row.credit_dirham, 0)).toBe(110000);
+    expect((await staff.from("invoice_effective_balances").select("effective_total_dirham, effective_due_dirham").eq("canonical_invoice_id", id).single()).data).toEqual({ effective_total_dirham: 150000, effective_due_dirham: 110000 });
+  });
+
+  it("corrects 1500 down to exactly 1000", async () => {
+    const i = await create(staff, SHOP1, "TOTAL-DOWN-" + key(), 150000);
+    const id = i.canonical_invoice_id as string;
+    await pay(id, 100000);
+    const rid = await request("request_invoice_correction", corrected(id, 150000, 100000));
+    expect((await staff.from("correction_requests").select("amount_delta_dirham").eq("id", rid).single()).data).toEqual({ amount_delta_dirham: -50000 });
+    expect((await owner.rpc("decide_invoice_correction", { command: decision(rid) })).error).toBeNull();
+    const after = await effectiveOf(id);
+    expect(after.effective_total_dirham).toBe(100000); expect(after.effective_paid_dirham).toBe(100000); expect(after.effective_due_dirham).toBe(0);
+  });
+
+  it("refuses a corrected total that would leave an invalid paid or due state, at request and again at approval", async () => {
+    const i = await create(staff, SHOP1, "TOTAL-BAD-" + key(), 100000);
+    const id = i.canonical_invoice_id as string;
+    await pay(id, 40000);
+    const refuse = async (command: object, message: string) => expect((await staff.rpc("request_invoice_correction", { command })).error?.message).toBe(message);
+    await refuse(corrected(id, 100000, 39999), "INVALID_FINANCIAL_RESULT");   // total below what is already paid
+    await refuse(corrected(id, 100000, 100000), "CORRECTION_NO_CHANGE");
+    await refuse(corrected(id, 90000, 150000), "STALE_TOTAL");                // the client's idea of the current total is wrong
+    await refuse({ ...corrected(id, 100000, 150000), corrected_total_dirham: -1 }, "INVALID_REQUEST");
+    await refuse({ ...corrected(id, 100000, 150000), corrected_total_dirham: 1500.5 }, "INVALID_REQUEST");
+    await refuse({ ...corrected(id, 100000, 150000), amount_delta_dirham: 50000 }, "INVALID_REQUEST");   // never both
+    const { expected_total_dirham: _expected, ...withoutExpected } = corrected(id, 100000, 150000); void _expected;
+    await refuse(withoutExpected, "INVALID_REQUEST");
+    const payment = (await staff.from("payments").select("id").eq("invoice_id", id).single()).data!;
+    await refuse({ ...corrected(id, 100000, 150000), payment_id: payment.id }, "INVALID_REQUEST");
+    expect((await staff.from("correction_requests").select("id").eq("invoice_id", id)).data).toEqual([]);
+
+    // Valid when requested (paid 400, corrected total 500), invalid by the time it is approved (paid 600).
+    const rid = await request("request_invoice_correction", corrected(id, 100000, 50000));
+    await pay(id, 20000);
+    expect((await owner.rpc("decide_invoice_correction", { command: decision(rid) })).error?.message).toBe("INVALID_FINANCIAL_RESULT");
+    const after = await effectiveOf(id);
+    expect(after.effective_total_dirham).toBe(100000); expect(after.effective_paid_dirham).toBe(60000); expect(after.effective_due_dirham).toBe(40000);
+    expect((await staff.from("corrections").select("id").eq("invoice_id", id)).data).toEqual([]);
+  });
+
+  it("never stacks two corrected-total requests: the second is stale once the first is approved", async () => {
+    const i = await create(staff, SHOP1, "TOTAL-STALE-" + key(), 100000);
+    const id = i.canonical_invoice_id as string;
+    const a = await request("request_invoice_correction", corrected(id, 100000, 150000));
+    const b = await request("request_invoice_correction", corrected(id, 100000, 120000));
+    expect((await owner.rpc("decide_invoice_correction", { command: decision(a) })).error).toBeNull();
+    // Approving b as a delta would have produced 1700. It is refused instead and the total stays 1500.
+    expect((await owner.rpc("decide_invoice_correction", { command: decision(b) })).error?.message).toBe("STALE_TOTAL");
+    expect((await effectiveOf(id)).effective_total_dirham).toBe(150000);
+    // A stale request can still be closed by rejecting it.
+    expect((await owner.rpc("decide_invoice_correction", { command: decision(b, 0, "rejected") })).error).toBeNull();
+    expect((await effectiveOf(id)).effective_total_dirham).toBe(150000);
+    expect((await staff.from("corrections").select("amount_delta_dirham").eq("invoice_id", id)).data).toEqual([{ amount_delta_dirham: 50000 }]);
+  });
 });

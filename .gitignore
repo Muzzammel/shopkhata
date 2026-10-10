@@ -42,3 +42,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# screenshot crawler output and auth state (only the scripts are source)
+/tools/shopkhata-screenshot-crawler/*
+!/tools/shopkhata-screenshot-crawler/*.mjs
+
+# local temp files and evidence archives
+/_tmp_*
+/shopkhata-*.zip

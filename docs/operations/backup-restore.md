@@ -102,6 +102,26 @@ This **wipes the local development database** and rebuilds it from the backup. I
 
 It writes the evidence to `restore-verification.json` in the backup folder. Run `pnpm backup:verify --from …` on a production backup **at least monthly and before every release**. After rehearsing a production backup the local database holds production data: run `pnpm exec supabase db reset --local` when done.
 
+## Listing a backup in the application (Admin → Backup & Recovery)
+
+The owner can see what has been backed up under **Accounts → Backup & Recovery**: the latest backup and its age, the history, whether each backup's files matched their recorded SHA-256, and the result of its last restore rehearsal. The screen is read-only. It cannot create, download or restore a backup, because each of those would need the database password and the service-role key inside the web application.
+
+A backup appears there only after the operator records it:
+
+```
+pnpm backup:record --from <backup dir>
+```
+
+- It first re-checks every dump and receipt file against the hashes in `manifest.json` and refuses a folder that does not match.
+- It then writes one summary row (time, environment, size, receipt count, manifest SHA-256, rehearsal result) to `public.backup_records`. Nothing else is written, and the backup itself never leaves the operator's computer.
+- For a hosted project set `SHOPKHATA_BACKUP_ENV`, `SHOPKHATA_BACKUP_SUPABASE_URL` and `SHOPKHATA_BACKUP_SERVICE_ROLE_KEY` exactly as for the backup. The command refuses to record a backup into a different environment from the one it was taken from.
+- Recording the same backup twice changes nothing. Record it again after `pnpm backup:verify --from …` to show the rehearsal result.
+- `pnpm backup:db` itself stays read-only against its source; recording is this separate, deliberate step.
+
+`backup_records` is append-only and readable by owner accounts only. No application account can write to it. A backup recorded just before another backup is taken is included in that later backup like any other row.
+
+The screen shows a warning when the newest recorded backup is more than 36 hours old or when none is recorded.
+
 ## Restoring production
 
 Do this only when the production data is lost or damaged beyond repair. Stop, breathe, and follow the order.

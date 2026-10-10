@@ -39,3 +39,18 @@ The pre-existing uncommitted detail foundation (`lib/invoice-detail.ts`, detail 
 See `invoice-operations-verification.md` for the final executed regression results, earlier failures and their resolutions, review status, audit blocker, and Git provenance. No test was deleted or weakened. CI now runs the new invoice-operation integration suite and the complete browser suite after the existing database suites.
 
 No offline synchronization, Excel import/export, expenses, closing UI, reports, or deployment was implemented. No cancellation state exists in the current approved request schema; explicit rejection is the supported auditable negative decision. The next product slice should be chosen after this slice's remaining verification blocker is resolved.
+
+## Invoice-total corrections state the corrected total
+
+`20261009090000_correction_target_total.sql` changes how an invoice-total correction is requested. The request carries `corrected_total_dirham` (the total the invoice should have) and `expected_total_dirham` (the effective total the requester saw). It no longer carries an adjustment: `request_invoice_correction` derives `amount_delta_dirham = corrected − current effective total` itself, under the invoice row lock, and stores all three on the append-only request. A 1000.00 invoice corrected to 1500.00 therefore stores +500.00 and ends at 1500.00.
+
+The database, not the screen, decides validity:
+
+- `STALE_TOTAL` — the expected total is not the current effective total (at request), or the effective total has moved since the request was made (at approval). A corrected-total request is only approvable against the total it was made for, so two pending requests can never stack. A stale request can still be rejected.
+- `CORRECTION_NO_CHANGE` — the corrected total equals the current total.
+- `INVALID_FINANCIAL_RESULT` — the corrected total is below cash paid plus customer credit applied (the due would be negative). Checked at request and again at approval.
+- `CUSTOMER_REQUIRED` — unchanged rule: a delivered invoice left with due needs a customer.
+
+A command must carry either a corrected total or a delta, never both. Payment corrections still carry a signed delta against one payment. The application's server action accepts only the corrected-total form for invoice totals; the delta form against an invoice total remains accepted by the RPC for existing callers and stays under the same approval rules. Idempotency, fingerprints, approval roles, the closed-date rule and the append-only ledger are unchanged; requests made before this migration keep both new columns null.
+
+The request form shows the current total, the corrected total, the calculated difference, current payments and the resulting due before submitting. Refusals appear in a persistent alert and on the field they concern; the save confirmation is a toast.

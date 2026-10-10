@@ -213,3 +213,11 @@ Limit of this boundary: IndexedDB is not encrypted. Someone with access to the s
 - If a user loses access to their only shop, the workspace cannot open and the stored draft is unreachable until access is restored.
 - An invoice and the payment recorded with it share one recorded timestamp, so their relative order in the ledger (screen and export alike) is not fixed and an intermediate running balance may differ; the final balance is always the authoritative one. This predates the slice.
 - Only invoice batches can be queued offline.
+
+## Import preview diagnostics
+
+Every problem in the preview names the spreadsheet row, the column, the value the cell actually held and what is accepted there, for example: `Row 3: Delivered must be Yes or No.` — Column: Delivered · Received: `"maybe"` · Expected: Yes or No (any letter case), TRUE or FALSE, or blank for No. Text is shown in quotes so stray spaces and look-alike characters are visible. The offending cell is highlighted in the preview table and shows the received value rather than a default.
+
+Delivered is normalized to a boolean before validation: surrounding whitespace is trimmed, `Yes`/`No` match in any letter case, and a real Excel `TRUE`/`FALSE` cell is accepted as it is. Anything that is not clearly one of the listed values is rejected, not guessed.
+
+The import stays all-or-nothing: while any row has a problem, no row can be added to the draft.

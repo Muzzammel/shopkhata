@@ -4,13 +4,22 @@ import { useState } from "react";
 import readXlsxFile from "read-excel-file/universal";
 import writeXlsxFile from "write-excel-file/universal";
 
+import { CircleAlertIcon } from "lucide-react";
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  IMPORT_SHEET_NAME, MAX_IMPORT_FILE_BYTES, MAX_IMPORT_ROWS, importTemplateSheets, parseImportSheet, parsePastedRows,
-  type ImportResult,
+  IMPORT_FIELD_COLUMN, IMPORT_SHEET_NAME, MAX_IMPORT_FILE_BYTES, MAX_IMPORT_ROWS, importTemplateSheets, parseImportSheet, parsePastedRows,
+  type ImportCellError, type ImportResult,
 } from "@/lib/excel/invoice-import";
 import type { EntryError, EntryRow } from "@/lib/invoice-entry";
 
 import styles from "@/app/ui.module.css";
+
+const PREVIEW_FIELDS = ["invoiceId", "total", "received", "delivered", "customer", "note"] as const;
+const draftValue = (row: EntryRow, field: string) => field === "invoiceId" ? row.invoiceId : field === "total" ? row.total : field === "received" ? row.received || "0"
+  : field === "delivered" ? (row.delivered ? "Yes" : "No") : field === "customer" ? [row.customerName, row.customerMobile].filter(Boolean).join(" · ") : field === "note" ? row.note : "";
+const isCellError = (error: EntryError): error is ImportCellError => "received" in error;
 
 async function downloadTemplate() {
   const url = URL.createObjectURL(await writeXlsxFile(importTemplateSheets()).toBlob());
@@ -68,8 +77,22 @@ export function ExcelImport({ disabled, currentRows, draftIsBlank, validate, onA
   const replaceErrors = parsed ? [...cellErrors, ...relevant(validate(imported))] : [];
   const mergeErrors = parsed && !draftIsBlank ? [...cellErrors, ...relevant(validate([...currentRows, ...imported]))] : replaceErrors;
   const shownErrors = draftIsBlank ? replaceErrors : mergeErrors;
-  const rowMessages = (rowId: string) => [...new Set(shownErrors.filter((error) => error.rowId === rowId).map((error) =>
-    error.message.startsWith("Row ") ? error.message : `Row ${parsed?.sheetRows[rowId]}: ${error.message}`))];
+  // One entry per distinct problem: where it is, what the workbook held there, and what is accepted.
+  const problems = imported.flatMap((row) => {
+    const seen = new Set<string>();
+    return shownErrors.filter((error) => error.rowId === row.rowId).flatMap((error) => {
+      const text = error.message.startsWith("Row ") ? error.message : `Row ${parsed?.sheetRows[row.rowId]}: ${error.message}`;
+      if (seen.has(text)) return [];
+      seen.add(text);
+      return [isCellError(error)
+        ? { key: `${row.rowId}:${error.field}`, text, column: error.column, received: error.received, expected: error.expected }
+        : { key: `${row.rowId}:${error.field}`, text, column: IMPORT_FIELD_COLUMN[error.field] ?? error.field, received: JSON.stringify(draftValue(row, error.field)), expected: null }];
+    });
+  });
+  const invalidCells = new Set(problems.map((problem) => problem.key));
+  // A cell that could not be read shows what the workbook held, not the placeholder the draft row got.
+  const unreadable = new Map<string, string>();
+  for (const error of cellErrors) if (isCellError(error)) unreadable.set(`${error.rowId}:${error.field}`, [unreadable.get(`${error.rowId}:${error.field}`), error.received].filter(Boolean).join(" · "));
 
   function apply(mode: "merge" | "replace") {
     onApply(imported, mode);
@@ -92,21 +115,33 @@ export function ExcelImport({ disabled, currentRows, draftIsBlank, validate, onA
       <label>Cells in template column order<textarea aria-label="Paste rows" rows={3} disabled={disabled} value={pasteText} onChange={(event) => setPasteText(event.target.value)} /></label>
       <button type="button" className={styles.secondary} disabled={disabled || !pasteText.trim()} onClick={() => show(parsePastedRows(pasteText.replace(/\n+$/, "")), "pasted rows")}>Preview pasted rows</button>
     </details>
-    {message && <p role={message.startsWith("Import rejected") ? "alert" : "status"}>{message}</p>}
+    {message && (message.startsWith("Import rejected")
+      ? <Alert variant="destructive" className="border-destructive/50 bg-danger-soft"><CircleAlertIcon /><AlertTitle>Import rejected</AlertTitle><AlertDescription>{message}</AlertDescription></Alert>
+      : <p role="status">{message}</p>)}
     {parsed && <div className={styles.importPreview} role="region" aria-label="Import preview">
       <h3>Import preview — {imported.length} row{imported.length === 1 ? "" : "s"} from {source}</h3>
       <p>Not saved. Accepted rows join the draft and are saved only when you review and save the batch.</p>
-      <div className={styles.importTable}><table><thead><tr><th scope="col">Row</th><th scope="col">Invoice number</th><th scope="col">Total QAR</th><th scope="col">Received QAR</th><th scope="col">Delivered</th><th scope="col">Customer</th><th scope="col">Note</th></tr></thead><tbody>
-        {imported.map((row) => <tr key={row.rowId} data-import-row={row.rowId}>
-          <td>{parsed.sheetRows[row.rowId]}</td><td>{row.invoiceId}</td><td>{row.total}</td><td>{row.received || "0"}</td>
-          <td>{row.delivered ? "Yes" : "No"}</td><td>{[row.customerName, row.customerMobile].filter(Boolean).join(" · ")}</td><td>{row.note}</td>
-        </tr>)}
-      </tbody></table></div>
-      {shownErrors.length > 0 && <ul className={styles.errors} aria-label="Import errors">
-        {imported.flatMap((row) => rowMessages(row.rowId).map((text, index) => <li key={`${row.rowId}-${index}`}>{text}</li>))}
-        {[...new Set(shownErrors.filter((error) => error.field === "rows").map((error) => error.message))].map((text) => <li key={text}>{text}</li>)}
+      <div className={styles.importTable}><Table>
+        <TableHeader><TableRow><TableHead scope="col">Row</TableHead><TableHead scope="col">Invoice number</TableHead><TableHead scope="col">Total QAR</TableHead><TableHead scope="col">Received QAR</TableHead><TableHead scope="col">Delivered</TableHead><TableHead scope="col">Customer</TableHead><TableHead scope="col">Note</TableHead></TableRow></TableHeader>
+        <TableBody>{imported.map((row) => <TableRow key={row.rowId} data-import-row={row.rowId}>
+          <TableCell aria-invalid={invalidCells.has(`${row.rowId}:row`) || undefined} className="aria-invalid:bg-danger-soft aria-invalid:font-semibold aria-invalid:text-destructive">{parsed.sheetRows[row.rowId]}</TableCell>
+          {PREVIEW_FIELDS.map((field) => <TableCell key={field} data-import-cell={field} aria-invalid={invalidCells.has(`${row.rowId}:${field}`) || undefined}
+            className="aria-invalid:bg-danger-soft aria-invalid:font-semibold aria-invalid:text-destructive aria-invalid:outline aria-invalid:-outline-offset-1 aria-invalid:outline-destructive">
+            {unreadable.get(`${row.rowId}:${field}`) ?? draftValue(row, field)}
+          </TableCell>)}
+        </TableRow>)}</TableBody>
+      </Table></div>
+      {shownErrors.length > 0 && <Alert variant="destructive" className="border-destructive/50 bg-danger-soft">
+        <CircleAlertIcon /><AlertTitle>Import blocked</AlertTitle>
+        <AlertDescription>Fix the highlighted cells in the workbook and import it again; no rows were added.</AlertDescription>
+      </Alert>}
+      {shownErrors.length > 0 && <ul className="grid list-none gap-2 pl-0" aria-label="Import errors">
+        {problems.map((problem, index) => <li key={`${problem.key}-${index}`} className="grid gap-0.5 border-l-2 border-destructive pl-3 text-sm">
+          <strong className="font-semibold text-destructive">{problem.text}</strong>
+          <span className="text-muted-foreground">Column: {problem.column} · Received: <code>{problem.received}</code>{problem.expected && <> · Expected: {problem.expected}</>}</span>
+        </li>)}
+        {[...new Set(shownErrors.filter((error) => error.field === "rows").map((error) => error.message))].map((text) => <li key={text} className="border-l-2 border-destructive pl-3 text-sm font-semibold text-destructive">{text}</li>)}
       </ul>}
-      {shownErrors.length > 0 && <p role="alert">Import blocked. Fix the workbook and import it again; no rows were added.</p>}
       {!draftIsBlank && mergeTooLong && <p role="alert">Adding these rows would exceed {MAX_IMPORT_ROWS} rows in one batch.</p>}
       <div className={styles.actions}>
         {draftIsBlank

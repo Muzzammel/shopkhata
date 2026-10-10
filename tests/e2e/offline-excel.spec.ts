@@ -136,6 +136,10 @@ test.describe("Excel import", () => {
     await expect(errors).toContainText("Row 11: Invoice ID is required.");
     await expect(errors).not.toContainText("Row 2:");
     await expect(preview.getByRole("alert")).toContainText("Import blocked");
+    // The problem names its column and what the cell held, and that cell is highlighted in the preview.
+    await expect(errors.getByRole("listitem").filter({ hasText: "Row 7:" })).toContainText('Column: Delivered · Received: "maybe" · Expected: Yes or No (any letter case), TRUE or FALSE, or blank for No');
+    await expect(preview.locator('[data-import-cell="delivered"][aria-invalid="true"]')).toHaveText('"maybe"');
+    await expect(preview.locator("[data-import-row]").first().locator('[aria-invalid="true"]')).toHaveCount(0);
     await expect(preview.getByRole("button", { name: "Add rows to draft" })).toBeDisabled();
 
     // The draft is untouched and nothing reached the database.
