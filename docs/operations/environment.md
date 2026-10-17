@@ -17,7 +17,7 @@
 | `SHOPKHATA_RESTORE_SUPABASE_URL` | Operator-only | Shell, one session | API URL of the project receipts are being restored into |
 | `SHOPKHATA_RESTORE_SERVICE_ROLE_KEY` | Operator-only, **secret** | Shell, one session | Service-role key of that project |
 | `CI` | Local/CI-only | Set by the CI system | Makes Playwright start its own servers and retry |
-| `SHOPKHATA_RELEASE` | Server-only, optional | Hosting runtime/build settings | Short release identifier exposed by `/api/health`; use a tag or commit, never a secret |
+| `SHOPKHATA_RELEASE` | Server-only, optional | Hosting runtime/build settings | Fallback release identifier for `/api/health`, used only when the host sets no `VERCEL_GIT_COMMIT_SHA`. On Vercel leave it unset: a value here is ignored, so it can no longer go stale |
 | `SHOPKHATA_ENV` | Server-only deployment profile (defaults to production if omitted) | `local`, `test`, or `production` | Selects the Supabase URL validation profile for a production-mode build. Hosting should explicitly set `production`; use `local` only for a local production-build/PWA rehearsal |
 
 `NODE_ENV` is assigned by Next.js (`development`, `test` in test runners, `production` for build/start); do not set it to choose a Supabase project. The hosting platform's canonical application URL is the base URL. It is intentionally not duplicated as an app environment variable: use that exact HTTPS origin in Supabase Auth's Site URL and redirect allowlist. There are no auth callback secrets because login is password-based and session cookies are managed by `@supabase/ssr`.
@@ -40,7 +40,7 @@ The app and scripts use these environment names (the screenshot crawler under `t
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser-safe; required to build/start all app modes; environment-specific | Supabase endpoint and publishable/anon key |
 | `SHOPKHATA_ENABLE_HSTS` | Deployment-only optional | Adds HSTS after final HTTPS domain is confirmed |
-| `SHOPKHATA_RELEASE`, `VERCEL_GIT_COMMIT_SHA` | Server-only optional metadata | Release identifier at health endpoint; fallback is `unknown` |
+| `VERCEL_GIT_COMMIT_SHA`, `SHOPKHATA_RELEASE` | Server-only optional metadata | Release identifier at health endpoint, in that order of precedence; fallback is `unknown` |
 | `SHOPKHATA_BACKUP_ENV`, `SHOPKHATA_BACKUP_DB_URL`, `SHOPKHATA_BACKUP_SUPABASE_URL`, `SHOPKHATA_BACKUP_SERVICE_ROLE_KEY`, `SHOPKHATA_BACKUP_DIR` | Operator-only; DB URL and service-role key secret | Remote backup source and destination; never app-hosting config |
 | `SHOPKHATA_RESTORE_SUPABASE_URL`, `SHOPKHATA_RESTORE_SERVICE_ROLE_KEY` | Operator-only; service-role key secret | Explicit receipt restore command only |
 | `CI` | Test-only | Playwright worker/retry/server behavior |
@@ -56,7 +56,7 @@ The app and scripts use these environment names (the screenshot crawler under `t
 - pnpm 11.23.0 (the `packageManager` value in `package.json`).
 - `pnpm install --frozen-lockfile`; do not update the lockfile during release install.
 - Next.js 16.3.8 / React 19.2.8 from the lockfile. Run the tracked production build with the target environment config.
-- Supabase CLI 2.115.0 from the locked project dependency (`pnpm exec supabase`); Docker Desktop is required for local DB reset, tests and restore rehearsal. No global CLI is required.
+- Supabase CLI 2.121.0 from the locked project dependency (`pnpm exec supabase`); Docker Desktop is required for local DB reset, tests and restore rehearsal. No global CLI is required.
 - Production hosting must support the locked Next.js Node runtime, HTTPS, dynamic App Router pages/Server Actions, response headers, runtime environment configuration, and retaining server logs. Configure Supabase Auth's Site URL/redirects to the exact deployed origin.
 
 There are **no server-only application secrets**. The deployed application runs every request as the signed-in user with the publishable key; it never holds the service-role key, a database password or a JWT secret. Account administration is done by owner-only database functions, not by a privileged key.

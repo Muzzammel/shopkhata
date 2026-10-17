@@ -59,6 +59,10 @@ Never run `supabase db reset` against production. It deletes everything.
 
 Deploy the release tag through the hosting platform (promote the build of that tag, or trigger a deployment from it). The build stops with `ShopKhata configuration is not deployable` if a required variable is missing or a secret key was put in a public variable; fix the settings and build again.
 
+**Release identity and the clean-tree rule.** `/api/health` reports the deployment's own `VERCEL_GIT_COMMIT_SHA` as `release`; `SHOPKHATA_RELEASE` is only a fallback for hosts that set no commit SHA, so leave it unset on Vercel. The SHA is also set for a CLI deployment (`vercel deploy --prod --skip-domain`, checked on a probe deployment), but there it is read from the local git `HEAD`, not from the uploaded files. It therefore identifies the exact artifact **only if the working tree is clean and committed**. Production-target deployments must be built from a clean, committed working tree (`git status --porcelain` prints nothing, and `HEAD` is the release commit). A dirty tree makes the reported SHA name a commit that is not what was built.
+
+Observed Vercel behaviour: `--skip-domain` leaves `shopkhata.vercel.app` on its current deployment, but the project alias `shopkhata-muzzammels-projects.vercel.app` moves to the new staged deployment. That alias is the Vercel-Auth-protected staging address, so its movement is expected and is not a release problem. Promote only deliberately (`vercel promote <deployment> --scope muzzammels-projects`), after the staged `/api/health` shows the expected SHA.
+
 Because migrations are applied first, there is a short window in which the previous application runs against the new schema. Do not assume the previous release remains compatible: the release record must include an explicit old-app/new-schema compatibility review and test evidence for the exact migration range. If compatibility is uncertain, schedule a maintenance window and prevent writes until the new app is verified.
 
 ## 6. Smoke test
