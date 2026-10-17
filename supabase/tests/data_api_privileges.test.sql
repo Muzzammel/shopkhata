@@ -1,6 +1,6 @@
 begin;
 
-select plan(37);
+select plan(39);
 
 -- Data API privilege model (migration 20261017100000). RLS does not guard TRUNCATE, TRIGGER, REFERENCES
 -- or MAINTAIN and does not apply to functions, so the grants themselves are asserted for every public object.
@@ -13,22 +13,44 @@ create temp table priv_all(p text);
 insert into priv_all values ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE'), ('REFERENCES'), ('TRIGGER'), ('MAINTAIN');
 create temp table priv_seq as
   select c.oid from pg_class c join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public' where c.relkind = 'S';
+-- One row per public function, keyed by name plus argument types so overloads cannot hide behind a shared name.
 create temp table priv_fn as
-  select p.oid, p.proname::text as name from pg_proc p join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public';
-grant select on priv_rel, priv_all, priv_seq, priv_fn to public;
+  select p.oid, p.proname::text as name,
+    p.proname || '(' || array_to_string(p.proargtypes::oid[]::regtype[], ',') || ')' as sig,
+    has_function_privilege('anon', p.oid, 'EXECUTE') as anon_x,
+    has_function_privilege('authenticated', p.oid, 'EXECUTE') as auth_x,
+    has_function_privilege('service_role', p.oid, 'EXECUTE') as svc_x,
+    exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a where a.grantee = 0 and a.privilege_type = 'EXECUTE') as public_x
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public';
+-- The approved application RPC surface: the only public functions authenticated may execute.
+create temp table priv_rpc(sig text);
+insert into priv_rpc values
+  ('admin_register_account(jsonb)'), ('admin_set_shop_assignment(jsonb)'), ('admin_update_account(jsonb)'),
+  ('apply_customer_credit(jsonb)'), ('approve_overpayment(jsonb)'), ('close_business_date(jsonb)'),
+  ('create_customer(jsonb)'), ('create_expense(jsonb)'), ('decide_expense_correction(jsonb)'),
+  ('decide_invoice_correction(jsonb)'), ('decide_invoice_replacement(jsonb)'), ('record_customer_payment(jsonb)'),
+  ('record_payment(jsonb)'), ('register_expense_attachment(jsonb)'), ('reopen_business_date(jsonb)'),
+  ('report_customer_due_totals(uuid)'), ('report_daily_summary(uuid,date,date)'), ('report_day_pending_requests(uuid,date)'),
+  ('report_expense_totals(uuid,date,date)'), ('report_payment_totals(uuid,date,date)'), ('report_sales_totals(uuid,date,date)'),
+  ('report_top_customers_by_payments(uuid,date,date,integer)'), ('report_top_customers_by_sales(uuid,date,date,integer)'),
+  ('request_expense_correction(jsonb)'), ('request_invoice_correction(jsonb)'), ('request_invoice_replacement(jsonb)'),
+  ('submit_batch(jsonb)');
+grant select on priv_rel, priv_all, priv_seq, priv_fn, priv_rpc to public;
 
 select ok((select count(*) from priv_rel) >= 30 and (select count(*) from priv_seq) >= 2 and (select count(*) from priv_fn) >= 27,
   'the catalog scan sees the real public tables, views, sequences and functions');
+select is((select count(*) from priv_rpc), 27::bigint, 'the approved RPC list holds 27 distinct signatures');
+select is((select array_agg(sig order by sig) from priv_fn),
+  (select array_agg(sig order by sig) from (select sig from priv_rpc union all select 'reject_append_only_mutation()') u),
+  'the public functions are exactly the 27 approved RPCs plus the append-only trigger function (a new or overloaded function must be classified here)');
 
 -- 1. anon: nothing.
 select is((select count(*) from priv_rel r cross join priv_all a where has_table_privilege('anon', r.oid, a.p)), 0::bigint,
   'anon holds no privilege (SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN) on any public table or view');
 select is((select count(*) from priv_seq s where has_sequence_privilege('anon', s.oid, 'USAGE') or has_sequence_privilege('anon', s.oid, 'SELECT')
   or has_sequence_privilege('anon', s.oid, 'UPDATE')), 0::bigint, 'anon has no sequence privilege');
-select is((select count(*) from priv_fn f where has_function_privilege('anon', f.oid, 'EXECUTE')), 0::bigint, 'anon can execute no public function');
-select is((select count(*) from priv_fn f join pg_proc p on p.oid = f.oid
-  cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a where a.grantee = 0), 0::bigint,
-  'PUBLIC can execute no public function');
+select is((select coalesce(array_agg(sig order by sig), '{}') from priv_fn where anon_x), '{}'::text[], 'anon can execute no public function');
+select is((select coalesce(array_agg(sig order by sig), '{}') from priv_fn where public_x), '{}'::text[], 'PUBLIC can execute no public function');
 
 -- 2. authenticated: SELECT only.
 select is((select count(*) from priv_rel r cross join priv_all a where a.p <> 'SELECT' and has_table_privilege('authenticated', r.oid, a.p)), 0::bigint,
@@ -37,14 +59,8 @@ select is((select count(*) from priv_rel r where not has_table_privilege('authen
   'authenticated can SELECT every public table and view (RLS decides the rows)');
 select is((select count(*) from priv_seq s where has_sequence_privilege('authenticated', s.oid, 'USAGE') or has_sequence_privilege('authenticated', s.oid, 'SELECT')
   or has_sequence_privilege('authenticated', s.oid, 'UPDATE')), 0::bigint, 'authenticated has no sequence privilege');
-select is((select array_agg(name order by name) from priv_fn where has_function_privilege('authenticated', oid, 'EXECUTE')),
-  array['admin_register_account', 'admin_set_shop_assignment', 'admin_update_account', 'apply_customer_credit', 'approve_overpayment',
-    'close_business_date', 'create_customer', 'create_expense', 'decide_expense_correction', 'decide_invoice_correction',
-    'decide_invoice_replacement', 'record_customer_payment', 'record_payment', 'register_expense_attachment', 'reopen_business_date',
-    'report_customer_due_totals', 'report_daily_summary', 'report_day_pending_requests', 'report_expense_totals', 'report_payment_totals',
-    'report_sales_totals', 'report_top_customers_by_payments', 'report_top_customers_by_sales', 'request_expense_correction',
-    'request_invoice_correction', 'request_invoice_replacement', 'submit_batch'],
-  'authenticated can execute exactly the application RPCs and nothing else');
+select is((select array_agg(sig order by sig) from priv_fn where auth_x), (select array_agg(sig order by sig) from priv_rpc),
+  'authenticated can execute exactly the 27 approved application RPC signatures and nothing else');
 select ok(not has_function_privilege('authenticated', 'public.reject_append_only_mutation()', 'EXECUTE')
   and not has_function_privilege('service_role', 'public.reject_append_only_mutation()', 'EXECUTE'),
   'the append-only trigger function is not callable through the API');
@@ -61,7 +77,7 @@ select ok(has_table_privilege('service_role', 'public.backup_records', 'SELECT')
   'service_role: backup_records SELECT yes, INSERT yes, UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER/MAINTAIN no');
 select is((select count(*) from priv_seq s where has_sequence_privilege('service_role', s.oid, 'USAGE') or has_sequence_privilege('service_role', s.oid, 'SELECT')
   or has_sequence_privilege('service_role', s.oid, 'UPDATE')), 0::bigint, 'service_role has no sequence privilege');
-select is((select count(*) from priv_fn f where has_function_privilege('service_role', f.oid, 'EXECUTE')), 0::bigint, 'service_role can execute no public function');
+select is((select coalesce(array_agg(sig order by sig), '{}') from priv_fn where svc_x), '{}'::text[], 'service_role can execute no public function');
 select is((select coalesce(array_agg(a.p order by a.p), '{}') from priv_all a where has_table_privilege('authenticated', 'public.backup_records', a.p)),
   array['SELECT'], 'authenticated holds exactly SELECT on backup_records');
 select is((select coalesce(array_agg(a.p order by a.p), '{}') from priv_all a where has_table_privilege('anon', 'public.backup_records', a.p)),
