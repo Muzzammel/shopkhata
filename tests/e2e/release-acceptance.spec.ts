@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { formatQar } from "@/lib/domain/money";
 import { IMPORT_HEADERS, MAX_IMPORT_ROWS } from "@/lib/excel/invoice-import";
 
-import { MANAGER, OWNER, SHOP_1, SHOP_2, STAFF, entryRows, fillRow, importFile, localDbQuery, login, savedNotice, scalar, workbook } from "./offline-helpers";
+import { MANAGER, OWNER, SHOP_1, SHOP_2, STAFF, entryRows, fillRow, importFile, localDbQuery, login, savedNotice, scalar, signOut, workbook } from "./offline-helpers";
 
 // BIG SLICE 5 release acceptance in a real browser: owner administration,
 // security headers and session handling, the largest allowed Excel batch, and
@@ -191,7 +191,7 @@ test.describe("security headers and sessions", () => {
 
     // Sign-out ends the session: protected pages and exports are refused afterwards.
     await page.goto("/");
-    await page.getByRole("button", { name: "Sign out" }).click();
+    await signOut(page);
     await expect(page.getByRole("heading", { name: "Sign in to ShopKhata" })).toBeVisible();
     await page.goto("/reports");
     await expect(page).toHaveURL(/\/login\?next=%2Freports$/);
@@ -409,8 +409,14 @@ test.describe("responsive usability and accessibility", () => {
       await check("administration");
 
       // The navigation reaches every workspace and the offline state is announced in words.
-      for (const link of ["Overview", "Invoices", "Customers", "Payments", "Expenses", "Daily close", "Dashboard", "Reports", "Accounts"]) {
-        await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: link, exact: true })).toBeInViewport({ ratio: 1 });
+      // Wide screens show the pills in the top bar; tablets and phones list every page in a menu sheet.
+      const links = ["Dashboard", "Sales", "Customers", "Expenses", "Daily Close", "Reports", "Accounts", "Backup"];
+      if (width >= 1280) {
+        for (const link of links) await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: link, exact: true })).toBeInViewport({ ratio: 1 });
+      } else {
+        await page.getByRole("button", { name: width >= 768 ? "Menu" : "More" }).click();
+        for (const link of [...links, "Payments"]) await expect(page.getByRole("navigation", { name: "All pages" }).getByRole("link", { name: link, exact: true })).toBeInViewport({ ratio: 1 });
+        await page.keyboard.press("Escape");
       }
       await page.goto("/");
       await page.context().setOffline(true);

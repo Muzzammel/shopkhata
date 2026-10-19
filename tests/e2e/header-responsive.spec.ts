@@ -1,15 +1,18 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { SHOP_1 } from "./offline-helpers";
+
 // Header regression: at some widths the navigation links ran underneath the Theme and
 // Sign out buttons, so a click on Theme landed on a nav link. The owner sees the most links.
-const WIDTHS = [320, 375, 414, 640, 641, 700, 768, 820, 900, 901, 920, 960, 980, 1000, 1024, 1100, 1180, 1280, 1440];
+// V2 shell: pills from 1280px, a Menu sheet on tablets, a bottom bar on phones.
+const WIDTHS = [320, 375, 414, 640, 641, 700, 767, 768, 820, 900, 920, 960, 1024, 1100, 1180, 1279, 1280, 1366, 1440];
 
 async function signInAsOwner(page: Page) {
   await page.goto("/login");
   await page.getByLabel(/email/i).fill("owner@shopkhata.local");
   await page.getByLabel(/password/i).fill("ShopKhata-Local-Owner-E2E-Only-2026!");
   await page.getByRole("button", { name: /sign in|log in/i }).click();
-  await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Profile" })).toBeVisible();
 }
 
 async function boxes(controls: Locator) {
@@ -25,11 +28,11 @@ test.describe("app header layout", () => {
   for (const width of WIDTHS) {
     test(`controls never overlap, clip or sit under another control at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });
-      await page.goto("/");
+      await page.goto(`/dashboard?shop=${SHOP_1}`);
       const header = page.locator("header").first();
-      const controls = header.locator("a, button");
+      const controls = header.locator("a:visible, button:visible");
       const all = await boxes(controls);
-      expect(all.length).toBeGreaterThan(10);
+      expect(all.length).toBeGreaterThanOrEqual(width >= 1280 ? 14 : 4);
 
       for (const box of all) {
         expect(box.width, `${box.name} has width`).toBeGreaterThan(0);
@@ -59,12 +62,12 @@ test.describe("app header layout", () => {
   }
 
   test("keyboard order follows the visual order and every focus target is fully visible", async ({ page }) => {
-    for (const width of [375, 920, 1280]) {
+    for (const [width, first, last] of [[375, ["ShopKhata", "Shop: Shop 1. Change shop", "Notifications"], "Profile"], [920, ["ShopKhata", "Shop: Shop 1. Change shop", "Quick find"], "Profile"], [1280, ["ShopKhata", "Shop: Shop 1. Change shop", "Dashboard"], "Profile"]] as const) {
       await page.setViewportSize({ width, height: 800 });
-      await page.goto("/");
-      await page.locator("header a").first().focus();
+      await page.goto(`/dashboard?shop=${SHOP_1}`);
+      await page.getByRole("link", { name: "ShopKhata" }).focus();
       const order: string[] = [];
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < 16; i++) {
         const info = await page.evaluate(() => {
           const element = document.activeElement as HTMLElement;
           const { x, y, width: w, height: h } = element.getBoundingClientRect();
@@ -77,8 +80,8 @@ test.describe("app header layout", () => {
         order.push(info.name);
         await page.keyboard.press("Tab");
       }
-      expect(order.slice(0, 2), `order at ${width}px`).toEqual(["ShopKhata", "Overview"]);
-      expect(order.slice(-2), `order at ${width}px`).toEqual(["Theme", "Sign out"]);
+      expect(order.slice(0, 3), `order at ${width}px`).toEqual(first);
+      expect(order.at(-1), `order at ${width}px`).toBe(last);
     }
   });
 
@@ -92,5 +95,17 @@ test.describe("app header layout", () => {
       await expect(page.locator("html")).toHaveClass(dark ? /dark/ : /^((?!dark).)*$/);
       await expect(page).toHaveURL(/\/$/);
     }
+  });
+
+  test("on a phone the theme lives in the profile menu", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await expect(page.getByRole("button", { name: "Theme" })).toBeHidden();
+    await page.getByRole("button", { name: "Profile" }).click();
+    await page.getByRole("menuitemradio", { name: "Dark" }).click();
+    await expect(page.locator("html")).toHaveClass(/dark/);
+    await page.getByRole("button", { name: "Profile" }).click();
+    await page.getByRole("menuitemradio", { name: "Light" }).click();
+    await expect(page.locator("html")).toHaveClass(/^((?!dark).)*$/);
   });
 });

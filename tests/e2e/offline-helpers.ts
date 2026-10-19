@@ -59,6 +59,12 @@ export async function login(page: Page, user = STAFF) {
   await expect(page.getByRole("heading", { name: "Shop 1" })).toBeVisible();
 }
 
+/** Sign out from the profile menu in the top bar. */
+export async function signOut(page: Page) {
+  await page.getByRole("button", { name: "Profile" }).click();
+  await page.getByRole("menuitem", { name: "Sign out" }).click();
+}
+
 export const entryRows = (page: Page) => page.locator("[data-entry-row]");
 export const draftStatus = (page: Page) => page.locator("[data-draft-status]");
 export const savedNotice = (page: Page) => page.locator('p[role="status"]').filter({ hasText: "Batch saved" });

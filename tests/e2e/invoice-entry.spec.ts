@@ -251,7 +251,8 @@ test("invoice detail opens invoices in the currently selected owner shop", async
   await createDueInvoice(page, shopTwoInvoice, "25.00");
   await page.getByRole("link", { name: new RegExp(shopTwoInvoice) }).click();
   await expect(page.getByRole("heading", { name: shopTwoInvoice })).toBeVisible();
-  await expect(page.getByText("Shop 2", { exact: true })).toBeVisible();
+  // Scoped to the page: the top bar also names the current shop.
+  await expect(page.getByRole("main").getByText("Shop 2", { exact: true })).toBeVisible();
   const canonical = localDbQuery(`select i.id from public.invoices i where i.shop_id = '10000000-0000-4000-8000-000000000002' and i.invoice_id = '${shopTwoInvoice}'`).match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i)?.[0];
   if (!canonical) throw new Error("Created Shop 2 invoice UUID was not returned by the local database.");
   await page.goto(`/shops/10000000-0000-4000-8000-000000000001/invoices/${canonical}`);

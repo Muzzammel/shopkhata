@@ -17,7 +17,7 @@ type Client = SupabaseClient<Database>;
 // React — each query is either a database aggregate or a bounded, limited
 // select.
 
-export const DASHBOARD_PERIODS = ["today", "7d", "30d", "custom"] as const;
+export const DASHBOARD_PERIODS = ["today", "7d", "30d", "year", "custom"] as const;
 export type DashboardPeriod = (typeof DASHBOARD_PERIODS)[number];
 export type DashboardRange = { period: DashboardPeriod; from: string; to: string; error: string | null };
 
@@ -25,6 +25,7 @@ export function parseDashboardPeriod(query: Record<string, string | string[] | u
   const period = DASHBOARD_PERIODS.find((item) => item === first(query.period));
   if (period === "7d") return { period, from: addDays(today, -6), to: today, error: null };
   if (period === "30d") return { period, ...last30Days(today), error: null };
+  if (period === "year") return { period, from: addDays(today, -364), to: today, error: null };
   if (period === "custom") {
     const range = parseDateRangeFilter(query, today);
     return { period, from: range.from, to: range.to, error: range.error };
@@ -89,6 +90,8 @@ export type DashboardData = {
   kpi: {
     invoiceCount: number; salesDirham: number; averageInvoiceDirham: number; paymentsReceivedDirham: number; expensesDirham: number;
     netCashMovementDirham: number; outstandingDueDirham: number; availableCreditDirham: number; customersWithDue: number;
+    /** Unpaid balance of every invoice dated in the period, customerless ones included (report_sales_totals.effective_due_dirham). */
+    unpaidInvoicesDirham: number;
   };
   invoiceHealth: { total: number; delivered: number; advance: number; fullyPaid: number; withDue: number };
   collection: { outstandingDueDirham: number; availableCreditDirham: number; customersWithDue: number; paymentsReceivedDirham: number; largestDues: CustomerDueRow[]; creditCustomers: CreditCustomer[] };
@@ -101,7 +104,7 @@ export type DashboardData = {
 };
 
 const ACTION_LABELS: Record<string, string> = {
-  "batch.submit": "Invoice batch recorded", "record_payment": "Payment recorded", "approve_overpayment": "Overpayment approved as credit",
+  "batch.submit": "Invoice batch recorded", "submit_batch": "Invoice batch recorded", "account.register": "Account registered", "account.update": "Account updated", "record_payment": "Payment recorded", "approve_overpayment": "Overpayment approved as credit",
   "correction.request": "Invoice correction requested", "correction.decide": "Invoice correction decided",
   "replacement.request": "Invoice replacement requested", "replacement.decide": "Invoice replacement decided",
   "create_customer": "Customer created", "record_customer_payment": "Customer payment recorded", "apply_customer_credit": "Customer credit applied",
@@ -193,6 +196,7 @@ export async function loadDashboard(supabase: Client, shops: readonly { id: stri
       averageInvoiceDirham: salesRow.invoice_count > 0 ? Math.round(salesRow.effective_total_dirham / salesRow.invoice_count) : 0,
       paymentsReceivedDirham: paymentTotals.cashDirham, expensesDirham: expenseTotals.totalDirham, netCashMovementDirham,
       outstandingDueDirham: dueRow.outstanding_due_dirham, availableCreditDirham: dueRow.available_credit_dirham, customersWithDue: dueRow.customers_with_due,
+      unpaidInvoicesDirham: salesRow.effective_due_dirham,
     },
     invoiceHealth: {
       total: salesRow.invoice_count, delivered: salesRow.delivered_count, advance: salesRow.undelivered_count,

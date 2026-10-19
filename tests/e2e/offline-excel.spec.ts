@@ -6,7 +6,7 @@ import { qatarBusinessDate } from "@/lib/invoice-entry";
 
 import {
   MANAGER, MANAGER_ID, OWNER, OWNER_ID, SHOP_1, SHOP_2, STAFF, draftStatus, entryRows, expectStoredRows, fillRow, importFile, invoiceCount,
-  localDbQuery, login, paymentCount, queueOffline, readDownload, savedNotice, scalar, storedDrafts, workbook,
+  localDbQuery, login, paymentCount, queueOffline, readDownload, savedNotice, scalar, signOut, storedDrafts, workbook,
 } from "./offline-helpers";
 
 // These tests change shared server state (closed dates, shop assignments) and
@@ -237,7 +237,7 @@ test.describe("durable local drafts", () => {
 
     // Explicit sign-out removes that user's readable draft from the device.
     page.once("dialog", (dialog) => void dialog.accept());
-    await page.getByRole("button", { name: "Sign out" }).click();
+    await signOut(page);
     await expect(page).toHaveURL(/\/login/);
     await expect.poll(async () => (await storedDrafts(page)).map((draft) => draft.userId)).toEqual(["10000000-0000-4000-8000-000000000102"]);
 
@@ -245,7 +245,7 @@ test.describe("durable local drafts", () => {
     await login(page);
     await expect(entryRows(page).nth(0).getByLabel("Invoice ID")).toHaveValue(invoice);
     page.once("dialog", (dialog) => void dialog.accept());
-    await page.getByRole("button", { name: "Sign out" }).click();
+    await signOut(page);
     await expect(page).toHaveURL(/\/login/);
     await expect.poll(async () => (await storedDrafts(page)).length).toBe(0);
     await login(page);

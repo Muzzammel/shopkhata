@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { SHOP_1, createAccount, fillRow, login, savedNotice, scalar } from "./offline-helpers";
+import { SHOP_1, createAccount, fillRow, login, savedNotice, scalar, signOut } from "./offline-helpers";
 
 // The critical workflow on every browser engine (Chromium, Firefox, WebKit):
 // sign in, save an invoice with a part payment, read it back, take a follow-up
@@ -74,7 +74,7 @@ test("the critical workflow works end to end", async ({ page, browserName }) => 
   await page.goto(`/closing?shop=${SHOP_1}`);
   await expect(page.locator("[data-day-state]")).toHaveText(/^(Open|Closed)$/);
 
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await signOut(page);
   await expect(page.getByRole("heading", { name: "Sign in to ShopKhata" })).toBeVisible();
   await page.goto("/reports");
   await expect(page).toHaveURL(/\/login/);

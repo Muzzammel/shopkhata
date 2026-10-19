@@ -35,7 +35,7 @@ test("the theme choice is applied, persists across a reload, and follows the sys
   await page.reload();
   // Set before first paint by the inline script, so there is no light flash to wait out.
   await expect(html).toHaveClass(/dark/);
-  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(14, 19, 24)");
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(19, 18, 16)");
 
   await page.getByRole("button", { name: "Theme" }).click();
   await page.getByRole("menuitemradio", { name: "System" }).click();

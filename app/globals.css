@@ -11,31 +11,61 @@
  */
 :root {
   color-scheme: light;
-  --background: #f3f5f8;
-  --surface: #ffffff;
-  --surface-muted: #f7f9fb;
-  --border: #dfe5ec;
-  --border-strong: #c2ccd7;
-  --text: #18212c;
-  --text-muted: #5a6675;
-  --primary: #14607f;
-  --primary-hover: #0f4c66;
-  --primary-soft: #e5f0f5;
-  --primary-foreground: #ffffff;
+  /* Warm cream canvas, near-black structure, one yellow accent. Cards sit lighter than the canvas. */
+  --background: #f6f2e9;
+  --surface: #fffdf8;
+  --surface-muted: #f0ebdf;
+  --border: #e8e2d3;
+  --border-strong: #968e7a;
+  --text: #17160f;
+  --text-muted: #615c4d;
+  --primary: #17160f;
+  --primary-hover: #35332a;
+  --primary-soft: #ebe5d6;
+  --primary-foreground: #fffdf8;
   --danger: #b3261e;
   --danger-hover: #8f1d17;
   --danger-soft: #fcebea;
   --on-danger: #ffffff;
-  --success: #17663a;
-  --success-soft: #e6f4ec;
-  --warning: #8a4b08;
-  --warning-soft: #fdf2df;
+  --success: #1a6e3c;
+  --success-soft: #e1f0e4;
+  --warning: #a84a05;
+  --warning-soft: #fcead6;
   --on-warning: #ffffff;
-  --focus: #1f7fb0;
-  --placeholder: #8893a1;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --shadow-sm: 0 1px 2px rgb(16 24 40 / 6%);
+  --focus: #17160f;
+  --placeholder: #8a8472;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --shadow-sm: 0 1px 2px rgb(23 22 15 / 6%);
+  --shadow-lift: 0 10px 28px -14px rgb(23 22 15 / 28%);
+
+  /* Accent and the dominant "ink" surface (the Sales card). */
+  --yellow: #f5c518;
+  --yellow-soft: #fbefbd;
+  --on-yellow: #17160f;
+  --ink: #17160f;
+  --ink-foreground: #f6f2e9;
+  --ink-muted: #b9b29e;
+  --ink-border: #3a372d;
+
+  /* Data series, kept apart from the status colours. */
+  --series-income: #1a6e3c;
+  --series-expense: #17160f;
+  --category-1: #17160f;
+  --category-2: #d4a017;
+  --category-3: #2f7d6d;
+  --category-4: #8a5a2b;
+  --category-5: #5b6b8c;
+  --category-6: #9c8f78;
+
+  /* Motion. Hover and press are quick; entrances and sheets are a little slower. */
+  --dur-hover: 140ms;
+  --dur-press: 150ms;
+  --dur-enter: 280ms;
+  --dur-sheet: 260ms;
+  --dur-page: 300ms;
+  --dur-chart: 450ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
   /* Spacing scale: 4 6 8 12 16 20 24 32 */
   --s-1: 4px;
@@ -68,31 +98,53 @@
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Arial, Helvetica, sans-serif;
 }
 
+/*
+ * Charcoal, not an inversion. Depth, darkest first: the ink Sales card, the canvas, cards,
+ * then raised/interactive surfaces (pills, hovers, menus). Status tints stay small and desaturated.
+ */
 .dark {
   color-scheme: dark;
-  --background: #0e1318;
-  --surface: #161c23;
-  --surface-muted: #1c242d;
-  --border: #29333e;
-  --border-strong: #3b4756;
-  --text: #e6ebf1;
-  --text-muted: #9ba8b7;
-  --primary: #5ab4d6;
-  --primary-hover: #7cc6e2;
-  --primary-soft: #12303d;
-  --primary-foreground: #06202b;
+  --background: #131210;
+  --surface: #1f1e1a;
+  --surface-muted: #2a2924;
+  --popover: #272621;
+  --border: #34322b;
+  --border-strong: #716b5b;
+  --text: #f3efe3;
+  --text-muted: #aca593;
+  --primary: #f3efe3;
+  --primary-hover: #ffffff;
+  --primary-soft: #2f2c24;
+  --primary-foreground: #17160f;
   --danger: #f0766e;
   --danger-hover: #f59891;
   --danger-soft: #3a1a18;
   --on-danger: #2b0907;
   --success: #4cc38a;
-  --success-soft: #12301f;
-  --warning: #f0b45a;
-  --warning-soft: #33250c;
+  --success-soft: #14301f;
+  --warning: #f29a4a;
+  --warning-soft: #2e231a;
   --on-warning: #2b1a02;
-  --focus: #5ab4d6;
-  --placeholder: #6f7c8b;
+  --focus: #f6c945;
+  --placeholder: #7e7867;
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-lift: 0 12px 30px -14px rgb(0 0 0 / 70%);
+
+  --yellow: #f6c945;
+  --yellow-soft: #2e2a18;
+  --ink: #0a0a08;
+  --ink-foreground: #f3efe3;
+  --ink-muted: #aca593;
+  --ink-border: #34312a;
+
+  --series-income: #4cc38a;
+  --series-expense: #d9d3c0;
+  --category-1: #d9d3c0;
+  --category-2: #f6c945;
+  --category-3: #5cc0a8;
+  --category-4: #d09a62;
+  --category-5: #8fa4d0;
+  --category-6: #8a826e;
 }
 
 @theme inline {
@@ -121,6 +173,15 @@
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
   --color-danger-soft: var(--danger-soft);
+  --color-yellow: var(--yellow);
+  --color-yellow-soft: var(--yellow-soft);
+  --color-on-yellow: var(--on-yellow);
+  --color-ink: var(--ink);
+  --color-ink-foreground: var(--ink-foreground);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-border: var(--ink-border);
+  --color-series-income: var(--series-income);
+  --color-series-expense: var(--series-expense);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
@@ -142,6 +203,11 @@
   body {
     max-width: 100vw;
     overflow-x: hidden;
+  }
+
+  /* Phones: keyboard focus and in-page scrolling stop above the fixed bottom bar and its raised Add button. */
+  @media (width < 48rem) {
+    html { scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
   }
 
   body {
@@ -263,5 +329,37 @@
     h1:not([data-slot]) { font-size: 22px; }
     /* 16px stops iOS zooming the page when a field takes focus. */
     input:not([data-slot]), select:not([data-slot]), textarea:not([data-slot]) { font-size: 16px; }
+  }
+}
+
+/*
+ * Motion primitives shared by the shell and the dashboard. Short and calm: nothing bounces.
+ * prefers-reduced-motion collapses every animation and transition to an instant change.
+ */
+@keyframes sk-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes sk-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sk-pop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes sk-reveal { from { clip-path: inset(-6px 100% -6px -6px); } to { clip-path: inset(-6px -6px -6px -6px); } }
+@keyframes sk-grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes sk-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes sk-ping { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 45%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px transparent; } }
+@keyframes sk-shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+
+@utility sk-enter { animation: sk-rise var(--dur-enter) var(--ease-out) both; animation-delay: var(--sk-delay, 0ms); }
+@utility sk-fade { animation: sk-fade var(--dur-enter) var(--ease-out) both; }
+@utility sk-page { animation: sk-rise var(--dur-page) var(--ease-out) both; }
+@utility sk-pop { animation: sk-pop var(--dur-sheet) var(--ease-out) both; transform-origin: bottom center; }
+@utility sk-lift { transition: transform var(--dur-hover) var(--ease-out), box-shadow var(--dur-hover) var(--ease-out), border-color var(--dur-hover) var(--ease-out); }
+@utility sk-lift-hover { @media (hover: hover) { &:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); } } }
+@utility sk-press { transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-hover) var(--ease-out), color var(--dur-hover) var(--ease-out), border-color var(--dur-hover) var(--ease-out); &:active { transform: scale(0.97); } }
+@utility sk-pulse { border-radius: 9999px; animation: sk-ping 2.2s ease-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
