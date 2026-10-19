@@ -6,7 +6,7 @@ import { qatarBusinessDate } from "@/lib/invoice-entry";
 
 import {
   MANAGER, MANAGER_ID, OWNER, OWNER_ID, SHOP_1, SHOP_2, STAFF, draftStatus, entryRows, expectStoredRows, fillRow, importFile, invoiceCount,
-  localDbQuery, login, paymentCount, queueOffline, readDownload, savedNotice, scalar, signOut, storedDrafts, workbook,
+  editRow, localDbQuery, login, openSaleTools, paymentCount, queueOffline, readDownload, savedNotice, scalar, signOut, storedDrafts, workbook,
 } from "./offline-helpers";
 
 // These tests change shared server state (closed dates, shop assignments) and
@@ -18,6 +18,7 @@ test.describe("Excel import", () => {
     const prefix = `XL-${Date.now()}`;
     await login(page);
 
+    await openSaleTools(page);
     const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download template" }).click()]);
     expect(download.suggestedFilename()).toBe("shopkhata-invoice-import-template.xlsx");
     const template = await readDownload(download);
@@ -39,17 +40,19 @@ test.describe("Excel import", () => {
 
     await preview.getByRole("button", { name: "Add rows to draft" }).click();
     await expect(entryRows(page)).toHaveCount(3);
+    await editRow(page, 1);
     await expect(entryRows(page).nth(1).getByLabel("Invoice ID")).toHaveValue(`${prefix}-B`);
     await expect(entryRows(page).nth(1).getByLabel("Total QAR")).toHaveValue("80.50");
     await expect(entryRows(page).nth(1).getByLabel("New customer name")).toHaveValue(`Import Mary ${prefix}`);
+    await editRow(page, 0);
     await expect(entryRows(page).nth(0).getByLabel("Note")).toHaveValue("paid in full");
     expect(scalar(`select count(*) from public.invoices where invoice_id like '${prefix}-%'`)).toBe("0");
 
     // Same review and save path as manual rows.
-    await page.getByRole("button", { name: "Review batch" }).click();
-    await expect(page.getByText("QAR 290.50")).toBeVisible();
-    await expect(page.getByLabel("New invoice batch").getByText("Due QAR 60.50", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Save batch" }).click();
+    await page.getByRole("button", { name: "Review sale" }).click();
+    await expect(page.getByLabel("Sale review").getByText("QAR 290.50")).toBeVisible();
+    await expect(page.getByLabel("Sale review").getByText("Due QAR 60.50", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
     await expect(savedNotice(page)).toBeVisible();
     await expect(draftStatus(page)).toHaveText("Saved to ShopKhata");
 
@@ -69,7 +72,7 @@ test.describe("Excel import", () => {
     const preview = page.getByRole("region", { name: "Import preview" });
     await preview.getByRole("button", { name: "Add to current draft" }).click();
     await expect(entryRows(page)).toHaveCount(2);
-    await expect(entryRows(page).nth(0).getByLabel("Invoice ID")).toHaveValue(`${prefix}-MANUAL`);
+    await expect(entryRows(page).nth(0)).toContainText(`${prefix}-MANUAL`);
     await expect(entryRows(page).nth(1).getByLabel("Invoice ID")).toHaveValue(`${prefix}-X`);
 
     // Importing the same number again collides with the draft row and is blocked for merge.
@@ -86,13 +89,14 @@ test.describe("Excel import", () => {
     const prefix = `XLBAD-${Date.now()}`;
     await login(page);
     await fillRow(page, 0, `${prefix}-EXISTING`, "9.00");
-    await page.getByRole("button", { name: "Review batch" }).click();
-    await page.getByRole("button", { name: "Save batch" }).click();
+    await page.getByRole("button", { name: "Review sale" }).click();
+    await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
     await expect(savedNotice(page)).toBeVisible();
     const preview = page.getByRole("region", { name: "Import preview" });
     const rejected = page.getByRole("alert").filter({ hasText: "Import rejected" });
 
     // Wrong file type.
+    await openSaleTools(page);
     await page.getByLabel("Import Excel (.xlsx)").setInputFiles({ name: "batch.csv", mimeType: "text/csv", buffer: Buffer.from("Invoice Number,Total QAR\nA,1\n") });
     await expect(rejected).toContainText("Choose an .xlsx workbook");
     // Not a real workbook.
@@ -159,9 +163,9 @@ test.describe("durable local drafts", () => {
     await entryRows(page).nth(0).getByLabel("Delivered").check();
     await entryRows(page).nth(0).getByLabel("Customer search", { exact: true }).fill(customer.name);
     await page.getByRole("option", { name: new RegExp(customer.name) }).click();
-    await page.getByRole("button", { name: "Add row" }).click();
+    await page.getByRole("button", { name: "Add another invoice" }).click();
     await fillRow(page, 1, `${prefix}-2`, "not-money");
-    await page.getByRole("button", { name: "Add row" }).click();
+    await page.getByRole("button", { name: "Add another invoice" }).click();
     await fillRow(page, 2, `${prefix}-3`, "7.50");
     await entryRows(page).nth(2).getByLabel("Note").fill("keep this note");
     await expect(draftStatus(page)).toHaveText("Saved locally");
@@ -174,24 +178,27 @@ test.describe("durable local drafts", () => {
     await expect(entryRows(page)).toHaveCount(3);
     await expect(page.getByText("Unsaved draft restored from this device.")).toBeVisible();
     expect(await entryRows(page).evaluateAll((rows) => rows.map((row) => row.getAttribute("data-row-id")))).toEqual(rowIds);
+    await editRow(page, 0);
     await expect(entryRows(page).nth(0).getByLabel("Invoice ID")).toHaveValue(`${prefix}-1`);
     await expect(entryRows(page).nth(0).getByLabel("Received QAR")).toHaveValue("15.00");
     await expect(entryRows(page).nth(0).getByLabel("Delivered")).toBeChecked();
     await expect(entryRows(page).nth(0)).toContainText(customer.publicId);
+    await editRow(page, 1);
     await expect(entryRows(page).nth(1).getByLabel("Total QAR")).toHaveValue("not-money");
+    await editRow(page, 2);
     await expect(entryRows(page).nth(2).getByLabel("Note")).toHaveValue("keep this note");
     expect((await storedDrafts(page))[0].idempotencyKey).toBe(before.idempotencyKey);
 
     // The validation error is still attached to the same row after the reload.
-    await page.getByRole("button", { name: "Review batch" }).click();
+    await page.getByRole("button", { name: "Review sale" }).click();
     await expect(page.locator(`[data-row-id="${rowIds[1]}"]`)).toContainText("Enter a positive amount in QAR with at most two decimals.");
     await expect(page.locator(`[data-row-id="${rowIds[0]}"]`)).not.toContainText("Enter a positive amount");
     await expect(page.getByRole("alert").filter({ hasText: /Fix 1 row error/ })).toBeVisible();
 
     // Fix it and save: the restored customer link is what gets committed.
     await entryRows(page).nth(1).getByLabel("Total QAR").fill("3.00");
-    await page.getByRole("button", { name: "Review batch" }).click();
-    await page.getByRole("button", { name: "Save batch" }).click();
+    await page.getByRole("button", { name: "Review sale" }).click();
+    await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
     await expect(savedNotice(page)).toBeVisible();
     expect(scalar(`select count(*) from public.invoices where shop_id = '${SHOP_1}' and invoice_id like '${prefix}-%'`)).toBe("3");
     expect(scalar(`select customer_id from public.invoices where shop_id = '${SHOP_1}' and invoice_id = '${prefix}-1'`)).toBe(customer.id);
@@ -264,11 +271,13 @@ test.describe("offline operation", () => {
     await context.setOffline(true);
     await expect(page.locator("[data-offline-banner]")).toContainText("You are offline.");
     await expect(draftStatus(page)).toHaveText("Offline — draft saved locally");
+    await openSaleTools(page);
     await expect(page.getByLabel("Recent invoices")).toContainText("may be out of date");
     await expect(page.getByRole("button", { name: "Export invoices (.xlsx)" })).toBeDisabled();
     // Create and edit while offline.
-    await page.getByRole("button", { name: "Add row" }).click();
+    await page.getByRole("button", { name: "Add another invoice" }).click();
     await fillRow(page, 1, `${prefix}-2`, "10.00");
+    await editRow(page, 0);
     await entryRows(page).nth(0).getByLabel("Total QAR").fill("30.00");
     // Import and paste into the draft while offline.
     await importFile(page, await workbook([[...IMPORT_HEADERS], [`${prefix}-3`, 4.25, 4.25, "No", null, null, null]]));
@@ -282,8 +291,8 @@ test.describe("offline operation", () => {
     await expectStoredRows(page, [1, 2, 3, 4].map((n) => `${prefix}-${n}`));
 
     // Local review works; saving only queues and claims nothing.
-    await page.getByRole("button", { name: "Review batch" }).click();
-    await expect(page.getByText("QAR 46.25")).toBeVisible();
+    await page.getByRole("button", { name: "Review sale" }).click();
+    await expect(page.getByLabel("Sale review").getByText("QAR 46.25")).toBeVisible();
     await page.getByRole("button", { name: "Save when back online" }).click();
     await expect(draftStatus(page)).toHaveText("Submission pending — will send when you reconnect");
     await expect(savedNotice(page)).toHaveCount(0);
@@ -319,8 +328,8 @@ test.describe("offline operation", () => {
     // It was never sent, so a fresh key for the edited content cannot duplicate anything.
     expect((await storedDrafts(page))[0].idempotencyKey).not.toBe(firstKey);
     await context.setOffline(false);
-    await page.getByRole("button", { name: "Review batch" }).click();
-    await page.getByRole("button", { name: "Save batch" }).click();
+    await page.getByRole("button", { name: "Review sale" }).click();
+    await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
     await expect(savedNotice(page)).toBeVisible();
     expect(scalar(`select total_amount_dirham from public.invoices where shop_id = '${SHOP_1}' and invoice_id = '${invoice}'`)).toBe("1300");
     expect(scalar(`select count(*) from public.batches where idempotency_key = '${firstKey}'`)).toBe("0");
@@ -332,7 +341,7 @@ test.describe("retry and conflicts", () => {
     const invoice = `LOST-${Date.now()}`;
     await login(page);
     await fillRow(page, 0, invoice, "30.00", "12.00");
-    await page.getByRole("button", { name: "Review batch" }).click();
+    await page.getByRole("button", { name: "Review sale" }).click();
     let dropped = false;
     const payloads: string[] = [];
     await page.route("**/*", async (route) => {
@@ -348,9 +357,9 @@ test.describe("retry and conflicts", () => {
       }
       return route.continue();
     });
-    await page.getByRole("button", { name: "Save batch" }).click();
-    await expect(page.getByText("Batch was not saved. Try again with the same draft.")).toBeVisible();
-    await expect(draftStatus(page)).toHaveText("Submission status uncertain — retry the same batch");
+    await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
+    await expect(page.getByText("Sale was not saved. Try again with the same draft.")).toBeVisible();
+    await expect(draftStatus(page)).toHaveText("Submission status uncertain — retry the same sale");
     // The server did commit, but the device does not claim success and keeps the draft locked.
     expect(invoiceCount(invoice)).toBe("1");
     await expect(savedNotice(page)).toHaveCount(0);
@@ -381,8 +390,8 @@ test.describe("retry and conflicts", () => {
     const other = await browser.newPage();
     await login(other, OWNER);
     await fillRow(other, 0, invoice.toLowerCase(), "99.00");
-    await other.getByRole("button", { name: "Review batch" }).click();
-    await other.getByRole("button", { name: "Save batch" }).click();
+    await other.getByRole("button", { name: "Review sale" }).click();
+    await other.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
     await expect(savedNotice(other)).toBeVisible();
     await other.close();
     const canonical = scalar(`select id from public.invoices where shop_id = '${SHOP_1}' and lower(invoice_id) = lower('${invoice}')`);
@@ -406,8 +415,8 @@ test.describe("retry and conflicts", () => {
     await expect(draftStatus(page)).toHaveText("Conflict — not saved to ShopKhata");
     await expect(entryRows(page).nth(0).getByRole("link", { name: "Record payment" })).toBeVisible();
     await entryRows(page).nth(0).getByLabel("Invoice ID").fill(`${invoice}-B`);
-    await page.getByRole("button", { name: "Review batch" }).click();
-    await page.getByRole("button", { name: "Save batch" }).click();
+    await page.getByRole("button", { name: "Review sale" }).click();
+    await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
     await expect(savedNotice(page)).toBeVisible();
     expect(invoiceCount(invoice)).toBe("1");
     expect(invoiceCount(`${invoice}-B`)).toBe("1");
@@ -435,7 +444,7 @@ test.describe("retry and conflicts", () => {
 
     // Once the date is reopened the preserved draft saves normally.
     localDbQuery(`insert into public.daily_closes (shop_id, business_date, event_type, actor_id, reason) values ('${SHOP_1}', '${backdate}', 'reopened', '${OWNER_ID}', 'late batch')`);
-    await page.getByRole("button", { name: "Save batch" }).click();
+    await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
     await expect(savedNotice(page)).toBeVisible();
     expect(scalar(`select count(*) from public.invoices i join public.batches b on b.id = i.batch_id where i.invoice_id = '${invoice}' and b.business_date = '${backdate}' and b.is_backdated`)).toBe("1");
   });
@@ -453,7 +462,7 @@ test.describe("retry and conflicts", () => {
       expect(invoiceCount(invoice)).toBe("0");
       await expectStoredRows(page, [invoice]);
       // A manual retry is refused the same way: having prepared it earlier grants nothing.
-      await page.getByRole("button", { name: "Retry same batch" }).click();
+      await page.getByRole("button", { name: "Retry same sale" }).click();
       await expect(page.getByRole("alert").filter({ hasText: "You cannot enter invoices for this shop." })).toBeVisible();
       expect(invoiceCount(invoice)).toBe("0");
     } finally {
@@ -461,7 +470,7 @@ test.describe("retry and conflicts", () => {
     }
     // Access restored: the same submission commits once.
     const key = (await storedDrafts(page))[0].idempotencyKey;
-    await page.getByRole("button", { name: "Retry same batch" }).click();
+    await page.getByRole("button", { name: "Retry same sale" }).click();
     await expect(savedNotice(page)).toBeVisible();
     expect(invoiceCount(invoice)).toBe("1");
     expect(scalar(`select count(*) from public.batches where idempotency_key = '${key}'`)).toBe("1");
@@ -514,8 +523,8 @@ test.describe("Excel export", () => {
     await fillRow(page, 0, invoice, "100.00", "30.00");
     await entryRows(page).nth(0).getByLabel("Delivered").check();
     await entryRows(page).nth(0).getByLabel("New customer name").fill(customerName);
-    await page.getByRole("button", { name: "Review batch" }).click();
-    await page.getByRole("button", { name: "Save batch" }).click();
+    await page.getByRole("button", { name: "Review sale" }).click();
+    await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
     await expect(savedNotice(page)).toBeVisible();
     const canonical = scalar(`select id from public.invoices where shop_id = '${SHOP_1}' and invoice_id = '${invoice}'`);
     const customerId = scalar(`select customer_id from public.invoices where id = '${canonical}'`);
@@ -530,6 +539,7 @@ test.describe("Excel export", () => {
       values ('${shop2Id}', '${SHOP_2}', '${shop2Batch}', '${shop2Invoice}', 'advance', 1, 1200, '${today}', '${OWNER_ID}')`);
 
     // Invoices.
+    await openSaleTools(page);
     const [invoiceDownload] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export invoices (.xlsx)" }).click()]);
     expect(invoiceDownload.suggestedFilename()).toBe(`shopkhata-invoices-${today}_${today}.xlsx`);
     const invoiceSheet = (await readDownload(invoiceDownload))[0];

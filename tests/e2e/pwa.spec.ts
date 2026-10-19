@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { IMPORT_HEADERS } from "@/lib/excel/invoice-import";
 
 import {
-  SHOP_1, draftStatus, entryRows, expectStoredRows, fillRow, importFile, login, savedNotice, scalar, storedDrafts, waitForOfflineShell, workbook,
+  SHOP_1, draftStatus, editRow, entryRows, expectStoredRows, fillRow, importFile, login, savedNotice, scalar, storedDrafts, waitForOfflineShell, workbook,
 } from "./offline-helpers";
 
 // Runs against a production build (see playwright.config.ts): a development
@@ -24,8 +24,9 @@ test.describe("offline page load", () => {
     await expect(draftStatus(page)).toHaveText("Offline — draft saved locally");
     await expect(page.getByLabel("Recent invoices")).toContainText("may be out of date");
     // Create and edit while offline.
-    await page.getByRole("button", { name: "Add row" }).click();
+    await page.getByRole("button", { name: "Add another invoice" }).click();
     await fillRow(page, 1, `${prefix}-2`, "10.00");
+    await editRow(page, 0);
     await entryRows(page).nth(0).getByLabel("Total QAR").fill("30.00");
     await expectStoredRows(page, [`${prefix}-1`, `${prefix}-2`]);
     // Import into the draft while offline.
@@ -38,15 +39,17 @@ test.describe("offline page load", () => {
     await expect(page.getByRole("heading", { name: "Shop 1" })).toBeVisible();
     await expect(page.locator("[data-offline-banner]")).toBeVisible();
     await expect(entryRows(page)).toHaveCount(3);
+    await editRow(page, 0);
     await expect(entryRows(page).nth(0).getByLabel("Total QAR")).toHaveValue("30.00");
+    await editRow(page, 2);
     await expect(entryRows(page).nth(2).getByLabel("Invoice ID")).toHaveValue(`${prefix}-3`);
     // No server data is shown from a cache.
     await expect(page.getByRole("heading", { name: "Recent invoices" })).toHaveCount(0);
-    await expect(page.getByRole("region", { name: "Record Payment" })).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Record payment" })).toHaveCount(0);
 
     // Local review works; saving only queues.
-    await page.getByRole("button", { name: "Review batch" }).click();
-    await expect(page.getByText("QAR 44.25")).toBeVisible();
+    await page.getByRole("button", { name: "Review sale" }).click();
+    await expect(page.getByLabel("Sale review").getByText("QAR 44.25")).toBeVisible();
     await page.getByRole("button", { name: "Save when back online" }).click();
     await expect(draftStatus(page)).toHaveText("Submission pending — will send when you reconnect");
     await expect(savedNotice(page)).toHaveCount(0);

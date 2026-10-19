@@ -220,7 +220,7 @@ test("a date closed by a manager while a draft was offline rejects the draft and
   }
 
   // The preserved draft saves once, on its original date.
-  await page.getByRole("button", { name: "Save batch" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
   await expect(savedNotice(page)).toBeVisible();
   expect(scalar(`select count(*) from public.invoices i join public.batches b on b.id = i.batch_id where i.invoice_id = '${invoice}' and b.business_date = '${date}' and b.is_backdated`)).toBe("1");
 });

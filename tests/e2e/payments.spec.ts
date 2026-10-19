@@ -12,8 +12,8 @@ async function createInvoice(page: Page, number: string, total: string, received
   await row.getByLabel("Invoice ID").fill(number);
   await row.getByLabel("Total QAR").fill(total);
   if (received !== "0.00") await row.getByLabel("Received QAR").fill(received);
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await page.getByRole("button", { name: "Save batch" }).click();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
   await expect(savedNotice(page)).toBeVisible();
 }
 
@@ -21,7 +21,7 @@ test("the Payments page loads with Record Payment and a history list", async ({ 
   await login(page, OWNER);
   await page.goto(`/payments?shop=${SHOP_1}`);
   await expect(page.getByRole("heading", { name: "Payments" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Record Payment" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Record payment" })).toBeVisible();
   await expect(page.getByRole("table")).toBeVisible();
 });
 
@@ -31,7 +31,7 @@ test("recording a payment on the Payments page uses the authoritative workflow a
   await createInvoice(page, number, "40.00");
 
   await page.goto(`/payments?shop=${SHOP_1}`);
-  const form = page.getByRole("region", { name: "Record Payment" });
+  const form = page.getByRole("region", { name: "Record payment" });
   await form.getByLabel("Invoice number").fill(number);
   await form.getByRole("button", { name: "Find invoice" }).click();
   await expect(form.getByRole("heading", { name: number })).toBeVisible();
@@ -56,8 +56,8 @@ test("invoice-number search finds a payment outside the default 30-day window", 
   await row.getByLabel("Invoice ID").fill(number);
   await row.getByLabel("Total QAR").fill("22.00");
   await row.getByLabel("Received QAR").fill("22.00");
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await page.getByRole("button", { name: "Save batch" }).click();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
   await expect(savedNotice(page)).toBeVisible();
 
   await page.goto(`/payments?shop=${SHOP_1}`);
@@ -90,8 +90,8 @@ test("payment rows link safely to their invoice and customer", async ({ page }) 
   await row.getByLabel("Received QAR").fill("20.00");
   await row.getByLabel("Delivered").check();
   await row.getByLabel("New customer name").fill(customerName);
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await page.getByRole("button", { name: "Save batch" }).click();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
   await expect(savedNotice(page)).toBeVisible();
 
   await page.goto(`/payments?shop=${SHOP_1}&invoice=${number}`);
@@ -114,25 +114,27 @@ test("an approved payment correction is shown as its own effective row, not a mu
   await createInvoice(page, number, "100.00");
   await page.getByRole("link", { name: `View invoice ${number}`, exact: true }).click();
   await expect(page).toHaveURL(/\/shops\/[^/]+\/invoices\/[0-9a-f-]+$/);
-  const payment = page.getByRole("region", { name: "Record Payment", exact: true });
+  await page.getByRole("button", { name: "Record payment" }).click();
+  const payment = page.getByRole("dialog", { name: "Record payment" });
   await payment.getByLabel("Cash amount (QAR)").fill("30.00");
   await payment.getByRole("button", { name: "Review payment", exact: true }).click();
   await payment.getByRole("button", { name: "Confirm payment" }).click();
   await expect(payment.getByRole("status")).toContainText("Payment recorded");
+  await page.keyboard.press("Escape");
 
-  await page.getByRole("button", { name: "Request financial correction", exact: true }).click();
-  const financial = page.getByRole("form", { name: "Financial correction request" });
+  await page.getByRole("button", { name: "Request correction", exact: true }).click();
+  const financial = page.getByRole("form", { name: "Correction request" });
   await financial.getByLabel("Correct record").selectOption({ index: 1 }); // "Invoice total" is index 0; the one payment just recorded is index 1
   await financial.getByLabel("Adjustment amount (QAR)").fill("5.00");
   await financial.getByLabel("Request reason").fill("Payment overstated by five QAR");
   await financial.getByRole("button", { name: "Submit request" }).click();
-  await expect(page.getByText("Financial correction — Pending approval", { exact: true })).toBeVisible();
+  await expect(page.getByText("Payment correction — Pending approval", { exact: true })).toBeVisible();
 
   const context = await browser.newContext(); const owner = await context.newPage();
   await login(owner, OWNER);
   await owner.goto(page.url());
-  await owner.getByRole("button", { name: "Save decision" }).click();
-  await expect(owner.getByText("Financial correction — approved", { exact: true })).toBeVisible();
+  await owner.getByRole("button", { name: "Approve" }).click();
+  await expect(owner.getByRole("region", { name: "History" })).toContainText("Payment correction requestedApproved");
   await context.close();
 
   await page.goto(`/payments?shop=${SHOP_1}&invoice=${number}`);

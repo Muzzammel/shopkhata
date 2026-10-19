@@ -34,10 +34,13 @@ export function AppShell({ shops, user, isOwner, permissions, children }: { shop
   return <>
     <a href="#content" className="sr-only z-50 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground focus:not-sr-only focus:fixed focus:top-3 focus:left-3">Skip to content</a>
     {/* Invoice entry guards unsaved drafts with its own shop switch; Accounts is not shop-scoped. */}
+    {/* Printing an invoice shows the document only. */}
+    <div className="contents print:hidden">
     <TopNav items={items} shops={shops} shop={shop} switcherLocked={pathname === "/" || pathname.startsWith("/admin")} user={user} pathname={pathname} onSearch={openSearch} />
     <QuickActionRail actions={actions} onSearch={openSearch} />
-    <div id="content" tabIndex={-1} className="pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none md:pb-0 md:pl-[76px] lg:pl-[84px] min-[1480px]:pl-0">{children}</div>
-    <MobileBottomNav items={items} actions={actions} shopId={shop?.id ?? null} pathname={pathname} onSearch={openSearch} />
+    </div>
+    <div id="content" tabIndex={-1} className="pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none md:pb-0 md:pl-[76px] lg:pl-[84px] min-[1480px]:pl-0 print:p-0">{children}</div>
+    <div className="contents print:hidden"><MobileBottomNav items={items} actions={actions} shopId={shop?.id ?? null} pathname={pathname} onSearch={openSearch} /></div>
     <GlobalSearch open={searching} onOpenChange={setSearching} shopId={shop?.id ?? null} items={items} />
   </>;
 }

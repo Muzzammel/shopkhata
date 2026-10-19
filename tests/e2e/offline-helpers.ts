@@ -67,7 +67,7 @@ export async function signOut(page: Page) {
 
 export const entryRows = (page: Page) => page.locator("[data-entry-row]");
 export const draftStatus = (page: Page) => page.locator("[data-draft-status]");
-export const savedNotice = (page: Page) => page.locator('p[role="status"]').filter({ hasText: "Batch saved" });
+export const savedNotice = (page: Page) => page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ });
 
 export async function fillRow(page: Page, index: number, invoice: string, total: string, received = "") {
   const row = entryRows(page).nth(index);
@@ -100,7 +100,17 @@ export async function workbook(data: (string | number | boolean | null)[][], she
 export async function readDownload(download: Download) {
   return readXlsxFile(new Blob([readFileSync(await download.path())]));
 }
+/** New Sale keeps Import Excel, Record payment and Recent invoices under "Other tools". */
+export async function openSaleTools(page: Page) {
+  const tools = page.locator("[data-sale-tools]");
+  if (!await tools.evaluate((element) => (element as HTMLDetailsElement).open)) await tools.locator(":scope > summary").click();
+}
+/** Several invoices show one form at a time; this opens invoice `index` (0-based) for editing. */
+export async function editRow(page: Page, index: number) {
+  await page.getByRole("button", { name: `Edit invoice ${index + 1}` }).click();
+}
 export async function importFile(page: Page, buffer: Buffer, name = "batch.xlsx") {
+  await openSaleTools(page);
   await page.getByLabel("Import Excel (.xlsx)").setInputFiles({ name, mimeType: XLSX, buffer });
 }
 
@@ -115,7 +125,7 @@ export async function queueOffline(page: Page, invoice: string, total = "12.00")
   await expectStoredRows(page, [invoice]);
   await page.context().setOffline(true);
   await expect(page.locator("[data-offline-banner]")).toBeVisible();
-  await page.getByRole("button", { name: "Review batch" }).click();
+  await page.getByRole("button", { name: "Review sale" }).click();
   await page.getByRole("button", { name: "Save when back online" }).click();
   await expect(draftStatus(page)).toHaveText("Submission pending — will send when you reconnect");
   expect(invoiceCount(invoice)).toBe("0");

@@ -2,6 +2,8 @@ import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
+import { openSaleTools } from "./offline-helpers";
+
 const OWNER_EMAIL = "owner@shopkhata.local";
 const STAFF_PASSWORD = "ShopKhata-Local-E2E-Only-2026!";
 const OWNER_PASSWORD = "ShopKhata-Local-Owner-E2E-Only-2026!";
@@ -30,13 +32,14 @@ async function createInvoice(page: Page, invoiceNumber: string, total: string, r
     await row.getByLabel("Delivered").check();
     await row.getByLabel("New customer name").fill(customerName);
   }
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
 }
 
 async function lookupPayment(page: Page, invoiceNumber: string) {
-  const payment = page.getByRole("region", { name: "Record Payment" });
+  await openSaleTools(page);
+  const payment = page.getByRole("region", { name: "Record payment" });
   await payment.getByLabel("Invoice number").fill(invoiceNumber);
   await payment.getByRole("button", { name: "Find invoice" }).click();
   await expect(payment.getByRole("heading", { name: invoiceNumber })).toBeVisible();
@@ -105,15 +108,15 @@ test("owners switch isolated workspaces and can use the same invoice number in b
   await createInvoice(page, sharedNumber, "25.00", "10.00");
   await expect(page.getByLabel("Recent invoices")).toContainText(sharedNumber);
   const shop2Payment = await lookupPayment(page, sharedNumber);
-  await expect(shop2Payment).toContainText("Effective totalQAR 25.00");
-  await expect(shop2Payment).toContainText("DueQAR 15.00");
+  await expect(shop2Payment).toContainText("Invoice totalQAR 25.00");
+  await expect(shop2Payment).toContainText("Outstanding nowQAR 15.00");
 
   await selector.selectOption({ label: "Shop 1" });
   await expect(page.getByRole("heading", { name: "Shop 1", exact: true })).toBeVisible();
   await expect(page.getByLabel("Recent invoices")).toContainText(sharedNumber);
   const shop1Payment = await lookupPayment(page, sharedNumber);
-  await expect(shop1Payment).toContainText("Effective totalQAR 15.00");
-  await expect(shop1Payment).toContainText("DueQAR 10.00");
+  await expect(shop1Payment).toContainText("Invoice totalQAR 15.00");
+  await expect(shop1Payment).toContainText("Outstanding nowQAR 10.00");
 });
 
 test("owner shop switching clears a selected customer from the old shop", async ({ page }) => {
@@ -137,9 +140,9 @@ test("owner shop switching clears a selected customer from the old shop", async 
   await expect(shop2Row.getByText(new RegExp(`Switch-only ${suffix}`))).toHaveCount(0);
   await shop2Row.getByLabel("Invoice ID").fill(`SHOP-SWITCH-SAVED-${suffix}`);
   await shop2Row.getByLabel("Total QAR").fill("9.00");
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
   const crossShopLink = localDbQuery(`select count(*) = 0 as isolated from public.invoices
     where invoice_id = 'SHOP-SWITCH-SAVED-${suffix}' and customer_id = '${customerId}'`);
   expect(crossShopLink).toContain("true");
@@ -173,7 +176,7 @@ test("an uncertain batch blocks switching and retries the identical command befo
   const invoiceNumber = `BATCH-RETRY-${Date.now()}`;
   await page.getByLabel("Invoice ID").fill(invoiceNumber);
   await page.getByLabel("Total QAR").fill("12.00");
-  await page.getByRole("button", { name: "Review batch" }).click();
+  await page.getByRole("button", { name: "Review sale" }).click();
 
   let dropped = false;
   let actionId = "";
@@ -199,12 +202,12 @@ test("an uncertain batch blocks switching and retries the identical command befo
     }
   });
 
-  await page.getByRole("button", { name: "Save batch" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
   await expect(page.getByLabel("Current shop")).toBeDisabled();
-  await expect(page.getByText("Batch was not saved. Try again with the same draft.")).toBeVisible();
+  await expect(page.getByText("Sale was not saved. Try again with the same draft.")).toBeVisible();
   expect(dropped).toBe(true);
-  await page.getByRole("button", { name: "Retry same batch" }).click();
-  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Retry same sale" }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
   expect(retryPayload).toEqual(originalPayload);
   await expect(page.getByLabel("Current shop")).toBeEnabled();
 });
@@ -259,9 +262,9 @@ test("a delayed successful batch cannot switch shops or move Shop 1 data into Sh
   await row.getByLabel("Received QAR").fill("4.00");
   await row.getByLabel("Delivered").check();
   await row.getByLabel("New customer name").fill(customerName);
-  await page.getByRole("button", { name: "Review batch" }).click();
+  await page.getByRole("button", { name: "Review sale" }).click();
   const held = await installHeldAction(page, false);
-  await page.getByRole("button", { name: "Save batch" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
   await held.reachedServer;
 
   const selector = page.getByLabel("Current shop");
@@ -269,7 +272,7 @@ test("a delayed successful batch cannot switch shops or move Shop 1 data into Sh
   await forceShopChange(page);
   await expect(page.getByRole("heading", { name: "Shop 1", exact: true })).toBeVisible();
   held.release();
-  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
   await expect(page.getByLabel("Recent invoices")).toContainText(invoiceNumber);
 
   await selector.selectOption({ label: "Shop 2" });
@@ -284,18 +287,18 @@ test("a committed batch with a lost response keeps its exact retry while switchi
   const invoiceNumber = `BATCH-LOST-${Date.now()}`;
   await page.getByLabel("Invoice ID").fill(invoiceNumber);
   await page.getByLabel("Total QAR").fill("16.00");
-  await page.getByRole("button", { name: "Review batch" }).click();
+  await page.getByRole("button", { name: "Review sale" }).click();
   const held = await installHeldAction(page, true);
-  await page.getByRole("button", { name: "Save batch" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
   await held.reachedServer;
 
   await expect(page.getByLabel("Current shop")).toBeDisabled();
   await forceShopChange(page);
   await expect(page.getByRole("heading", { name: "Shop 1", exact: true })).toBeVisible();
   held.release();
-  await expect(page.getByRole("button", { name: "Retry same batch" })).toBeVisible();
-  await page.getByRole("button", { name: "Retry same batch" }).click();
-  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry same sale" })).toBeVisible();
+  await page.getByRole("button", { name: "Retry same sale" }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
   expect(held.payloads().retryPayload).toEqual(held.payloads().originalPayload);
   await expect(page.getByLabel("Recent invoices")).toContainText(invoiceNumber);
 

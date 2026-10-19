@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { formatQar } from "@/lib/domain/money";
+import { groupedQar } from "@/lib/dashboard-view";
 import { IMPORT_HEADERS, MAX_IMPORT_ROWS } from "@/lib/excel/invoice-import";
 
 import { MANAGER, OWNER, SHOP_1, SHOP_2, STAFF, entryRows, fillRow, importFile, localDbQuery, login, savedNotice, scalar, signOut, workbook } from "./offline-helpers";
@@ -141,8 +141,8 @@ test.describe("security headers and sessions", () => {
     // The pages that talk to Supabase from the browser and run client code still work under the policy.
     await page.goto("/");
     await fillRow(page, 0, `CSP-${Date.now()}`, "3.00");
-    await page.getByRole("button", { name: "Review batch" }).click();
-    await page.getByRole("button", { name: "Save batch" }).click();
+    await page.getByRole("button", { name: "Review sale" }).click();
+    await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
     await expect(savedNotice(page)).toBeVisible();
     await page.goto("/expenses");
     await expect(page.getByRole("heading", { name: "Record expense" })).toBeVisible();
@@ -202,8 +202,8 @@ test.describe("security headers and sessions", () => {
     const invoice = `EXPIRED-${Date.now()}`;
     await fillRow(page, 0, invoice, "4.00");
     await context.clearCookies();
-    await page.getByRole("button", { name: "Review batch" }).click();
-    await page.getByRole("button", { name: "Save batch" }).click();
+    await page.getByRole("button", { name: "Review sale" }).click();
+    await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
     await expect(page.getByRole("alert").filter({ hasText: /Sign in again/ })).toBeVisible();
     expect(scalar(`select count(*) from public.invoices where invoice_id = '${invoice}'`)).toBe("0");
     await page.goto("/customers");
@@ -249,10 +249,10 @@ test.describe("largest Excel batch", () => {
     // The review stays usable: totals are exact and the last row is reachable and editable.
     const invoiced = rows.reduce((sum, row) => sum + (row[1] as number), 0);
     await entryRows(page).nth(MAX_IMPORT_ROWS - 1).getByLabel("Note").fill("edited last row");
-    await page.getByRole("button", { name: "Review batch" }).click();
-    await expect(page.getByLabel("New invoice batch").getByText(`QAR ${formatQar(invoiced * 100)}`, { exact: true }).first()).toBeVisible();
+    await page.getByRole("button", { name: "Review sale" }).click();
+    await expect(page.getByLabel("Sale review").getByText(`QAR ${groupedQar(invoiced * 100)}`, { exact: true }).first()).toBeVisible();
     const saveStarted = Date.now();
-    await page.getByRole("button", { name: "Save batch" }).click();
+    await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
     await expect(savedNotice(page)).toBeVisible({ timeout: 60_000 });
     const saveMs = Date.now() - saveStarted;
     expect(saveMs).toBeLessThan(30_000);
@@ -328,17 +328,17 @@ test.describe("responsive usability and accessibility", () => {
 
       // Invoice entry, review and save.
       await fillRow(page, 0, `RWD-${stamp}`, "50.00", "20.00");
-      await page.getByRole("button", { name: "Add row" }).click();
+      await page.getByRole("button", { name: "Add another invoice" }).click();
       await fillRow(page, 1, `RWD-${stamp}-2`, "5.00");
-      await page.getByRole("button", { name: "Review batch" }).click();
+      await page.getByRole("button", { name: "Review sale" }).click();
       await check("invoice entry with review");
-      await page.getByRole("button", { name: "Save batch" }).click();
+      await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
       await expect(savedNotice(page)).toBeVisible();
       await expect(savedNotice(page)).toHaveAttribute("role", "status");
       // A rejected row is announced and described next to its own row, in words.
       await fillRow(page, 0, `RWD-${stamp}`, "1.00");
       await expect(entryRows(page).nth(0)).toContainText(/already exists/i);
-      await page.getByRole("button", { name: "Review batch" }).click();
+      await page.getByRole("button", { name: "Review sale" }).click();
       await expect(page.getByRole("alert").first()).toBeVisible();
       await check("invoice entry with errors");
 
@@ -388,7 +388,7 @@ test.describe("responsive usability and accessibility", () => {
 
       // Invoices: the 30-day default history browser.
       await page.goto(`/invoices?shop=${SHOP_1}`);
-      await expect(page.getByRole("heading", { name: "Invoices" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Sales", exact: true })).toBeVisible();
       await check("invoices");
 
       // Payments: Record Payment plus history, at the same screen size as Overview's.

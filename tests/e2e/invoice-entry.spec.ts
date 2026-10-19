@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
 
+import { openSaleTools } from "./offline-helpers";
+
 // These tests write to the same seeded shop; the 30-invoice batch can displace
 // another test's invoice from the recent preview when they run concurrently.
 test.describe.configure({ mode: "default" });
@@ -33,13 +35,14 @@ async function createDueInvoice(page: Page, invoiceNumber: string, total: string
   await row.getByLabel("Invoice ID").fill(invoiceNumber);
   await row.getByLabel("Total QAR").fill(total);
   if (received !== "0.00") await row.getByLabel("Received QAR").fill(received);
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
 }
 
 async function findInvoiceForPayment(page: Page, invoiceNumber: string) {
-  const payment = page.getByRole("region", { name: "Record Payment" });
+  await openSaleTools(page);
+  const payment = page.getByRole("region", { name: "Record payment" });
   await payment.getByLabel("Invoice number").fill(invoiceNumber);
   await payment.getByRole("button", { name: "Find invoice" }).click();
   await expect(payment.getByRole("heading", { name: invoiceNumber })).toBeVisible();
@@ -85,10 +88,10 @@ test("searches beyond 200 customers and keeps a selected customer on a delivered
   await row.getByLabel("Received QAR").fill("12.00");
   await row.getByLabel("Delivered").check();
   await expect(row.getByText(new RegExp(target.name))).toBeVisible();
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await expect(page.getByLabel("New invoice batch").getByText("Due QAR 30.00", { exact: true }).first()).toBeVisible();
-  await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await expect(page.getByLabel("Sale review").getByText("Due QAR 30.00", { exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
   const persisted = localDbQuery(`select (i.customer_id = c.id and b.effective_due_dirham = 3000) as linked_due
     from public.invoices i join public.customers c on c.id = i.customer_id
     join public.invoice_effective_balances b on b.canonical_invoice_id = i.id
@@ -169,25 +172,26 @@ test("Shop 1 staff saves a mixed batch and sees it after refresh", async ({ page
   await rows.nth(0).getByLabel("Received QAR").fill("100.00");
   await rows.nth(0).getByLabel("Delivered").check();
 
-  await page.getByRole("button", { name: "Add row" }).click();
+  await page.getByRole("button", { name: "Add another invoice" }).click();
   await rows.nth(1).getByLabel("Invoice ID").fill(`${prefix}-DUE`);
   await rows.nth(1).getByLabel("Total QAR").fill("80.50");
   await rows.nth(1).getByLabel("Received QAR").fill("20.00");
   await rows.nth(1).getByLabel("Delivered").check();
   await rows.nth(1).getByLabel("New customer name").fill("E2E Mary");
 
-  await page.getByRole("button", { name: "Add row" }).click();
+  await page.getByRole("button", { name: "Add another invoice" }).click();
   await rows.nth(2).getByLabel("Invoice ID").fill(`${prefix}-ADV`);
   await rows.nth(2).getByLabel("Total QAR").fill("60.00");
   await rows.nth(2).getByLabel("Received QAR").fill("10.00");
 
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await expect(page.getByText("QAR 240.50")).toBeVisible();
-  await expect(page.getByText(`${prefix}-DUE`, { exact: true })).toHaveCount(1);
-  await expect(page.getByLabel("New invoice batch").getByText("Due QAR 60.50", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await expect(page.getByLabel("Sale review").getByText("QAR 240.50")).toBeVisible();
+  await expect(page.getByLabel("Sale review").getByText(`${prefix}-DUE`, { exact: true })).toHaveCount(1);
+  await expect(page.getByLabel("Sale review").getByText("Due QAR 60.50", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
   await page.reload();
+  await openSaleTools(page);
   await expect(page.getByText(`${prefix}-PAID`)).toBeVisible();
   await expect(page.getByText(`${prefix}-DUE`)).toBeVisible();
   await expect(page.getByText(`${prefix}-ADV`)).toBeVisible();
@@ -206,14 +210,15 @@ test("invoice detail shows canonical identity, effective balances, payments, and
     select p.shop_id, p.id, -200, 'approved payment adjustment', p.business_date, '10000000-0000-4000-8000-000000000101'
     from public.payments p where p.shop_id = '10000000-0000-4000-8000-000000000001' and p.invoice_id = '${canonical}'`);
   await page.getByRole("link", { name: new RegExp(invoiceNumber) }).click();
-  await expect(page.getByRole("heading", { name: "Invoice detail" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: invoiceNumber, exact: true })).toBeVisible();
   await expect(page.getByText(canonical)).toBeVisible();
   await expect(page.getByText("QAR 105.00", { exact: true })).toBeVisible();
   await expect(page.getByText("QAR 28.00", { exact: true })).toBeVisible();
   await expect(page.getByText("QAR 77.00", { exact: true })).toBeVisible();
+  await page.getByRole("region", { name: "History" }).getByText("History").click();
   await expect(page.getByText("approved invoice adjustment")).toBeVisible();
   await expect(page.getByText("approved payment adjustment")).toBeVisible();
-  await expect(page.getByText("30.00")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Payments received" }).getByText("QAR 30.00")).toBeVisible();
 });
 
 test("invoice detail safely hides missing and cross-shop invoices", async ({ page }) => {
@@ -229,9 +234,9 @@ test("invoice detail shows empty customer and payment states", async ({ page }) 
   await loginStaff(page);
   await createDueInvoice(page, invoiceNumber, "12.00");
   await page.getByRole("link", { name: new RegExp(invoiceNumber) }).click();
-  await expect(page.getByText("No customer", { exact: true })).toBeVisible();
+  await expect(page.locator('section[aria-labelledby="invoice-heading"]').getByText("No customer", { exact: true })).toBeVisible();
   await expect(page.getByText("No payments recorded.", { exact: true })).toBeVisible();
-  await expect(page.getByText("No approved financial corrections.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "History" })).not.toContainText("Correction");
 });
 
 test("invoice detail opens invoices in the currently selected owner shop", async ({ page }) => {
@@ -244,7 +249,7 @@ test("invoice detail opens invoices in the currently selected owner shop", async
   await createDueInvoice(page, invoiceNumber, "40.00");
   await page.getByRole("link", { name: new RegExp(invoiceNumber) }).click();
   await expect(page.getByRole("heading", { name: invoiceNumber })).toBeVisible();
-  await page.getByRole("link", { name: "Back to invoices" }).click();
+  await page.goto("/");
   await page.getByLabel("Current shop").selectOption("10000000-0000-4000-8000-000000000002");
   await expect(page.getByRole("heading", { name: "Shop 2" })).toBeVisible();
   const shopTwoInvoice = `DETAIL-SHOP2-${Date.now()}`;
@@ -270,24 +275,24 @@ test("a duplicate older than the recent preview gets a row error", async ({ page
 
   await rows.nth(0).getByLabel("Invoice ID").fill(`${prefix}-FIRST`);
   await rows.nth(0).getByLabel("Total QAR").fill("10.00");
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
 
   for (let i = 0; i < 30; i++) {
-    if (i > 0) await page.getByRole("button", { name: "Add row" }).click();
+    if (i > 0) await page.getByRole("button", { name: "Add another invoice" }).click();
     await rows.nth(i).getByLabel("Invoice ID").fill(`${prefix}-LATER-${i}`);
     await rows.nth(i).getByLabel("Total QAR").fill("1.00");
   }
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
   await page.reload();
   await expect(page.getByLabel("Recent invoices").getByText(`${prefix}-FIRST`)).toHaveCount(0);
 
   await rows.nth(0).getByLabel("Invoice ID").fill(`${prefix}-FIRST`);
   await rows.nth(0).getByLabel("Total QAR").fill("10.00");
-  await page.getByRole("button", { name: "Review batch" }).click();
+  await page.getByRole("button", { name: "Review sale" }).click();
   await expect(rows.nth(0)).toContainText("Invoice ID already exists in this shop.");
   await expect(page.getByRole("alert").filter({ hasText: /Fix \d+ row error/ })).toBeVisible();
 });
@@ -304,9 +309,9 @@ test("recent invoices show approved invoice and payment corrections", async ({ p
   await row.getByLabel("Received QAR").fill("20.00");
   await row.getByLabel("Delivered").check();
   await row.getByLabel("New customer name").fill("Corrected customer");
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
 
   const shopId = "10000000-0000-4000-8000-000000000001";
   const ownerId = "10000000-0000-4000-8000-000000000101";
@@ -323,10 +328,12 @@ test("recent invoices show approved invoice and payment corrections", async ({ p
   `);
 
   await page.reload();
-  const saved = page.getByLabel("Recent invoices").locator("div", { hasText: invoiceNumber }).filter({ hasText: invoiceNumber }).last();
+  await openSaleTools(page);
+  const saved = page.getByLabel("Recent invoices").getByRole("link", { name: `View invoice ${invoiceNumber}` });
   await expect(saved).toContainText("QAR 50.00");
   await expect(saved).toContainText("Due QAR 0.00");
-  await expect(saved).toContainText("Delivered · paid");
+  await expect(saved).toContainText("Paid");
+  await expect(saved).toContainText("Delivered");
 });
 
 test("records partial and full cash payments and rejects overpayment in review", async ({ page }) => {
@@ -334,9 +341,9 @@ test("records partial and full cash payments and rejects overpayment in review",
   await loginStaff(page);
   await createDueInvoice(page, invoiceNumber, "50.00");
   const payment = await findInvoiceForPayment(page, invoiceNumber);
-  await expect(payment).toContainText("Effective totalQAR 50.00");
-  await expect(payment).toContainText("PaidQAR 0.00");
-  await expect(payment).toContainText("DueQAR 50.00");
+  await expect(payment).toContainText("Invoice totalQAR 50.00");
+  await expect(payment).toContainText("Received so farQAR 0.00");
+  await expect(payment).toContainText("Outstanding nowQAR 50.00");
 
   await payment.getByLabel("Cash amount (QAR)").fill("50.01");
   await payment.getByRole("button", { name: "Review payment" }).click();
@@ -348,8 +355,8 @@ test("records partial and full cash payments and rejects overpayment in review",
   await expect(payment.getByText("Cash payment of QAR 20.00")).toBeVisible();
   await payment.getByRole("button", { name: "Confirm payment" }).click();
   await expect(payment.getByRole("status")).toContainText("Payment recorded");
-  await expect(payment).toContainText("PaidQAR 20.00");
-  await expect(payment).toContainText("DueQAR 30.00");
+  await expect(payment).toContainText("Received so farQAR 20.00");
+  await expect(payment).toContainText("Outstanding nowQAR 30.00");
 
   await payment.getByLabel("Cash amount (QAR)").fill("30.00");
   await payment.getByRole("button", { name: "Review payment" }).click();
@@ -377,9 +384,9 @@ test("shows approved corrections in the payment lookup and blocks zero due", asy
   `);
 
   const payment = await findInvoiceForPayment(page, invoiceNumber);
-  await expect(payment).toContainText("Effective totalQAR 75.00");
-  await expect(payment).toContainText("PaidQAR 15.00");
-  await expect(payment).toContainText("DueQAR 60.00");
+  await expect(payment).toContainText("Invoice totalQAR 75.00");
+  await expect(payment).toContainText("Received so farQAR 15.00");
+  await expect(payment).toContainText("Outstanding nowQAR 60.00");
   await payment.getByLabel("Cash amount (QAR)").fill("60.00");
   await payment.getByRole("button", { name: "Review payment" }).click();
   await payment.getByRole("button", { name: "Confirm payment" }).click();
@@ -390,11 +397,12 @@ test("looks up normalized invoice numbers without exposing other shops", async (
   const invoiceNumber = `INV-42-${Date.now()}`;
   await loginStaff(page);
   await createDueInvoice(page, invoiceNumber, "30.00");
-  const payment = page.getByRole("region", { name: "Record Payment" });
+  await openSaleTools(page);
+  const payment = page.getByRole("region", { name: "Record payment" });
   await payment.getByLabel("Invoice number").fill(` ${invoiceNumber.toLowerCase()} `);
   await payment.getByRole("button", { name: "Find invoice" }).click();
   await expect(payment.getByRole("heading", { name: invoiceNumber })).toBeVisible();
-  await expect(payment).toContainText("DueQAR 30.00");
+  await expect(payment).toContainText("Outstanding nowQAR 30.00");
 
   const historicalNumber = `OLD-${invoiceNumber}`;
   localDbQuery(`
@@ -427,7 +435,8 @@ test("hides another shop's invoice and retries the same payment command after a 
     values ('${shop2}', '${otherInvoice}', '${invoiceId}');
   `);
   await loginStaff(page);
-  const payment = page.getByRole("region", { name: "Record Payment" });
+  await openSaleTools(page);
+  const payment = page.getByRole("region", { name: "Record payment" });
   await payment.getByLabel("Invoice number").fill(otherInvoice);
   await payment.getByRole("button", { name: "Find invoice" }).click();
   await expect(payment.getByRole("alert")).toContainText("No matching invoice");
@@ -440,7 +449,7 @@ test("hides another shop's invoice and retries the same payment command after a 
 
   const today = qatarBusinessDate(new Date());
   await page.clock.install({ time: new Date(Date.parse(`${today}T00:00:00.000Z`) + 21 * 60 * 60 * 1000 - 60_000) });
-  await expect(payment.getByText(`Business date: ${today} (Qatar)`)).toBeVisible();
+  await expect(payment).toContainText(`Business date (Qatar)${today}`);
   let dropped = false;
   let firstPaymentAction = "";
   let originalCommandPayload: Buffer | null = null;
@@ -500,9 +509,9 @@ test("an open Shop 1 workspace advances its displayed Qatar date at midnight", a
   const invoiceNumber = `DATE-${crypto.randomUUID().slice(0, 8)}`;
   await page.getByLabel("Invoice ID").fill(invoiceNumber);
   await page.getByLabel("Total QAR").fill("12.00");
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
   await expect(page.getByLabel("Recent invoices")).toContainText(invoiceNumber);
   await expect(page.getByLabel("Recent invoices")).toContainText(today);
 });
@@ -520,7 +529,7 @@ test("a lost save response keeps the original date and retry key across midnight
   const invoiceNumber = `RETRY-${crypto.randomUUID().slice(0, 8)}`;
   await page.getByLabel("Invoice ID").fill(invoiceNumber);
   await page.getByLabel("Total QAR").fill("12.00");
-  await page.getByRole("button", { name: "Review batch" }).click();
+  await page.getByRole("button", { name: "Review sale" }).click();
   let dropped = false;
   await page.route("**/*", async (route) => {
     if (!dropped && route.request().method() === "POST" && route.request().headers()["next-action"]) {
@@ -531,14 +540,14 @@ test("a lost save response keeps the original date and retry key across midnight
       await route.continue();
     }
   });
-  await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.getByText("Batch was not saved. Try again with the same draft.")).toBeVisible();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
+  await expect(page.getByText("Sale was not saved. Try again with the same draft.")).toBeVisible();
   expect(dropped).toBe(true);
 
   await page.clock.fastForward(120_000);
   await expect(page.locator("main header")).toContainText(today);
-  await page.getByRole("button", { name: "Retry same batch" }).click();
-  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Retry same sale" }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
   await expect(page.getByLabel("Recent invoices")).toContainText(invoiceNumber);
 });
 
@@ -557,7 +566,7 @@ test("owner backdated retry preserves its exact command across midnight", async 
   await page.getByLabel("Backdate reason").fill("  month-end catch-up  ");
   await page.getByLabel("Invoice ID").fill(invoiceNumber);
   await page.getByLabel("Total QAR").fill("12.00");
-  await page.getByRole("button", { name: "Review batch" }).click();
+  await page.getByRole("button", { name: "Review sale" }).click();
   await expect(page.getByText("Backdated", { exact: true })).toBeVisible();
   await expect(page.getByText("Reason: month-end catch-up")).toBeVisible();
   await page.clock.install({ time: firstTime });
@@ -583,13 +592,13 @@ test("owner backdated retry preserves its exact command across midnight", async 
     if (currentActionId === actionId) retryPayload = request.postDataBuffer();
     return route.continue();
   });
-  await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.getByText("Batch was not saved. Try again with the same draft.")).toBeVisible();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
+  await expect(page.getByText("Sale was not saved. Try again with the same draft.")).toBeVisible();
   await page.clock.fastForward(120_000);
   const nextDate = new Date(Date.parse(`${today}T12:00:00.000Z`) + 86_400_000).toISOString().slice(0, 10);
   expect(await browserDate()).toBe(nextDate);
-  await page.getByRole("button", { name: "Retry same batch" }).click();
-  await expect(page.locator('p[role="status"]').filter({ hasText: "Batch saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Retry same sale" }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
   expect(retryPayload).toEqual(initialPayload);
 
   const persisted = localDbQuery(`select count(*) = 1 and bool_and(b.business_date = '${businessDate}'::date and b.is_backdated and b.backdated_reason = 'month-end catch-up') as valid

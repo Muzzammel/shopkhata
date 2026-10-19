@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { SHOP_1, createAccount, fillRow, login, savedNotice, scalar, signOut } from "./offline-helpers";
+import { SHOP_1, createAccount, fillRow, login, openSaleTools, savedNotice, scalar, signOut } from "./offline-helpers";
 
 // The critical workflow on every browser engine (Chromium, Firefox, WebKit):
 // sign in, save an invoice with a part payment, read it back, take a follow-up
@@ -24,21 +24,21 @@ test("the critical workflow works end to end", async ({ page, browserName }) => 
   await expect(page.locator("[data-entry-row][data-row-id]").first()).toBeVisible();
 
   await fillRow(page, 0, invoice, "80.00", "30.00");
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await expect(page.getByLabel("New invoice batch").getByText("Due QAR 50.00", { exact: true }).first()).toBeVisible();
-  await page.getByRole("button", { name: "Save batch" }).click();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await expect(page.getByLabel("Sale review").getByText("Due QAR 50.00", { exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
   await expect(savedNotice(page)).toBeVisible();
 
   await page.getByRole("link", { name: `View invoice ${invoice}` }).click();
-  await expect(page.getByRole("heading", { name: "Invoice detail" })).toBeVisible();
   await expect(page.getByRole("heading", { name: invoice })).toBeVisible();
-  await expect(page.locator("span").filter({ hasText: "Effective due" }).getByText("QAR 50.00", { exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Financial summary" }).getByText("QAR 50.00", { exact: true })).toBeVisible();
 
   // Follow-up payment from the workspace.
   await page.goto("/");
   // The workspace marks its rows once it is interactive; a person cannot act sooner either.
   await expect(page.locator("[data-entry-row][data-row-id]").first()).toBeVisible();
-  const payment = page.getByRole("region", { name: "Record Payment" });
+  await openSaleTools(page);
+  const payment = page.getByRole("region", { name: "Record payment" });
   await payment.getByLabel("Invoice number").fill(invoice);
   await payment.getByRole("button", { name: "Find invoice" }).click();
   await payment.getByLabel("Cash amount (QAR)").fill("20.00");

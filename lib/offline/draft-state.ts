@@ -171,7 +171,7 @@ export function draftStatusLabel(input: DraftStatusInput): string {
   if (input.reconnecting) return "Reconnecting — checking your session and shop access…";
   if (input.conflict?.kind === "reauth") return "Sign in again — draft saved locally";
   if (input.submission?.status === "uncertain") {
-    return input.online ? "Submission status uncertain — retry the same batch" : "Offline — submission status uncertain; retry when you reconnect";
+    return input.online ? "Submission status uncertain — retry the same sale" : "Offline — submission status uncertain; retry when you reconnect";
   }
   if (input.conflict && input.conflict.kind !== "unavailable") return "Conflict — not saved to ShopKhata";
   if (input.submission?.status === "queued") {

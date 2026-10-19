@@ -199,7 +199,7 @@ describe("draft status line", () => {
     expect(draftStatusLabel({ ...idle, hasDraft: true, online: false, submission: { status: "queued" } })).toBe("Submission pending — will send when you reconnect");
     expect(draftStatusLabel({ ...idle, hasDraft: true, submission: { status: "queued" } })).toBe("Retry available — not saved to ShopKhata yet");
     expect(draftStatusLabel({ ...idle, hasDraft: true, submission: { status: "queued" }, reconnecting: true })).toBe("Reconnecting — checking your session and shop access…");
-    expect(draftStatusLabel({ ...idle, hasDraft: true, submission: { status: "uncertain" } })).toBe("Submission status uncertain — retry the same batch");
+    expect(draftStatusLabel({ ...idle, hasDraft: true, submission: { status: "uncertain" } })).toBe("Submission status uncertain — retry the same sale");
     expect(draftStatusLabel({ ...idle, hasDraft: true, conflict: { kind: "duplicate_invoice" } })).toBe("Conflict — not saved to ShopKhata");
     expect(draftStatusLabel({ ...idle, hasDraft: true, submission: { status: "queued" }, conflict: { kind: "reauth" } })).toBe("Sign in again — draft saved locally");
     expect(draftStatusLabel({ ...idle, hasDraft: true, submission: { status: "uncertain" }, conflict: { kind: "reauth" } })).toBe("Sign in again — draft saved locally");

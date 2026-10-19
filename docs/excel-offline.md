@@ -107,7 +107,7 @@ One short status line in the entry panel:
 | Submission pending — will send when you reconnect | Saved was pressed offline. Queued, never sent, still editable. |
 | Reconnecting — checking your session and shop access… | A reconnect attempt is scheduled or running. |
 | Sending to ShopKhata… | A request is in flight. |
-| Submission status uncertain — retry the same batch | A request was sent and no confirmed answer came back. The draft is locked. |
+| Submission status uncertain — retry the same sale | A request was sent and no confirmed answer came back. The draft is locked. |
 | Retry available — not saved to ShopKhata yet | A queued submission was refused before the server evaluated it; it can be retried. |
 | Sign in again — draft saved locally | The session is gone. A link leads to the login form. |
 | Conflict — not saved to ShopKhata | The server refused the batch; the reason is shown and the draft is kept. |

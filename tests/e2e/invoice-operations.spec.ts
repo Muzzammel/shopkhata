@@ -19,9 +19,9 @@ async function create(page: Page, number: string) {
   const row = page.locator("[data-entry-row]").first();
   await row.getByLabel("Invoice ID").fill(number);
   await row.getByLabel("Total QAR").fill("100.00");
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Batch saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
 }
 function totals(page: Page) { return page.locator('section[aria-labelledby="invoice-heading"]'); }
 
@@ -36,30 +36,35 @@ test("complete staff invoice lifecycle with separate owner approvals, canonical 
   await expect(page).toHaveURL(/\/shops\/[^/]+\/invoices\/[0-9a-f-]+$/);
   const canonicalUrl = page.url(); const invoiceId = canonicalUrl.split("/").at(-1)!;
   await expect(totals(page)).toContainText("QAR 100.00");
-  const payment = page.getByRole("region", { name: "Record Payment", exact: true });
+  await page.getByRole("button", { name: "Record payment" }).click();
+  const payment = page.getByRole("dialog", { name: "Record payment" });
   await payment.getByLabel("Cash amount (QAR)").fill("20.00");
   await payment.getByRole("button", { name: "Review payment", exact: true }).click();
   await payment.getByRole("button", { name: "Confirm payment" }).click();
   await expect(totals(page).getByText("QAR 80.00", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Request financial correction", exact: true }).click();
-  const financial = page.getByRole("form", { name: "Financial correction request" });
+  await expect(payment.getByRole("status")).toContainText("Payment recorded");
+  await page.keyboard.press("Escape");
+  await expect(payment).toHaveCount(0);
+  await page.getByRole("button", { name: "Request correction", exact: true }).click();
+  const financial = page.getByRole("form", { name: "Correction request" });
   // The corrected total is entered, not the amount to take off: 100.00 becomes 90.00.
   await financial.getByLabel("Corrected invoice total (QAR)").fill("90.00");
   await financial.getByLabel("Request reason").fill("Total entered ten QAR too high");
   await financial.getByRole("button", { name: "Submit request" }).click();
-  await expect(page.getByText("Financial correction — Pending approval", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Save decision" })).toHaveCount(0);
+  await expect(page.getByText("Correction — Pending approval", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approve" })).toHaveCount(0);
 
   const context = await browser.newContext(); const owner = await context.newPage();
   await login(owner, "owner"); await owner.goto(canonicalUrl);
-  await owner.getByRole("button", { name: "Save decision" }).click();
+  await owner.getByRole("button", { name: "Approve" }).click();
   await expect(totals(owner).getByText("QAR 90.00", { exact: true })).toBeVisible();
   await expect(totals(owner).getByText("QAR 70.00", { exact: true })).toBeVisible();
   await owner.reload();
   await expect(totals(owner).getByText("QAR 90.00", { exact: true })).toBeVisible();
   await expect(totals(owner).getByText("QAR 70.00", { exact: true })).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: "Request non-financial replacement" }).click();
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Request replacement" }).click();
   const replacement = page.getByRole("form", { name: "Replacement request" });
   await replacement.getByLabel("Replacement invoice number").fill(newNumber);
   await replacement.getByLabel("Customer search", { exact: true }).fill(customerName);
@@ -67,14 +72,16 @@ test("complete staff invoice lifecycle with separate owner approvals, canonical 
   await replacement.getByLabel("Replacement delivered").check();
   await replacement.getByLabel("Request reason").fill("Correct number, customer and delivery");
   await replacement.getByRole("button", { name: "Submit request" }).click();
-  await expect(page.getByText("Non-financial replacement — Pending approval", { exact: true })).toBeVisible();
-  await owner.reload(); await owner.getByRole("button", { name: "Save decision" }).click();
+  await expect(page.getByText("Replacement — Pending approval", { exact: true })).toBeVisible();
+  await owner.reload(); await owner.getByRole("button", { name: "Approve" }).click();
   await expect(totals(owner).getByRole("heading", { name: newNumber, exact: true })).toBeVisible();
   await expect(totals(owner)).toContainText(customerName);
   await expect(totals(owner)).toContainText(oldNumber);
   await expect(totals(owner)).toContainText("Delivered");
-  await expect(owner.getByRole("region", { name: "Requests and version history" })).toContainText("version 1");
-  await expect(owner.getByRole("region", { name: "Record Payment", exact: true })).toContainText(newNumber);
+  await expect(owner.getByRole("region", { name: "History" })).toContainText("Version 1");
+  await owner.getByRole("button", { name: "Record payment" }).click();
+  await expect(owner.getByRole("dialog", { name: "Record payment" })).toContainText(newNumber);
+  await owner.keyboard.press("Escape");
 
   await page.goto("/");
   for (const number of [oldNumber, newNumber]) {
@@ -84,12 +91,15 @@ test("complete staff invoice lifecycle with separate owner approvals, canonical 
     await expect(row).toContainText("Outstanding due QAR 70.00");
     if (number === oldNumber) await expect(row).toContainText(`Current effective invoice number: ${newNumber}`);
     await expect(row.getByRole("link", { name: "Record payment", exact: true })).toHaveAttribute("href", `/shops/${SHOP1}/invoices/${invoiceId}#record-payment`);
-    await page.getByRole("button", { name: "Review batch" }).click();
-    await expect(page.getByRole("button", { name: "Save batch" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Review sale" }).click();
+    await expect(page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ })).toHaveCount(0);
 
   }
   await page.locator("[data-entry-row]").first().getByRole("link", { name: "Record payment", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(invoiceId));
+  // #record-payment opens the payment drawer straight away.
+  await expect(page.getByRole("dialog", { name: "Record payment" })).toContainText(newNumber);
+  await page.keyboard.press("Escape");
   await expect(totals(page).getByRole("heading", { name: newNumber, exact: true })).toBeVisible();
 
   await owner.goto(`/?shop=${SHOP2}`);
@@ -120,15 +130,15 @@ test("a financial correction replaces the invoice total: 1000 becomes 1500, not 
   await row.getByLabel("Invoice ID").fill(number);
   await row.getByLabel("Total QAR").fill("1000.00");
   await row.getByLabel("Received QAR").fill("400.00");
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Batch saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
   await page.getByRole("link", { name: `View invoice ${number}`, exact: true }).click();
-  await expect(totals(page)).toContainText("Effective totalQAR 1000.00");
+  await expect(totals(page)).toContainText("Invoice totalQAR 1,000.00");
   const canonicalUrl = page.url();
 
-  await page.getByRole("button", { name: "Request financial correction", exact: true }).click();
-  const form = page.getByRole("form", { name: "Financial correction request" });
+  await page.getByRole("button", { name: "Request correction", exact: true }).click();
+  const form = page.getByRole("form", { name: "Correction request" });
   const field = form.getByLabel("Corrected invoice total (QAR)");
   const summary = form.getByLabel("Correction summary");
 
@@ -138,30 +148,31 @@ test("a financial correction replaces the invoice total: 1000 becomes 1500, not 
   await form.getByRole("button", { name: "Submit request" }).click();
   await expect(field).toHaveAttribute("aria-invalid", "true");
   await expect(form.locator("#correction-total-error")).toContainText("cannot be less than the QAR 400.00 already paid");
-  await expect(page.getByText("Financial correction — Pending approval", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Correction — Pending approval", { exact: true })).toHaveCount(0);
 
   await field.fill("1500.00");
   await expect(field).not.toHaveAttribute("aria-invalid", "true");
-  await expect(summary).toContainText("Current invoice totalQAR 1000.00");
-  await expect(summary).toContainText("Corrected invoice totalQAR 1500.00");
+  await expect(summary).toContainText("Current invoice totalQAR 1,000.00");
+  await expect(summary).toContainText("Corrected invoice totalQAR 1,500.00");
   await expect(summary).toContainText("Calculated difference+QAR 500.00");
   await expect(summary).toContainText("Current paymentsQAR 400.00");
-  await expect(summary).toContainText("Resulting due after correctionQAR 1100.00");
+  await expect(summary).toContainText("Resulting due after correctionQAR 1,100.00");
   await form.getByRole("button", { name: "Submit request" }).click();
   await expect(page.getByText("Operation confirmed and saved.")).toBeVisible();   // toast
-  await expect(page.getByText("Financial correction — Pending approval", { exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Requests and version history" })).toContainText("Invoice total: QAR 1000.00 → QAR 1500.00 (+QAR 500.00)");
+  await expect(page.getByText("Correction — Pending approval", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Awaiting approval" })).toContainText("Invoice total: QAR 1,000.00 → QAR 1,500.00 (+QAR 500.00)");
 
   const context = await browser.newContext(); const owner = await context.newPage();
   await login(owner, "owner"); await owner.goto(canonicalUrl);
-  await owner.getByRole("button", { name: "Save decision" }).click();
-  await expect(totals(owner).getByText("QAR 1500.00", { exact: true })).toBeVisible();
-  await expect(totals(owner).getByText("QAR 1100.00", { exact: true })).toBeVisible();
+  await owner.getByRole("button", { name: "Approve" }).click();
+  await expect(totals(owner).getByText("QAR 1,500.00", { exact: true })).toBeVisible();
+  await expect(totals(owner).getByText("QAR 1,100.00", { exact: true })).toBeVisible();
   await owner.reload();
-  await expect(totals(owner).getByText("QAR 1500.00", { exact: true })).toBeVisible();
+  await expect(totals(owner).getByText("QAR 1,500.00", { exact: true })).toBeVisible();
   await expect(totals(owner)).not.toContainText("2500.00");
+  await expect(totals(owner)).not.toContainText("2,500.00");
   // The original stays on record beside the effective total.
-  await expect(totals(owner)).toContainText("Original totalQAR 1000.00");
+  await expect(totals(owner)).toContainText("Original totalQAR 1,000.00");
   expect(sql(`select total_amount_dirham from public.invoices where invoice_id = '${number}'`)).toContain("100000");
   await context.close();
 });
@@ -171,7 +182,8 @@ test("uncertain detail payment retains exact command and allows retry without du
   const number = `UNCERTAIN-DETAIL-${crypto.randomUUID()}`;
   await login(page); await create(page, number);
   await page.getByRole("link", { name: `View invoice ${number}` }).click();
-  const payment = page.getByRole("region", { name: "Record Payment", exact: true });
+  await page.getByRole("button", { name: "Record payment" }).click();
+  const payment = page.getByRole("dialog", { name: "Record payment" });
   await payment.getByLabel("Cash amount (QAR)").fill("20.00");
   await payment.getByRole("button", { name: "Review payment", exact: true }).click();
   let dropped = false;
@@ -182,9 +194,15 @@ test("uncertain detail payment retains exact command and allows retry without du
   });
   await payment.getByRole("button", { name: "Confirm payment" }).click();
   await expect(payment.getByRole("button", { name: "Retry payment" })).toBeEnabled();
+  // The outcome is unknown, so the drawer refuses to close and lose the exact command.
+  await page.keyboard.press("Escape");
+  await expect(payment).toBeVisible();
   await payment.getByRole("button", { name: "Retry payment" }).click();
   await expect(totals(page).getByText("QAR 80.00", { exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Payment history" }).getByText(/QAR 20.00/)).toHaveCount(1);
+  await expect(payment.getByRole("status")).toContainText("Payment recorded");
+  await page.keyboard.press("Escape");
+  await expect(payment).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Payments received" }).getByText("QAR 20.00", { exact: true })).toHaveCount(1);
 });
 
 test("fully paid duplicates offer canonical View invoice and block new creation", async ({ page }) => {
@@ -194,15 +212,15 @@ test("fully paid duplicates offer canonical View invoice and block new creation"
   await row.getByLabel("Invoice ID").fill(number);
   await row.getByLabel("Total QAR").fill("10.00");
   await row.getByLabel("Received QAR").fill("10.00");
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await page.getByRole("button", { name: "Save batch" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Batch saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toBeVisible();
   await row.getByLabel("Invoice ID").fill(number);
   await row.getByLabel("Total QAR").fill("10.00");
   await expect(row).toContainText("Invoice already exists / fully paid.");
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await expect(page.getByRole("button", { name: "Save batch" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await expect(page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ })).toHaveCount(0);
   await row.getByRole("link", { name: "View invoice", exact: true }).click();
   await expect(totals(page).getByRole("heading", { name: number, exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Record Payment", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Record payment" })).toHaveCount(0);
 });

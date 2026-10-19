@@ -1,20 +1,24 @@
 import Link from "next/link";
+import { PlusIcon, ReceiptTextIcon, SearchIcon } from "lucide-react";
 
+import { FilterPills } from "@/components/dashboard/filter-pills";
+import { SalesTable } from "@/components/sales/sales-table";
 import { can, getCurrentActor } from "@/lib/auth/permissions";
-import { formatQar } from "@/lib/domain/money";
+import { qar } from "@/lib/dashboard-view";
+import { addDays } from "@/lib/date-range";
 import { fetchInvoiceList, findInvoiceByNumber, INVOICE_PAGE_SIZE, INVOICE_STATUSES, INVOICE_STATUS_LABELS, parseInvoiceListFilter } from "@/lib/invoice-list";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
+import { longDate } from "@/lib/sales-view";
 import { getVisibleShops } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-
-import styles from "@/app/ui.module.css";
-
-const qar = (dirham: number) => `QAR ${formatQar(dirham)}`;
-const qatarTime = (iso: string | null) => iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Qatar" }) : "—";
+import { cn } from "@/lib/utils";
 
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
+
+const field = "h-10 w-full rounded-full border border-input bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground";
+const pillButton = "inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold no-underline sk-press";
 
 export default async function InvoicesPage({ searchParams }: PageProps<"/invoices">) {
   const actor = await getCurrentActor();
@@ -25,7 +29,7 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/invoice
   const shops = getVisibleShops(actor, allShops);
   const requestedShop = first(query.shop);
   const shop = shops.find((item) => item.id === requestedShop) ?? shops[0];
-  if (!shop || !can(actor, "records.view_assigned", shop.id)) return <main className={styles.workspace}><h1>Invoices unavailable</h1></main>;
+  if (!shop || !can(actor, "records.view_assigned", shop.id)) return <main className="mx-auto max-w-[1280px] px-4 pt-5 sm:px-6"><h1 className="text-3xl font-semibold tracking-tight">Sales unavailable</h1></main>;
 
   const today = qatarBusinessDate(new Date());
   const filter = parseInvoiceListFilter(query, today);
@@ -37,61 +41,80 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/invoice
     searchTerm ? findInvoiceByNumber(supabase, shop.id, searchTerm) : Promise.resolve(undefined),
   ]);
 
-  return <main className={styles.workspace}>
-    <header className={styles.header}>
-      <div><p className={styles.eyebrow}>{shop.name}</p><h1>Invoices</h1><p>Default view shows the last 30 days. Search by invoice number to find an older invoice.</p></div>
-      <Link href="/">Back to overview</Link>
+  // Presets are only ready-made From/To pairs for the same server filter.
+  const presets = [
+    { key: "today", label: "Today", from: today, to: today },
+    { key: "7d", label: "7 days", from: addDays(today, -6), to: today },
+    { key: "30d", label: "30 days", from: addDays(today, -29), to: today },
+  ];
+  const preset = presets.find((item) => item.from === filter.from && item.to === filter.to)?.key ?? "custom";
+  const invoiceHref = (id: string) => `/shops/${shop.id}/invoices/${id}`;
+
+  return <main className="mx-auto grid w-full max-w-[1280px] grid-cols-1 content-start gap-4 px-4 pt-5 pb-10 sm:gap-5 sm:px-6">
+    <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 px-1">
+      <div>
+        <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">{shop.name}</p>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Sales</h1>
+      </div>
+      <Link href={`/?shop=${shop.id}`} data-slot="new-sale" className={cn(pillButton, "bg-primary text-primary-foreground hover:bg-primary/90")}><PlusIcon aria-hidden className="size-4" />New sale</Link>
     </header>
-    {shops.length > 1 && <nav className={styles.shops} aria-label="Choose shop">{shops.map((item) => <Link key={item.id} aria-current={item.id === shop.id ? "page" : undefined} href={`/invoices?shop=${item.id}`}>{item.name}</Link>)}</nav>}
 
-    <section className={styles.panel}>
-      <h2>Find an invoice by number</h2>
-      <p className={styles.muted}>This search is not limited to the last 30 days, but stays within {shop.name}.</p>
-      <form className={styles.lookup} action="/invoices">
-        <input type="hidden" name="shop" value={shop.id} />
-        <label>Invoice number<input name="q" defaultValue={searchTerm} maxLength={120} /></label>
-        <button className={styles.secondary}>Search</button>
-        {searchTerm && <Link className={styles.ghost} href={`/invoices?shop=${shop.id}`}>Clear</Link>}
-      </form>
-      {searchTerm && (searchResult ? <div className={styles.paymentDetails}>
-        <p role="status">Found invoice <strong>{searchResult.invoiceNumber}</strong>, business date {searchResult.businessDate}{(searchResult.businessDate < filter.from || searchResult.businessDate > filter.to) && " (outside the current date filter below)"}.</p>
-        <div className={styles.totals}>
-          <span>Total<strong>{qar(searchResult.totalDirham)}</strong></span><span>Paid<strong>{qar(searchResult.paidDirham)}</strong></span>
-          <span>Due<strong className={searchResult.dueDirham > 0 ? styles.due : undefined}>{qar(searchResult.dueDirham)}</strong></span>
-        </div>
-        <p><Link href={`/shops/${shop.id}/invoices/${searchResult.invoiceId}`}>View invoice {searchResult.invoiceNumber}</Link></p>
-      </div> : <p role="alert">No invoice numbered &quot;{searchTerm}&quot; was found in {shop.name}.</p>)}
-    </section>
-
-    <section className={styles.panel}>
-      <div className={styles.sectionHeading}><h2>Invoice history</h2><p>{shop.name}</p></div>
-      <div className={styles.toolbar}>
-        <form className={styles.search} action="/invoices">
-          <input type="hidden" name="shop" value={shop.id} /><input type="hidden" name="status" value={filter.status} />
-          <label>From<input type="date" name="from" defaultValue={filter.from} max={today} required /></label>
-          <label>To<input type="date" name="to" defaultValue={filter.to} max={today} required /></label>
-          <button className={styles.secondary}>Show range</button>
-          <Link className={styles.ghost} href={`/invoices?shop=${shop.id}`}>Reset to last 30 days</Link>
+    <section aria-label="Find and filter" className="grid gap-4 rounded-3xl border border-border bg-card p-4 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <form action="/invoices" role="search" className="flex min-w-0 flex-[1_1_22rem] items-center gap-2">
+          <input type="hidden" name="shop" value={shop.id} />
+          <label className="relative block min-w-0 flex-1">
+            <span className="sr-only">Invoice number</span>
+            <SearchIcon aria-hidden className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input data-slot="search" name="q" defaultValue={searchTerm} maxLength={120} placeholder="Exact invoice number" className={cn(field, "pl-10")} />
+          </label>
+          <button data-slot="button" className={cn(pillButton, "border border-input bg-card text-foreground hover:bg-muted")}>Search</button>
+          {searchTerm && <Link href={`/invoices?shop=${shop.id}`} className={cn(pillButton, "text-muted-foreground hover:bg-muted hover:text-foreground")}>Clear</Link>}
         </form>
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterPills label="Date range" value={preset} items={presets.map((item) => ({ key: item.key, label: item.label, href: `/invoices?shop=${shop.id}&from=${item.from}&to=${item.to}&status=${filter.status}` }))} />
+          {preset !== "30d" && <Link href={`/invoices?shop=${shop.id}`} className="text-[13px] font-semibold text-foreground">Reset to last 30 days</Link>}
+        </div>
       </div>
-      <nav className={styles.shops} aria-label="Filter by status">{INVOICE_STATUSES.map((item) => <Link key={item} aria-current={item === filter.status ? "page" : undefined} href={`/invoices?shop=${shop.id}&from=${filter.from}&to=${filter.to}&status=${item}`}>{INVOICE_STATUS_LABELS[item]}</Link>)}</nav>
-      {filter.error && <p role="alert">{filter.error} Showing the last 30 days instead.</p>}
-      <div className={styles.tableWrap}>
-        <table>
-          <thead><tr><th scope="col">Invoice</th><th scope="col">Business date</th><th scope="col">Recorded (Qatar)</th><th scope="col">Customer</th><th scope="col" className={styles.num}>Total</th><th scope="col" className={styles.num}>Paid</th><th scope="col" className={styles.num}>Credit applied</th><th scope="col" className={styles.num}>Due</th><th scope="col">Status</th><th scope="col">View</th></tr></thead>
-          <tbody>{rows.length === 0 ? <tr><td colSpan={10}>No invoices in this range.</td></tr> : rows.map((row) => <tr key={row.invoiceId}>
-            <td><strong>{row.invoiceNumber}</strong></td><td>{row.businessDate}</td><td>{qatarTime(row.recordedAt)}</td><td>{row.customerName || "—"}</td>
-            <td className={styles.num}>{qar(row.totalDirham)}</td><td className={styles.num}>{qar(row.paidDirham)}</td><td className={styles.num}>{qar(row.creditAppliedDirham)}</td>
-            <td className={styles.num}>{qar(row.dueDirham)}</td>
-            <td><span className={styles.badge} data-tone={row.delivered ? row.dueDirham <= 0 ? "success" : "warning" : undefined}>{row.delivered ? row.dueDirham <= 0 ? "Delivered · paid" : "Delivered · due" : "Advance"}</span></td>
-            <td><Link href={`/shops/${shop.id}/invoices/${row.invoiceId}`}>View</Link></td>
-          </tr>)}</tbody>
-        </table>
-      </div>
-      <div className={styles.pager}>
-        {filter.offset > 0 && <Link href={`/invoices?${baseQS}&offset=${Math.max(0, filter.offset - INVOICE_PAGE_SIZE)}`}>Previous</Link>}
-        {hasMore && <Link href={`/invoices?${baseQS}&offset=${filter.offset + INVOICE_PAGE_SIZE}`}>Next</Link>}
-      </div>
+      <details className="group/range" open={preset === "custom" || undefined}>
+        <summary className="inline-flex min-h-9 cursor-pointer list-none items-center gap-1.5 rounded-full text-[13px] font-semibold text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+          Custom range <span className="tabular-nums">· {longDate(filter.from)} – {longDate(filter.to)}</span>
+        </summary>
+        <form action="/invoices" className="mt-3 flex flex-wrap items-end gap-3">
+          <input type="hidden" name="shop" value={shop.id} /><input type="hidden" name="status" value={filter.status} />
+          <label data-slot="label" className="grid gap-1 text-xs font-medium text-muted-foreground">From<input data-slot="date" type="date" name="from" defaultValue={filter.from} max={today} required className={cn(field, "w-44 rounded-xl")} /></label>
+          <label data-slot="label" className="grid gap-1 text-xs font-medium text-muted-foreground">To<input data-slot="date" type="date" name="to" defaultValue={filter.to} max={today} required className={cn(field, "w-44 rounded-xl")} /></label>
+          <button data-slot="button" className={cn(pillButton, "border border-input bg-card text-foreground hover:bg-muted")}>Show range</button>
+        </form>
+      </details>
+      {searchTerm && (searchResult ? <div className="grid gap-3 rounded-2xl bg-muted p-4">
+        <p role="status" className="text-sm">Found invoice <strong>{searchResult.invoiceNumber}</strong>, business date {searchResult.businessDate}{(searchResult.businessDate < filter.from || searchResult.businessDate > filter.to) && " (outside the current date filter below)"}.</p>
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-2 tabular-nums">
+          <span className="grid text-xs text-muted-foreground">Total<strong className="text-base text-foreground">{qar(searchResult.totalDirham)}</strong></span>
+          <span className="grid text-xs text-muted-foreground">Received<strong className="text-base text-foreground">{qar(searchResult.paidDirham)}</strong></span>
+          <span className="grid text-xs text-muted-foreground">Due<strong className={cn("text-base", searchResult.dueDirham > 0 ? "text-warning" : "text-foreground")}>{qar(searchResult.dueDirham)}</strong></span>
+          <Link href={invoiceHref(searchResult.invoiceId)} className="ml-auto text-sm font-semibold text-foreground">View invoice {searchResult.invoiceNumber}</Link>
+        </div>
+      </div> : <p role="alert" className="rounded-2xl bg-warning-soft px-4 py-3 text-sm font-medium text-warning">No invoice numbered &quot;{searchTerm}&quot; was found in {shop.name}. Search matches the exact number, at any date.</p>)}
     </section>
+
+    <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+      <FilterPills label="Filter by status" value={filter.status} items={INVOICE_STATUSES.map((item) => ({ key: item, label: INVOICE_STATUS_LABELS[item], href: `/invoices?shop=${shop.id}&from=${filter.from}&to=${filter.to}&status=${item}` }))} />
+      <p className="text-xs text-muted-foreground tabular-nums">{longDate(filter.from)} – {longDate(filter.to)}{filter.offset > 0 && ` · from #${filter.offset + 1}`}</p>
+    </div>
+    {filter.error && <p role="alert" className="rounded-2xl bg-danger-soft px-4 py-3 text-sm font-medium text-destructive">{filter.error} Showing the last 30 days instead.</p>}
+
+    {rows.length === 0 ? <section className="grid justify-items-center gap-3 rounded-3xl border border-dashed border-input bg-card px-6 py-14 text-center">
+      <span className="grid size-12 place-items-center rounded-full bg-muted"><ReceiptTextIcon aria-hidden className="size-5 text-muted-foreground" /></span>
+      <h2 className="text-lg font-semibold">No invoices in this range</h2>
+      <p className="max-w-sm text-sm text-muted-foreground">Try another status or date range, or search an exact invoice number to find older sales.</p>
+      <Link href={`/?shop=${shop.id}`} className={cn(pillButton, "mt-1 bg-primary text-primary-foreground")}><PlusIcon aria-hidden className="size-4" />New sale</Link>
+    </section> : <SalesTable rows={rows} shopId={shop.id} />}
+
+    {(filter.offset > 0 || hasMore) && <nav aria-label="Pages" className="flex items-center justify-between gap-3">
+      {filter.offset > 0 ? <Link href={`/invoices?${baseQS}&offset=${Math.max(0, filter.offset - INVOICE_PAGE_SIZE)}`} className={cn(pillButton, "border border-input bg-card text-foreground hover:bg-muted")}>Previous</Link> : <span />}
+      <span className="text-xs text-muted-foreground tabular-nums">Showing {filter.offset + 1}–{filter.offset + rows.length}</span>
+      {hasMore ? <Link href={`/invoices?${baseQS}&offset=${filter.offset + INVOICE_PAGE_SIZE}`} className={cn(pillButton, "border border-input bg-card text-foreground hover:bg-muted")}>Next</Link> : <span />}
+    </nav>}
   </main>;
 }

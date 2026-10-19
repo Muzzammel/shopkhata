@@ -35,8 +35,8 @@ test("a new invoice raises today's Sales KPI by exactly its effective total", as
   await row.getByLabel("Invoice ID").fill(number);
   await row.getByLabel("Total QAR").fill("77.00");
   await row.getByLabel("Received QAR").fill("77.00");
-  await page.getByRole("button", { name: "Review batch" }).click();
-  await page.getByRole("button", { name: "Save batch" }).click();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
   await expect(savedNotice(page)).toBeVisible();
 
   await page.goto(`/dashboard?shop=${SHOP_1}`);

@@ -56,7 +56,7 @@ test.describe("browser authentication and authorization", () => {
 
     await expect(page).toHaveURL(/\/$/);
     await expect(
-      page.getByRole("heading", { name: "ShopKhata" }),
+      page.getByRole("heading", { name: "New sale" }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Shop 1", exact: true }),
@@ -76,7 +76,7 @@ test.describe("browser authentication and authorization", () => {
 
     await expect(page).toHaveURL(/\/$/);
     await expect(
-      page.getByRole("heading", { name: "ShopKhata" }),
+      page.getByRole("heading", { name: "New sale" }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Shop 1", exact: true }),

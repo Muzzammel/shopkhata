@@ -111,7 +111,8 @@
   --border: #34322b;
   --border-strong: #716b5b;
   --text: #f3efe3;
-  --text-muted: #aca593;
+  /* Lifted from #aca593 after the phase 1 review: secondary text stays readable on cards. */
+  --text-muted: #bab3a1;
   --primary: #f3efe3;
   --primary-hover: #ffffff;
   --primary-soft: #2f2c24;
@@ -134,7 +135,7 @@
   --yellow-soft: #2e2a18;
   --ink: #0a0a08;
   --ink-foreground: #f3efe3;
-  --ink-muted: #aca593;
+  --ink-muted: #bab3a1;
   --ink-border: #34312a;
 
   --series-income: #4cc38a;
@@ -353,6 +354,24 @@
 @utility sk-lift-hover { @media (hover: hover) { &:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); } } }
 @utility sk-press { transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-hover) var(--ease-out), color var(--dur-hover) var(--ease-out), border-color var(--dur-hover) var(--ease-out); &:active { transform: scale(0.97); } }
 @utility sk-pulse { border-radius: 9999px; animation: sk-ping 2.2s ease-out infinite; }
+
+/*
+ * Printing (Invoice Detail's Print action): the financial document only, black on white in either
+ * theme. Values are the same ones on screen; only chrome and controls are removed.
+ */
+@media print {
+  @page { margin: 14mm; }
+  :root, .dark {
+    color-scheme: light;
+    --background: #ffffff; --surface: #ffffff; --surface-muted: #f3f1ec; --border: #d9d4c7; --border-strong: #8a8472;
+    --text: #000000; --text-muted: #4a4639; --primary: #000000; --primary-foreground: #ffffff; --primary-soft: #efece4;
+    --success: #1a6e3c; --success-soft: #ffffff; --warning: #8a3d04; --warning-soft: #ffffff; --danger: #b3261e; --danger-soft: #ffffff;
+    --yellow-soft: #ffffff; --ink: #ffffff; --ink-foreground: #000000; --ink-muted: #4a4639;
+  }
+  body { background: #fff; }
+  [data-print="hide"], [data-sonner-toaster] { display: none !important; }
+  [data-print="document"] { box-shadow: none; animation: none; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {

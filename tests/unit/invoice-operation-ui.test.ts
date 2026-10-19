@@ -17,14 +17,15 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); });
 const id = "a9000000-0000-4000-8000-000000000001";
 const shopId = "10000000-0000-4000-8000-000000000001";
 const invoice = { id, invoiceNumber: "OLD", effectiveTotal: 10000, effectivePaid: 2000, effectiveDue: 8000 };
-const detail: InvoiceDetail = { id, shopId, invoiceNumber: "OLD", originalInvoiceNumber: "OLD", originalCustomerId: null, originalDelivered: false, revision: 0, changes: [], originalTotalDirham: 10000, effectiveTotalDirham: 10000, effectivePaidDirham: 2000, effectiveCreditAppliedDirham: 0, effectiveDueDirham: 8000, businessDate: "2026-10-03", recordedAt: "2026-10-03T00:00:00Z", createdBy: null, creatorName: null, delivered: false, customer: null, payments: [], corrections: [] };
+const detail: InvoiceDetail = { id, shopId, invoiceNumber: "OLD", originalInvoiceNumber: "OLD", originalCustomerId: null, originalDelivered: false, revision: 0, changes: [], originalTotalDirham: 10000, effectiveTotalDirham: 10000, effectivePaidDirham: 2000, effectiveCreditAppliedDirham: 0, effectiveDueDirham: 8000, businessDate: "2026-10-03", recordedAt: "2026-10-03T00:00:00Z", createdBy: null, creatorName: null, delivered: false, customer: null, payments: [], corrections: [], people: {}, customerNames: {} };
 const permissions = { payment: true, requestCorrection: true, requestReplacement: true, approveCorrection: false, approveReplacement: false };
 describe("invoice operations UI retry and refresh", () => {
   it("refreshes authoritative number and balance when no attempt is pending", () => {
     const props = { shopId, disabled: false, onSaved: vi.fn(), onStateChange: vi.fn(), onActivityChange: vi.fn(), initialInvoice: invoice };
     const view = render(createElement(InvoicePayment, props));
     view.rerender(createElement(InvoicePayment, { ...props, initialInvoice: { ...invoice, invoiceNumber: "NEW", effectiveTotal: 9000, effectiveDue: 7000 } }));
-    expect(screen.getByText("Invoice NEW")).toBeTruthy();
+    expect(screen.getByText("NEW").closest("p")?.textContent).toBe("Invoice NEW");
+    expect(screen.getByText("70.00", { exact: false }).textContent).toContain("QAR 70.00");
     fireEvent.change(screen.getByLabelText("Cash amount (QAR)"), { target: { value: "75.00" } });
     fireEvent.click(screen.getByRole("button", { name: "Review payment" }));
     expect(screen.getByRole("alert").textContent).toContain("cannot exceed");
@@ -34,6 +35,7 @@ describe("invoice operations UI retry and refresh", () => {
   it("keeps uncertain payment retry enabled and preserves its payload after a denied retry", async () => {
     mocks.payment.mockResolvedValueOnce({ ok: false, uncertain: true, message: "Uncertain" }).mockResolvedValueOnce({ ok: false, uncertain: false, message: "Sign in again" }).mockResolvedValueOnce({ ok: true, receipt: { ok: true, invoice_id: id, payment_id: "a9000000-0000-4000-8000-000000000009", effective_paid: 4000, effective_due: 6000 } });
     render(createElement(InvoiceOperations, { detail, permissions }));
+    fireEvent.click(screen.getByRole("button", { name: "Record payment" }));
     fireEvent.change(screen.getByLabelText("Cash amount (QAR)"), { target: { value: "20.00" } });
     fireEvent.click(screen.getByRole("button", { name: "Review payment" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm payment" }));
@@ -41,7 +43,8 @@ describe("invoice operations UI retry and refresh", () => {
     await waitFor(() => expect((retry as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(retry);
     await screen.findByText("Sign in again");
-    expect((screen.getByRole("button", { name: "Request financial correction" }) as HTMLButtonElement).disabled).toBe(true);
+    // Behind the open payment drawer, so hidden from the accessibility tree, but still locked.
+    expect((screen.getByRole("button", { name: "Request correction", hidden: true }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Retry payment" }));
     await screen.findByText("Payment recorded.");
     expect(mocks.payment).toHaveBeenCalledTimes(3);
@@ -52,7 +55,7 @@ describe("invoice operations UI retry and refresh", () => {
   it("does not discard an uncertain correction request when a later retry is denied", async () => {
     mocks.operation.mockResolvedValueOnce({ ok: false, uncertain: true, message: "Uncertain request" }).mockResolvedValueOnce({ ok: false, uncertain: false, message: "No access" }).mockResolvedValueOnce({ ok: true });
     render(createElement(InvoiceOperations, { detail, permissions }));
-    fireEvent.click(screen.getByRole("button", { name: "Request financial correction" }));
+    fireEvent.click(screen.getByRole("button", { name: "Request correction" }));
     fireEvent.change(screen.getByLabelText("Corrected invoice total (QAR)"), { target: { value: "90.00" } });
     fireEvent.change(screen.getByLabelText("Request reason"), { target: { value: "Correct total" } });
     fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
@@ -68,7 +71,7 @@ describe("invoice operations UI retry and refresh", () => {
 
   const openCorrection = (value: string) => {
     render(createElement(InvoiceOperations, { detail: { ...detail, effectiveTotalDirham: 100000, effectivePaidDirham: 40000, effectiveDueDirham: 60000 }, permissions }));
-    fireEvent.click(screen.getByRole("button", { name: "Request financial correction" }));
+    fireEvent.click(screen.getByRole("button", { name: "Request correction" }));
     fireEvent.change(screen.getByLabelText("Corrected invoice total (QAR)"), { target: { value } });
     fireEvent.change(screen.getByLabelText("Request reason"), { target: { value: "Total was entered wrong" } });
   };
@@ -78,8 +81,8 @@ describe("invoice operations UI retry and refresh", () => {
     mocks.operation.mockResolvedValueOnce({ ok: true });
     openCorrection("1500.00");
     expect(summary()).toEqual({
-      "Current invoice total": "QAR 1000.00", "Corrected invoice total": "QAR 1500.00", "Calculated difference": "+QAR 500.00",
-      "Current payments": "QAR 400.00", "Resulting due after correction": "QAR 1100.00",
+      "Current invoice total": "QAR 1,000.00", "Corrected invoice total": "QAR 1,500.00", "Calculated difference": "+QAR 500.00",
+      "Current payments": "QAR 400.00", "Resulting due after correction": "QAR 1,100.00",
     });
     fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
     await waitFor(() => expect(mocks.operation).toHaveBeenCalledTimes(1));
