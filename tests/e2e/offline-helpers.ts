@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, type Download, type Page } from "@playwright/test";
+import { expect, type Download, type Locator, type Page } from "@playwright/test";
 import readXlsxFile from "read-excel-file/universal";
 import writeXlsxFile from "write-excel-file/universal";
 
@@ -109,6 +109,23 @@ export async function openSaleTools(page: Page) {
 export async function editRow(page: Page, index: number) {
   await page.getByRole("button", { name: `Edit invoice ${index + 1}` }).click();
 }
+/** Expenses: "Add expense" opens the entry drawer; retried because a click before hydration does nothing. */
+export async function openDrawer(page: Page, name: string) {
+  const drawer = page.getByRole("dialog", { name });
+  await expect(async () => {
+    if (!await drawer.isVisible()) await page.getByRole("button", { name }).click();
+    await expect(drawer).toBeVisible({ timeout: 1_000 });
+  }).toPass();
+  return drawer;
+}
+export const openAddExpense = (page: Page) => openDrawer(page, "Add expense");
+/** Review, then save: the drawer closes once ShopKhata confirms the expense. */
+export async function saveExpense(drawer: Locator) {
+  await drawer.getByRole("button", { name: "Review expense" }).click();
+  await drawer.getByRole("button", { name: "Save expense" }).click();
+}
+/** The list row (a card on phones) for an expense, found by its description. */
+export const expenseRow = (page: Page, description: string) => page.locator("[data-expense]").filter({ hasText: description }).first();
 export async function importFile(page: Page, buffer: Buffer, name = "batch.xlsx") {
   await openSaleTools(page);
   await page.getByLabel("Import Excel (.xlsx)").setInputFiles({ name, mimeType: XLSX, buffer });

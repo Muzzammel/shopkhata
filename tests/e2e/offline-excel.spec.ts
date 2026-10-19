@@ -6,7 +6,7 @@ import { qatarBusinessDate } from "@/lib/invoice-entry";
 
 import {
   MANAGER, MANAGER_ID, OWNER, OWNER_ID, SHOP_1, SHOP_2, STAFF, draftStatus, entryRows, expectStoredRows, fillRow, importFile, invoiceCount,
-  editRow, localDbQuery, login, openSaleTools, paymentCount, queueOffline, readDownload, savedNotice, scalar, signOut, storedDrafts, workbook,
+  editRow, expenseRow, localDbQuery, login, openAddExpense, saveExpense, openSaleTools, paymentCount, queueOffline, readDownload, savedNotice, scalar, signOut, storedDrafts, workbook,
 } from "./offline-helpers";
 
 // These tests change shared server state (closed dates, shop assignments) and
@@ -569,11 +569,11 @@ test.describe("Excel export", () => {
 
     // Expenses.
     await page.goto(`/expenses?shop=${SHOP_1}`);
-    const expenseForm = page.getByRole("heading", { name: "Record expense" }).locator("..");
+    const expenseForm = await openAddExpense(page);
     await expenseForm.getByLabel("Amount (QAR)", { exact: true }).fill("12.75");
     await expenseForm.getByLabel("Description", { exact: true }).fill(`Export expense ${suffix}`);
-    await expenseForm.getByRole("button", { name: "Save expense" }).click();
-    await expect(page.locator("article").filter({ hasText: `Export expense ${suffix}` }).first()).toContainText("QAR 12.75");
+    await saveExpense(expenseForm);
+    await expect(expenseRow(page, `Export expense ${suffix}`)).toContainText("QAR 12.75");
     const [expenseDownload] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export expenses (.xlsx)" }).click()]);
     const expenseSheet = (await readDownload(expenseDownload))[0];
     expect(expenseSheet.data[0]).toEqual(EXPENSE_EXPORT_HEADERS);

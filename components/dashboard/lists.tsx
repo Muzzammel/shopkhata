@@ -37,10 +37,10 @@ export function TopCustomers({ rows, shopId }: { rows: TopCustomer[]; shopId: st
   </ListCard>;
 }
 
-export function ExpenseCategories({ rows, totalDirham, className }: { rows: { category: string; amountDirham: number; count: number }[]; totalDirham: number; className?: string }) {
+export function ExpenseCategories({ rows, totalDirham, className, title = "Top Expense Categories" }: { rows: { category: string; amountDirham: number; count: number }[]; totalDirham: number; className?: string; title?: string }) {
   const sorted = [...rows].sort((a, b) => b.amountDirham - a.amountDirham);
   const total = Math.max(1, sorted.reduce((sum, row) => sum + row.amountDirham, 0));
-  return <ListCard title="Top Expense Categories" description={`${qar(totalDirham)} in the period`} className={cn("lg:col-span-6", className)}>
+  return <ListCard title={title} description={`${qar(totalDirham)} in the period`} className={cn("lg:col-span-6", className)}>
     {sorted.length === 0 ? <Empty>No expenses in this period.</Empty> : <>
       <div aria-hidden className="flex h-2.5 gap-0.5 overflow-hidden rounded-full">
         {sorted.map((row, index) => <span key={row.category} className="origin-left animate-[sk-grow-x_var(--dur-chart)_var(--ease-out)_both]" style={{ width: `${(row.amountDirham / total) * 100}%`, background: `var(--category-${categorySlot(row.category)})`, animationDelay: `${index * 50}ms` }} />)}

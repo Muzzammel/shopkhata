@@ -7,7 +7,7 @@ import { qatarBusinessDate } from "@/lib/invoice-entry";
 import { DAILY_SUMMARY_HEADERS, PAYMENT_REPORT_HEADERS } from "@/lib/reports";
 
 import {
-  MANAGER, OWNER, OWNER_ID, SHOP_1, SHOP_2, STAFF, draftStatus, entryRows, expectStoredRows, invoiceCount, localDbQuery, login, queueOffline,
+  MANAGER, OWNER, OWNER_ID, SHOP_1, SHOP_2, STAFF, draftStatus, entryRows, expectStoredRows, invoiceCount, localDbQuery, login, openAddExpense, queueOffline, saveExpense,
   readDownload, savedNotice, scalar,
 } from "./offline-helpers";
 
@@ -47,14 +47,11 @@ async function reopenDate(page: Page, reason: string) {
 }
 async function fillExpense(page: Page, shop: string, date: string, amount: string, description: string, reason: string) {
   await page.goto(`/expenses?shop=${shop}`);
-  const form = page.getByRole("heading", { name: "Record expense" }).locator("..");
+  // The drawer opens only once React has hydrated, so the controlled date input keeps what is typed.
+  const form = await openAddExpense(page);
   await form.getByLabel("Amount (QAR)", { exact: true }).fill(amount);
   await form.getByLabel("Description", { exact: true }).fill(description);
-  // The page can finish its load event before React hydrates the controlled
-  // form. Wait for a state-driven change before filling Date, or the browser
-  // may show the requested value while React still holds today's date.
-  await expect(form.getByRole("button", { name: "Save expense" })).toBeEnabled();
-  const dateInput = form.getByLabel("Date", { exact: true });
+  const dateInput = form.getByLabel("Business date", { exact: true });
   await dateInput.fill(date);
   await expect(dateInput).toHaveValue(date);
   await expect(form.getByLabel("Reason for backdating")).toBeVisible();
@@ -68,7 +65,8 @@ test("an owner reviews, closes and reopens a business date, and the close blocks
   await login(page, OWNER);
   // An entry on the open date, so the summary has something to review.
   const first = await fillExpense(page, SHOP_2, date, "12.50", `${description} first`, "entered late");
-  await Promise.all([page.waitForEvent("load"), first.getByRole("button", { name: "Save expense" }).click()]);
+  await saveExpense(first);
+  await expect(first).toHaveCount(0);
 
   await page.getByRole("link", { name: "Daily close" }).click();
   await expect(page.getByRole("heading", { name: "Daily close" })).toBeVisible();
@@ -93,7 +91,7 @@ test("an owner reviews, closes and reopens a business date, and the close blocks
   try {
     // A new entry for the closed date is refused by the server and nothing is written.
     const blocked = await fillExpense(page, SHOP_2, date, "3.00", `${description} blocked`, "entered late");
-    await blocked.getByRole("button", { name: "Save expense" }).click();
+    await saveExpense(blocked);
     await expect(page.getByRole("alert").filter({ hasText: "This business date is closed. Reopen it before recording a new expense." })).toBeVisible();
     expect(scalar(`select count(*) from public.expenses where description = '${description} blocked'`)).toBe("0");
 
@@ -122,7 +120,8 @@ test("an owner reviews, closes and reopens a business date, and the close blocks
   await expect(page.getByText(`Closed · Shop 2 · ${date}`)).toBeVisible();
 
   const allowed = await fillExpense(page, SHOP_2, date, "3.00", `${description} after reopen`, "entered late");
-  await Promise.all([page.waitForEvent("load"), allowed.getByRole("button", { name: "Save expense" }).click()]);
+  await saveExpense(allowed);
+  await expect(allowed).toHaveCount(0);
   expect(scalar(`select count(*) from public.expenses where description = '${description} after reopen' and business_date = '${date}'`)).toBe("1");
   await page.goto(`/closing?shop=${SHOP_2}&date=${date}`);
   await expect(metric(page, "expensesDirham")).toHaveText("QAR 15.50");
@@ -136,29 +135,28 @@ test("staff cannot backdate; an owner backdates with a reason and the entry is s
   await expect(page.getByLabel("Business date")).toBeDisabled();
   await expect(page.getByLabel("Business date")).toHaveValue(today());
   await page.goto(`/expenses?shop=${SHOP_1}`);
-  const staffForm = page.getByRole("heading", { name: "Record expense" }).locator("..");
-  await expect(staffForm.getByLabel("Date", { exact: true })).toHaveAttribute("readonly", "");
+  const staffForm = await openAddExpense(page);
+  await expect(staffForm.getByLabel("Business date", { exact: true })).toHaveAttribute("readonly", "");
   await expect(staffForm.getByLabel("Reason for backdating")).toHaveCount(0);
 
   const ownerContext = await browser.newContext();
   const owner = await ownerContext.newPage();
   await login(owner, OWNER);
   await owner.goto(`/expenses?shop=${SHOP_2}`);
-  const form = owner.getByRole("heading", { name: "Record expense" }).locator("..");
-  // Text typed before the page is interactive is not registered (a documented limitation), so
-  // fill again until the form has taken the earlier date: only then does it ask for a reason.
-  await expect(async () => {
-    await form.getByLabel("Date", { exact: true }).fill("");
-    await form.getByLabel("Date", { exact: true }).fill(date);
-    await expect(form.getByLabel("Reason for backdating")).toBeVisible({ timeout: 1_000 });
-  }).toPass();
+  // The drawer opens only once the page is interactive, so the earlier date is taken at once.
+  const form = await openAddExpense(owner);
+  await form.getByLabel("Business date", { exact: true }).fill(date);
+  await expect(form.getByLabel("Reason for backdating")).toBeVisible();
   await form.getByLabel("Amount (QAR)", { exact: true }).fill("45.00");
   await form.getByLabel("Description", { exact: true }).fill(description);
-  await expect(form.getByLabel("Date", { exact: true })).toHaveValue(date);
+  await expect(form.getByLabel("Business date", { exact: true })).toHaveValue(date);
   // No reason, no backdated entry.
-  await expect(form.getByRole("button", { name: "Save expense" })).toBeDisabled();
+  await form.getByRole("button", { name: "Review expense" }).click();
+  await expect(form.getByText("Enter the reason for backdating.")).toBeVisible();
+  await expect(form.getByRole("button", { name: "Save expense" })).toHaveCount(0);
   await form.getByLabel("Reason for backdating").fill("receipt found during stock count");
-  await Promise.all([owner.waitForEvent("load"), form.getByRole("button", { name: "Save expense" }).click()]);
+  await saveExpense(form);
+  await expect(form).toHaveCount(0);
 
   await owner.goto(`/closing?shop=${SHOP_2}&date=${date}`);
   const entry = owner.locator("article").filter({ hasText: description });

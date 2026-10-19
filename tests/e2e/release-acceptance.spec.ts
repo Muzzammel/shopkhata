@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { groupedQar } from "@/lib/dashboard-view";
 import { IMPORT_HEADERS, MAX_IMPORT_ROWS } from "@/lib/excel/invoice-import";
 
-import { MANAGER, OWNER, SHOP_1, SHOP_2, STAFF, entryRows, fillRow, importFile, localDbQuery, login, savedNotice, scalar, signOut, workbook } from "./offline-helpers";
+import { MANAGER, OWNER, SHOP_1, SHOP_2, STAFF, entryRows, expenseRow, fillRow, importFile, openAddExpense, saveExpense, localDbQuery, login, savedNotice, scalar, signOut, workbook } from "./offline-helpers";
 
 // BIG SLICE 5 release acceptance in a real browser: owner administration,
 // security headers and session handling, the largest allowed Excel batch, and
@@ -145,7 +145,7 @@ test.describe("security headers and sessions", () => {
     await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
     await expect(savedNotice(page)).toBeVisible();
     await page.goto("/expenses");
-    await expect(page.getByRole("heading", { name: "Record expense" })).toBeVisible();
+    await openAddExpense(page);
     expect(violations).toEqual([]);
   });
 
@@ -367,12 +367,16 @@ test.describe("responsive usability and accessibility", () => {
 
       // Expenses.
       await page.goto(`/expenses?shop=${SHOP_1}`);
-      const expense = page.getByRole("heading", { name: "Record expense" }).locator("..");
+      const expense = await openAddExpense(page);
       await expense.getByLabel("Amount (QAR)", { exact: true }).fill("2.50");
       await expense.getByLabel("Description", { exact: true }).fill(`RWD expense ${stamp}`);
       await check("expenses");
-      await Promise.all([page.waitForEvent("load"), expense.getByRole("button", { name: "Save expense" }).click()]);
-      await expect(page.locator("article").filter({ hasText: `RWD expense ${stamp}` }).first()).toBeVisible();
+      await saveExpense(expense);
+      await expect(expenseRow(page, `RWD expense ${stamp}`)).toBeVisible();
+      await check("expense list");
+      await expenseRow(page, `RWD expense ${stamp}`).getByRole("link").click();
+      await expect(page.getByRole("heading", { level: 1, name: `RWD expense ${stamp}` })).toBeVisible();
+      await check("expense detail");
 
       // Daily close: the state is words, not only a colour.
       await page.goto(`/closing?shop=${SHOP_2}&date=2020-01-0${SIZES.findIndex((size) => size[0] === name) + 1}`);

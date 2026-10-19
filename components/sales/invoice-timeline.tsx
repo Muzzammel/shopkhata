@@ -1,9 +1,9 @@
-import { CircleCheckIcon, CircleDotIcon, CircleXIcon, FilePlusIcon, HandCoinsIcon, HistoryIcon, PencilLineIcon, RepeatIcon, type LucideIcon } from "lucide-react";
+import { CircleCheckIcon, CircleDotIcon, CircleXIcon, FilePlusIcon, HandCoinsIcon, HistoryIcon, PaperclipIcon, PencilLineIcon, RepeatIcon, type LucideIcon } from "lucide-react";
 
 import { qatarDateTime, type TimelineEvent } from "@/lib/sales-view";
 import { cn } from "@/lib/utils";
 
-const ICON: Record<TimelineEvent["kind"], LucideIcon> = { created: FilePlusIcon, payment: HandCoinsIcon, correction: PencilLineIcon, replacement: RepeatIcon, applied: PencilLineIcon };
+const ICON: Record<TimelineEvent["kind"], LucideIcon> = { created: FilePlusIcon, payment: HandCoinsIcon, correction: PencilLineIcon, replacement: RepeatIcon, applied: PencilLineIcon, receipt: PaperclipIcon };
 const STATUS = {
   pending: { label: "Pending approval", icon: CircleDotIcon, className: "bg-warning-soft text-warning" },
   approved: { label: "Approved", icon: CircleCheckIcon, className: "bg-success-soft text-success" },
@@ -35,7 +35,7 @@ export function InvoiceTimeline({ events, open = false }: { events: TimelineEven
                 {status && <span className={cn("inline-flex h-5 items-center gap-1 rounded-full px-2 text-[11px] font-semibold", status.className)}><status.icon aria-hidden className="size-3" />{status.label}</span>}
                 {event.version !== undefined && <span className="text-[11px] font-medium text-muted-foreground">Version {event.version}</span>}
               </div>
-              <p className="text-xs text-muted-foreground">{event.kind === "applied" ? "Approved by" : event.kind === "created" || event.kind === "payment" ? "By" : "Requested by"} {event.actor} · <time dateTime={event.at}>{qatarDateTime(event.at)}</time></p>
+              <p className="text-xs text-muted-foreground">{event.kind === "applied" ? "Approved by" : event.kind === "created" || event.kind === "payment" || event.kind === "receipt" ? "By" : "Requested by"} {event.actor} · <time dateTime={event.at}>{qatarDateTime(event.at)}</time></p>
               {/* Labels share one column and values one right-aligned column, across every row. */}
               {event.changes.length > 0 && <dl className="grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-4 gap-y-1 rounded-xl bg-muted/60 px-3 py-2 text-[13px] tabular-nums">
                 {event.changes.map((change) => <div key={change.label} className="col-span-2 grid grid-cols-subgrid items-baseline">

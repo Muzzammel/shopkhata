@@ -36,7 +36,7 @@ export type TimelineChange = { label: string; from?: string; to: string };
 export type TimelineEvent = {
   id: string;
   at: string;
-  kind: "created" | "payment" | "correction" | "replacement" | "applied";
+  kind: "created" | "payment" | "correction" | "replacement" | "applied" | "receipt";
   title: string;
   actor: string;
   status?: "pending" | "approved" | "rejected";

@@ -9,6 +9,6 @@ export function quickActions(shopId: string | null, permissions: QuickPermission
   return [
     { key: "sale", label: "New sale", href: shopId ? `/?shop=${shopId}` : "/", icon: PlusIcon, primary: true },
     ...(allowed?.payment ? [{ key: "payment", label: "Record payment", href: `/payments?shop=${shopId}`, icon: HandCoinsIcon }] : []),
-    ...(allowed?.expense ? [{ key: "expense", label: "Add expense", href: `/expenses?shop=${shopId}`, icon: WalletIcon }] : []),
+    ...(allowed?.expense ? [{ key: "expense", label: "Add expense", href: `/expenses?shop=${shopId}#add-expense`, icon: WalletIcon }] : []),
   ];
 }

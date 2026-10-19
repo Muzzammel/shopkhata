@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { SHOP_1, createAccount, fillRow, login, openSaleTools, savedNotice, scalar, signOut } from "./offline-helpers";
+import { SHOP_1, createAccount, expenseRow, fillRow, login, openAddExpense, openSaleTools, saveExpense, savedNotice, scalar, signOut } from "./offline-helpers";
 
 // The critical workflow on every browser engine (Chromium, Firefox, WebKit):
 // sign in, save an invoice with a part payment, read it back, take a follow-up
@@ -48,18 +48,12 @@ test("the critical workflow works end to end", async ({ page, browserName }) => 
   expect(scalar(`select effective_due_dirham from public.effective_invoices where shop_id = '${SHOP_1}' and effective_invoice_number = '${invoice}'`)).toBe("3000");
 
   await page.goto(`/expenses?shop=${SHOP_1}`);
-  const expense = page.getByRole("heading", { name: "Record expense" }).locator("..");
-  // Text typed before the page is interactive is not registered (a documented limitation), so
-  // clear and type again, as a person would, until the form accepts it.
-  await expect(async () => {
-    for (const [label, value] of [["Amount (QAR)", "7.25"], ["Description", `Cross-browser ${stamp}`]]) {
-      await expense.getByLabel(label, { exact: true }).fill("");
-      await expense.getByLabel(label, { exact: true }).fill(value);
-    }
-    await expect(expense.getByRole("button", { name: "Save expense" })).toBeEnabled({ timeout: 1_000 });
-  }).toPass();
-  await Promise.all([page.waitForEvent("load"), expense.getByRole("button", { name: "Save expense" }).click()]);
-  await expect(page.locator("article").filter({ hasText: `Cross-browser ${stamp}` }).first()).toContainText("QAR 7.25");
+  // The drawer only opens once the page is interactive, so typing into it is never lost.
+  const expense = await openAddExpense(page);
+  await expense.getByLabel("Amount (QAR)", { exact: true }).fill("7.25");
+  await expense.getByLabel("Description", { exact: true }).fill(`Cross-browser ${stamp}`);
+  await saveExpense(expense);
+  await expect(expenseRow(page, `Cross-browser ${stamp}`)).toContainText("QAR 7.25");
 
   await page.goto(`/customers?shop=${SHOP_1}`);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

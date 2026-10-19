@@ -33,7 +33,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 }
 
 /** Current, requested and difference side by side, so a reviewer never has to work it out. */
-function Comparison({ rows, label }: { rows: { label: string; current: string; requested: string }[]; label: string }) {
+export function Comparison({ rows, label }: { rows: { label: string; current: string; requested: string }[]; label: string }) {
   return <table data-slot="comparison" aria-label={label} className="w-full border-separate border-spacing-0 overflow-hidden rounded-2xl border border-border text-sm tabular-nums">
     <thead><tr className="bg-muted text-xs text-muted-foreground"><th data-slot="cell" scope="col" className="px-3 py-2 text-left font-medium"><span className="sr-only">Field</span></th><th data-slot="cell" scope="col" className="px-3 py-2 text-left font-medium">Current</th><th data-slot="cell" scope="col" className="px-3 py-2 text-left font-medium">Requested</th></tr></thead>
     <tbody>{rows.map((row) => <tr key={row.label}><th data-slot="cell" scope="row" className="border-t border-border px-3 py-2 text-left text-xs font-medium text-muted-foreground">{row.label}</th><td data-slot="cell" className="border-t border-border px-3 py-2">{row.current}</td><td data-slot="cell" className={cn("border-t border-border px-3 py-2 font-semibold", row.current !== row.requested && "bg-yellow-soft/60")}>{row.requested}</td></tr>)}</tbody>
