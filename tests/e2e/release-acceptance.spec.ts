@@ -357,6 +357,7 @@ test.describe("responsive usability and accessibility", () => {
 
       // Customers, a customer ledger and the payment panel.
       await page.goto(`/customers?shop=${SHOP_1}`);
+      await page.getByRole("button", { name: "Add customer" }).first().click();
       await page.getByLabel("Name", { exact: true }).fill(`RWD Customer ${stamp}`);
       await page.getByLabel("Mobile", { exact: true }).fill(`6${String(Date.now()).slice(-8)}`);
       await check("customers");
