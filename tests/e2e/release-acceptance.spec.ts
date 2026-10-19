@@ -102,7 +102,7 @@ test.describe("owner administration", () => {
     await expect(row).toContainText("Shop 1");
     await expect(row).not.toContainText("Shop 2");
     await hirePage.goto("/closing");
-    await expect(hirePage.getByRole("button", { name: "Close business date" })).toBeVisible();
+    await expect(hirePage.getByRole("button", { name: "Review close" })).toBeVisible();
     await expect(hirePage.getByRole("link", { name: "Shop 2" })).toHaveCount(0);
     await expect(hirePage.getByRole("link", { name: "Accounts" })).toHaveCount(0);
     await hireContext.close();
@@ -381,7 +381,7 @@ test.describe("responsive usability and accessibility", () => {
       // Daily close: the state is words, not only a colour.
       await page.goto(`/closing?shop=${SHOP_2}&date=2020-01-0${SIZES.findIndex((size) => size[0] === name) + 1}`);
       await expect(page.locator("[data-day-state]")).toHaveText(/^(Open|Closed)$/);
-      await expect(page.getByRole("button", { name: /business date$/ })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Review (close|reopen)$/ })).toBeVisible();
       await check("daily close");
 
       // Reports, all five.

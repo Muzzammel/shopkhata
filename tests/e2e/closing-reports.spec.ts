@@ -24,6 +24,8 @@ const closeState = (shop: string, date: string) => scalar(`coalesce((select even
 
 const invalid = (page: Page, label: string | RegExp) => page.getByLabel(label).evaluate((field: HTMLInputElement) => !field.validity.valid);
 async function closeDate(page: Page, note = "") {
+  // The close is reviewed in a drawer first; the drawer's own button submits it.
+  await page.getByRole("button", { name: "Review close" }).click();
   const button = page.getByRole("button", { name: "Close business date" });
   // Without the explicit confirmation the browser refuses to submit.
   await button.click();
@@ -35,6 +37,7 @@ async function closeDate(page: Page, note = "") {
   await expect(dayState(page)).toHaveText("Closed");
 }
 async function reopenDate(page: Page, reason: string) {
+  await page.getByRole("button", { name: "Review reopen" }).click();
   const button = page.getByRole("button", { name: "Reopen business date" });
   await page.getByRole("checkbox").check();
   // The reason is mandatory: the confirmation alone does not reopen the date.
