@@ -1,5 +1,6 @@
 import { initials } from "@/lib/dashboard-view";
 import { BALANCE_LABEL, type BalanceStatus } from "@/lib/customer-view";
+import { ui } from "@/components/sales/ui";
 import { cn } from "@/lib/utils";
 
 // The word carries the meaning; colour only repeats it. Credit is held back: it is not cash received.
@@ -11,7 +12,7 @@ const TONE: Record<BalanceStatus, string> = {
 
 export function BalanceBadges({ states, className }: { states: readonly BalanceStatus[]; className?: string }) {
   return <span className={cn("inline-flex flex-wrap gap-1", className)}>
-    {states.map((state) => <span key={state} data-balance={state} className={cn("inline-flex h-5 items-center rounded-full px-2 text-[11px] font-semibold tracking-wide whitespace-nowrap uppercase", TONE[state])}>{BALANCE_LABEL[state]}</span>)}
+    {states.map((state) => <span key={state} data-balance={state} className={cn(ui.badge, TONE[state])}>{BALANCE_LABEL[state]}</span>)}
   </span>;
 }
 

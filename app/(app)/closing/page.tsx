@@ -9,13 +9,14 @@ import { closeAttention, dailyGroups, hasActivity, metricTone } from "@/lib/clos
 import { qar } from "@/lib/dashboard-view";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
 import { emptyDailySummary, fetchDailySummary, type DailySummary } from "@/lib/reports";
+import { qatarDateTime } from "@/lib/sales-view";
 import { getVisibleShops } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
 import { DayCloseControl } from "./close-forms";
 
-const qatarTime = (iso: string) => new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Qatar" });
+const qatarTime = qatarDateTime;
 const money = qar;
 const card = cn(ui.card, "grid content-start gap-4 p-5 sm:p-6");
 
@@ -29,7 +30,7 @@ function CloseReview({ summary, attention }: { summary: DailySummary; attention:
       <div className="grid gap-0.5 rounded-2xl bg-muted p-3"><dt className="text-muted-foreground">Expenses</dt><dd className="text-lg font-semibold tabular-nums">{money(summary.expensesDirham)}</dd></div>
       <div className="grid gap-0.5 rounded-2xl bg-muted p-3"><dt className="text-muted-foreground">Net due movement</dt><dd className="text-lg font-semibold tabular-nums">{money(summary.netDueMovementDirham)}</dd></div>
     </dl>
-    {attention.length > 0 && <ul className="grid gap-2 text-sm text-foreground">{attention.map((note) => <li key={note} className="flex gap-2"><CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />{note}</li>)}</ul>}
+    {attention.length > 0 && <ul className="grid list-none gap-2 pl-0 text-sm text-foreground">{attention.map((note) => <li key={note} className="flex gap-2"><CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />{note}</li>)}</ul>}
   </div>;
 }
 
@@ -80,15 +81,12 @@ export default async function ClosingPage({ searchParams }: PageProps<"/closing"
   const closed = state === "closed";
 
   return <main className="mx-auto grid w-full max-w-[1280px] grid-cols-1 content-start gap-4 px-4 pt-5 pb-10 sm:gap-5 sm:px-6">
-    <header className="flex flex-wrap items-start justify-between gap-4">
-      <div className="grid min-w-0 gap-1.5">
-        <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">{shop.name}</p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Daily close</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">Closing a business date blocks every new entry for that shop and date until it is reopened with a reason.</p>
-      </div>
-      <Link href="/" className={ui.quiet}>Back to overview</Link>
+    <header className="grid min-w-0 gap-1.5 px-1">
+      <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">{shop.name}</p>
+      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Daily close</h1>
+      <p className="max-w-2xl text-sm text-muted-foreground">Closing a business date blocks every new entry for that shop and date until it is reopened with a reason.</p>
     </header>
-    {shops.length > 1 && <nav className="flex flex-wrap gap-2" aria-label="Choose shop">{shops.map((item) => <Link key={item.id} aria-current={item.id === shop.id ? "page" : undefined} href={`/closing?shop=${item.id}&date=${date}`} className={item.id === shop.id ? ui.primary : ui.secondary}>{item.name}</Link>)}</nav>}
+    {shops.length > 1 && <nav className="flex flex-wrap gap-2" aria-label="Choose shop">{shops.map((item) => <Link key={item.id} aria-current={item.id === shop.id ? "page" : undefined} href={`/closing?shop=${item.id}&date=${date}`} className={cn(ui.chip, item.id === shop.id ? "bg-primary text-primary-foreground" : "border border-input bg-card text-foreground hover:bg-muted")}>{item.name}</Link>)}</nav>}
 
     <section aria-labelledby="closing-status-heading" className={card}>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -110,7 +108,7 @@ export default async function ClosingPage({ searchParams }: PageProps<"/closing"
         <div className="grid gap-1 rounded-2xl bg-muted p-3"><span className="text-xs text-muted-foreground">Activity</span><strong className="text-sm font-semibold">{hasActivity(summary) ? `${summary.invoiceCount} invoices · ${summary.expenseCount} expenses` : "Nothing recorded yet"}</strong></div>
       </div>
       {closed && lastClose?.note && <p className="text-sm text-muted-foreground">Close note: {lastClose.note}</p>}
-      {attention.length > 0 && <ul className="grid gap-2">{attention.map((note) => <li key={note} className={ui.warn}>{note}</li>)}</ul>}
+      {attention.length > 0 && <ul className="grid list-none gap-2 pl-0">{attention.map((note) => <li key={note} className={ui.warn}>{note}</li>)}</ul>}
     </section>
 
     <section aria-labelledby="closing-summary-heading" className={card}>
@@ -150,7 +148,7 @@ export default async function ClosingPage({ searchParams }: PageProps<"/closing"
 
     <section aria-labelledby="history-heading" className={card}>
       <h2 id="history-heading" className="text-lg font-semibold tracking-tight">Close and reopen history</h2>
-      {events.length === 0 ? <p className="text-sm text-muted-foreground">This date has never been closed.</p> : <ol className="grid gap-3">{events.map((event) => <li key={event.sequence} className="grid gap-1 border-l-2 border-border pl-4 text-sm">
+      {events.length === 0 ? <p className="text-sm text-muted-foreground">This date has never been closed.</p> : <ol className="grid list-none gap-3 pl-0">{events.map((event) => <li key={event.sequence} className="grid gap-1 border-l-2 border-border pl-4 text-sm">
         <strong>{event.type === "closed" ? "Closed" : "Reopened"} · {shop.name} · {date}</strong>
         <span className="text-muted-foreground">{qatarTime(event.recordedAt)} (Qatar time) by {who(event.actorId)}</span>
         {(event.reason || event.note) && <span>{event.type === "closed" ? "Note" : "Reason"}: {event.reason ?? event.note}</span>}

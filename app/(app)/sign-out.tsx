@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { clearSessionMarker, deleteUserDrafts, listDraftShopIds } from "@/lib/offline/draft-store";
 import { createBrowserClient } from "@/lib/supabase/browser";
 
-import styles from "@/app/ui.module.css";
+import { ui } from "@/components/sales/ui";
 
 /** Signs the user out. Shared by the profile menu and the "account deactivated" screen. */
 export function useSignOut(userId: string) {
@@ -25,5 +25,5 @@ export function useSignOut(userId: string) {
 
 export function SignOut({ userId }: { userId: string }) {
   const signOut = useSignOut(userId);
-  return <button type="button" onClick={() => void signOut()} className={styles.ghost}>Sign out</button>;
+  return <button type="button" onClick={() => void signOut()} data-slot="button" className={ui.secondary}>Sign out</button>;
 }

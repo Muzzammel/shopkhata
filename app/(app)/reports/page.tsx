@@ -12,13 +12,14 @@ import {
   fetchDailySummary, fetchExpenseReport, fetchPaymentReport, fetchSalesReport, parseReportFilter, type ReportKind,
 } from "@/lib/reports";
 import { REPORT_PERIODS, activePeriod, periodRange } from "@/lib/report-view";
+import { qatarDateTime } from "@/lib/sales-view";
 import { getVisibleShops } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
-const qatarTime = (iso: string | null) => iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Qatar" }) : "—";
+const qatarTime = (iso: string | null) => iso ? qatarDateTime(iso) : "—";
 const card = cn(ui.card, "grid content-start gap-5 p-5 sm:p-6");
-const pillLink = "inline-flex min-h-10 items-center rounded-full px-4 text-sm font-semibold no-underline sk-press";
+const pillLink = ui.chip;
 
 /** One figure. `total` is the data-total hook the tests and the shared figures use. */
 function Stat({ label, value, total, note }: { label: string; value: string | number; total?: string; note?: string }) {
@@ -104,7 +105,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
         <Stat label="Outstanding due now" value={qar(totals.dueDirham)} total="due" note="Current position" />
       </Group>
       <Table num={[4, 5, 6, 7]} head={["Invoice", "Business date", "Recorded (Qatar)", "Customer", "Total", "Paid", "Credit applied", "Due", "Status"]} empty="No invoices in this range.">
-        {rows.map((row) => <tr key={row.invoiceId}><td><Link href={`/shops/${shop.id}/invoices/${row.invoiceId}`} className="font-semibold underline underline-offset-4">{row.invoiceNumber}</Link></td><td>{row.businessDate}</td><td>{qatarTime(row.recordedAt)}</td><td>{row.customerName || "—"}</td><td className={num}>{qar(row.totalDirham)}</td><td className={num}>{qar(row.paidDirham)}</td><td className={num}>{qar(row.creditAppliedDirham)}</td><td className={num}>{qar(row.dueDirham)}</td><td><span className={cn("inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold", row.delivered ? "bg-card text-foreground ring-1 ring-border ring-inset" : "bg-warning-soft text-warning")}>{row.delivered ? "Delivered" : "Advance"}</span></td></tr>)}
+        {rows.map((row) => <tr key={row.invoiceId}><td><Link href={`/shops/${shop.id}/invoices/${row.invoiceId}`} className="font-semibold underline underline-offset-4">{row.invoiceNumber}</Link></td><td>{row.businessDate}</td><td>{qatarTime(row.recordedAt)}</td><td>{row.customerName || "—"}</td><td className={num}>{qar(row.totalDirham)}</td><td className={num}>{qar(row.paidDirham)}</td><td className={num}>{qar(row.creditAppliedDirham)}</td><td className={num}>{qar(row.dueDirham)}</td><td><span className={cn(ui.badge, row.delivered ? "bg-muted text-foreground" : "bg-warning-soft text-warning")}>{row.delivered ? "Delivered" : "Advance"}</span></td></tr>)}
       </Table>
     </>;
   } else if (kind === "dues") {
@@ -152,13 +153,10 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
   const kindLinks = (item: ReportKind) => `/reports?shop=${shop.id}&report=${item}`;
 
   return <main className="mx-auto grid w-full max-w-[1280px] grid-cols-1 content-start gap-4 px-4 pt-5 pb-10 sm:gap-5 sm:px-6">
-    <header className="flex flex-wrap items-start justify-between gap-4">
-      <div className="grid min-w-0 gap-1.5">
-        <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">{shop.name}</p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Reports</h1>
-        <p className="text-sm text-muted-foreground">Dates are Qatar business dates. Showing {kind === "daily" ? from : kind === "dues" ? "the current position" : `${from} to ${to}`}.</p>
-      </div>
-      <Link href="/" className={ui.quiet}>Back to overview</Link>
+    <header className="grid min-w-0 gap-1.5 px-1">
+      <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">{shop.name}</p>
+      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Reports</h1>
+      <p className="text-sm text-muted-foreground">Dates are Qatar business dates. Showing {kind === "daily" ? from : kind === "dues" ? "the current position" : `${from} to ${to}`}.</p>
     </header>
     {shops.length > 1 && <nav className="flex flex-wrap gap-2" aria-label="Choose shop">{shops.map((item) => <Link key={item.id} aria-current={item.id === shop.id ? "page" : undefined} href={`/reports?shop=${item.id}&report=${kind}&${range}`} className={cn(pillLink, item.id === shop.id ? "bg-primary text-primary-foreground" : "border border-input bg-card text-foreground hover:bg-muted")}>{item.name}</Link>)}</nav>}
     <nav className="flex flex-wrap gap-2" aria-label="Choose report">{REPORT_KINDS.map((item) => <Link key={item} aria-current={item === kind ? "page" : undefined} href={kindLinks(item)} className={cn(pillLink, item === kind ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>{REPORT_TITLES[item]}</Link>)}</nav>

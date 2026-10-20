@@ -3,6 +3,7 @@ import { PlusIcon, ReceiptTextIcon, SearchIcon } from "lucide-react";
 
 import { FilterPills } from "@/components/dashboard/filter-pills";
 import { SalesTable } from "@/components/sales/sales-table";
+import { ui } from "@/components/sales/ui";
 import { can, getCurrentActor } from "@/lib/auth/permissions";
 import { qar } from "@/lib/dashboard-view";
 import { addDays } from "@/lib/date-range";
@@ -17,8 +18,7 @@ function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-const field = "h-10 w-full rounded-full border border-input bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground";
-const pillButton = "inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold no-underline sk-press";
+const { toolbarField: field, toolbarButton: pillButton } = ui;
 
 export default async function InvoicesPage({ searchParams }: PageProps<"/invoices">) {
   const actor = await getCurrentActor();

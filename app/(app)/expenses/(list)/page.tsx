@@ -20,8 +20,7 @@ import { cn } from "@/lib/utils";
 import { AddExpenseDrawer } from "../expense-forms";
 
 const PAGE_SIZE = 30;
-const field = "h-10 w-full rounded-full border border-input bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground";
-const pillButton = "inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold no-underline sk-press";
+const { toolbarField: field, toolbarButton: pillButton } = ui;
 
 export default async function ExpensesPage({ searchParams }: PageProps<"/expenses">) {
   const actor = await getCurrentActor();

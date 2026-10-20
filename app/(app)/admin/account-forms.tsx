@@ -21,8 +21,7 @@ export type AccountRow = { id: string; email: string; displayName: string; role:
 const ROLES: AccountRole[] = ["staff", "manager", "owner"];
 const UNCONFIRMED = "The change was not saved. Refresh to see the current accounts.";
 
-// The word carries the meaning; colour only repeats it.
-const badge = "inline-flex h-5 items-center rounded-full px-2 text-[11px] font-semibold tracking-wide whitespace-nowrap uppercase";
+const { badge } = ui;
 const ROLE_TONE: Record<string, string> = { owner: "bg-primary text-primary-foreground", manager: "bg-yellow-soft text-foreground ring-1 ring-yellow/60 ring-inset", staff: "bg-muted text-muted-foreground" };
 
 export function RoleBadge({ role }: { role: string }) {
@@ -103,7 +102,7 @@ export function AccountDirectory({ accounts, shops, actorId }: { accounts: Accou
         </tbody>
       </table>
     </section>
-    {editing && managed && <ManageAccountDrawer key={editing.session} account={managed}shops={shops} open={open} onOpenChange={setOpen} />}
+    {editing && managed && <ManageAccountDrawer key={editing.session} account={managed} shops={shops} open={open} onOpenChange={setOpen} />}
   </>;
 }
 

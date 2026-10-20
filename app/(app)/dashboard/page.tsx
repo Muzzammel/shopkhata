@@ -2,26 +2,27 @@ import Link from "next/link";
 
 import { ActivityTimeline, AttentionCard, ExpenseCategories, ListCard, TopCustomers } from "@/components/dashboard/lists";
 import { DashboardOverview } from "@/components/dashboard/dashboard-overview";
-import { Badge } from "@/components/ui/badge";
+import { ui } from "@/components/sales/ui";
 import { can, getCurrentActor } from "@/lib/auth/permissions";
 import { summarizeBackups } from "@/lib/backup-status";
 import { loadDashboard, parseDashboardPeriod } from "@/lib/dashboard";
 import { deriveAttention, qar } from "@/lib/dashboard-view";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
+import { longDate, qatarDateTime } from "@/lib/sales-view";
 import { getVisibleShops } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
 import styles from "@/app/ui.module.css";
 
-const qatarTime = (iso: string) => new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Qatar" });
+const qatarTime = qatarDateTime;
 
 /** Label/value rows for the collapsed "More detail" section. */
 function Rows({ rows, empty }: { rows: { key: string; label: string; value: string; href?: string; tone?: "due" }[]; empty: string }) {
   if (rows.length === 0) return <p className="text-sm text-muted-foreground">{empty}</p>;
   return <ul className="grid grid-cols-1 list-none divide-y divide-border pl-0">{rows.map((row) => <li key={row.key} className="flex items-baseline justify-between gap-4 py-2 text-sm first:pt-0 last:pb-0">
     {row.href ? <Link href={row.href} className="min-w-0 truncate font-medium text-foreground no-underline hover:underline">{row.label}</Link> : <span className="min-w-0 truncate text-muted-foreground">{row.label}</span>}
-    <strong className={cn("font-semibold tabular-nums", row.tone === "due" && "text-warning")}>{row.value}</strong>
+    <strong className={cn("font-semibold whitespace-nowrap tabular-nums", row.tone === "due" && "text-warning")}>{row.value}</strong>
   </li>)}</ul>;
 }
 
@@ -34,7 +35,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const shops = getVisibleShops(actor, allShops);
   const requestedShop = Array.isArray(query.shop) ? query.shop[0] : query.shop;
   const shop = shops.find((item) => item.id === requestedShop) ?? shops[0];
-  if (!shop || !can(actor, "records.view_assigned", shop.id)) return <main className={styles.workspace}><h1>Dashboard unavailable</h1></main>;
+  if (!shop || !can(actor, "records.view_assigned", shop.id)) return <main className="mx-auto max-w-[1280px] px-4 pt-5 sm:px-6"><h1 className="text-3xl font-semibold tracking-tight">Dashboard unavailable</h1></main>;
 
   const today = qatarBusinessDate(new Date());
   const range = parseDashboardPeriod(query, today);
@@ -88,7 +89,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         <ExpenseCategories rows={data.expenses.byCategory} totalDirham={data.expenses.totalDirham} className="border-0 p-0 sm:p-0 md:hidden" />
         <ListCard title="Daily closing health" action={<Link href={`/closing?shop=${shop.id}`} className="text-[13px] font-semibold text-foreground">Open daily close</Link>} className="border-0 p-0 sm:p-0">
           <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-            <div className="grid gap-1"><span className="text-xs text-muted-foreground">Today&apos;s state</span><Badge data-day-state={data.closing.state} className={data.closing.state === "closed" ? "bg-foreground text-background" : "bg-success-soft text-success"}>{data.closing.state === "closed" ? "Closed" : "Open"}</Badge></div>
+            <div className="grid gap-1"><span className="text-xs text-muted-foreground">Today&apos;s state</span><span data-day-state={data.closing.state} className={cn(ui.badge, data.closing.state === "closed" ? "bg-foreground text-background" : "bg-success-soft text-success")}>{data.closing.state === "closed" ? "Closed" : "Open"}</span></div>
             <div className="grid gap-1"><span className="text-xs text-muted-foreground">Last close</span><strong className="text-sm font-semibold tabular-nums">{data.closing.lastClose ? qatarTime(data.closing.lastClose.recordedAt) : "Never closed"}</strong></div>
           </div>
           {data.closing.recentlyReopened.length > 0 && <p className="rounded-2xl bg-warning-soft px-4 py-3 text-sm font-medium text-warning">Recently reopened dates: {data.closing.recentlyReopened.join(", ")}.</p>}
@@ -124,7 +125,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <Rows empty="No customer holds available credit." rows={data.customers.creditCustomers.map((row) => ({ key: row.customerId, label: row.name || "Unnamed customer", value: qar(row.availableCreditDirham), href: customerLink(row) }))} />
         </ListCard>
         <ListCard title="Recently active customers" className="border-0 p-0 sm:p-0">
-          <Rows empty="No recent customer activity." rows={data.customers.recentlyActive.map((row) => ({ key: row.customerId, label: row.name || "Unnamed customer", value: row.lastActivity, href: customerLink(row) }))} />
+          <Rows empty="No recent customer activity." rows={data.customers.recentlyActive.map((row) => ({ key: row.customerId, label: row.name || "Unnamed customer", value: longDate(row.lastActivity), href: customerLink(row) }))} />
         </ListCard>
         <ListCard title="Largest expenses (period)" className="border-0 p-0 sm:p-0">
           <Rows empty="No expenses in this period." rows={data.expenses.largest.map((row) => ({ key: row.id, label: `${row.category} · ${row.description}`, value: qar(row.amountDirham) }))} />

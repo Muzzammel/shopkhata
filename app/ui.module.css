@@ -1,29 +1,22 @@
-/* Shared UI primitives for every screen. Tokens and base element styles are in globals.css. */
+/* Shared UI primitives for the screens not yet on the V2 recipes (components/sales/ui.ts). Tokens and base element styles are in globals.css. */
 
 /* ---- Buttons (a bare <button> is primary) ---- */
-.secondary, .ghost, .danger, .textButton, .pager a, .header > a { display: inline-flex; align-items: center; justify-content: center; min-height: var(--control-h); padding: var(--s-2) var(--s-4); border: 1px solid transparent; border-radius: var(--radius-sm); font: inherit; font-weight: 600; line-height: 1.2; text-decoration: none; cursor: pointer; }
+.secondary, .ghost, .textButton, .pager a, .header > a { display: inline-flex; align-items: center; justify-content: center; min-height: var(--control-h); padding: var(--s-2) var(--s-4); border: 1px solid transparent; border-radius: var(--radius-sm); font: inherit; font-weight: 600; line-height: 1.2; text-decoration: none; cursor: pointer; }
 .secondary, .pager a { background: var(--surface); border-color: var(--border-strong); color: var(--text); }
 .secondary:hover:not(:disabled), .pager a:hover { background: var(--surface-muted); border-color: var(--text-muted); color: var(--text); }
 .ghost, .header > a { background: transparent; color: var(--text-muted); }
 .ghost:hover:not(:disabled), .header > a:hover { background: var(--surface-muted); border-color: transparent; color: var(--text); }
 .header > a:hover { background: var(--border); }
-.danger { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
-.danger:hover:not(:disabled) { background: var(--danger-hover); border-color: var(--danger-hover); }
 .textButton { min-height: calc(var(--control-h) - 8px); padding: 0 var(--s-2); background: transparent; color: var(--danger); font-size: 13px; }
 .textButton:hover:not(:disabled) { background: var(--danger-soft); border-color: transparent; }
 
 /* ---- Page shell ---- */
 .workspace { display: grid; align-content: start; gap: var(--s-5); max-width: 1280px; margin: 0 auto; padding: var(--s-6) var(--s-7) var(--s-8); }
-.workspace > *, .panel > *, .split > * { min-width: 0; }
+.workspace > *, .panel > * { min-width: 0; }
 .workspace button:not([data-slot]), .workspace .secondary { justify-self: start; }
 .header { display: flex; justify-content: space-between; align-items: end; gap: var(--s-5); padding-bottom: var(--s-4); border-bottom: 1px solid var(--border); }
 .header p:not(.eyebrow) { margin-top: 2px; color: var(--text-muted); font-size: 13px; }
 .eyebrow { color: var(--primary); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-.identity { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--s-2) var(--s-4); }
-.identity span { color: var(--text-muted); font-size: 13px; }
-.identity label { display: flex; align-items: center; gap: var(--s-3); }
-.identity select { width: auto; }
-.split { display: grid; align-items: start; gap: var(--s-5); }
 .toolbar > form { flex: 1 1 auto; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--s-3) var(--s-5); }
 .notice { display: grid; gap: var(--s-4); max-width: 560px; margin: 64px auto; padding: 0 var(--s-5); }
@@ -35,16 +28,12 @@
 
 /* ---- Section / card ---- */
 .panel { display: grid; align-content: start; gap: var(--s-4); padding: var(--s-5) var(--s-6); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
-.governance { border-left: 3px solid var(--warning); }
 .sectionHeading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--s-1) var(--s-5); }
 .sectionHeading > p { color: var(--text-muted); font-size: 13px; }
-.title { font-size: 20px; letter-spacing: -0.01em; }
 
 /* ---- Text, badges, notices ---- */
 .muted { color: var(--text-muted); font-size: 13px; }
 .empty { padding: var(--s-3) 0; color: var(--text-muted); }
-.mono { color: var(--text-muted); font: 400 12px ui-monospace, SFMono-Regular, Consolas, monospace; }
-.due { color: var(--warning); }
 .badge { display: inline-block; padding: 0 var(--s-3); border: 1px solid var(--border); border-radius: 999px; background: var(--surface-muted); color: var(--text-muted); font-size: 12px; font-weight: 600; line-height: 20px; white-space: nowrap; }
 .badge::first-letter { text-transform: uppercase; }
 .badge[data-tone="success"] { background: var(--success-soft); border-color: transparent; color: var(--success); }
@@ -52,10 +41,9 @@
 .badge[data-tone="danger"] { background: var(--danger-soft); border-color: transparent; color: var(--danger); }
 .badge[data-tone="info"] { background: var(--primary-soft); border-color: transparent; color: var(--primary); }
 .badge[data-tone="solid"] { background: var(--text); border-color: var(--text); color: var(--surface); }
-.workspace [role="alert"]:not([data-slot]), .authCard [role="alert"]:not([data-slot]), .errors { color: var(--danger); font-size: 13px; font-weight: 550; }
-.workspace [role="status"]:not([data-slot]), .success { color: var(--success); font-size: 13px; font-weight: 550; }
+.workspace [role="alert"]:not([data-slot]), .authCard [role="alert"]:not([data-slot]) { color: var(--danger); font-size: 13px; font-weight: 550; }
+.workspace [role="status"]:not([data-slot]) { color: var(--success); font-size: 13px; font-weight: 550; }
 .workspace .callout { padding: var(--s-3) var(--s-4); border-left: 3px solid var(--warning); border-radius: var(--radius-sm); background: var(--warning-soft); color: var(--warning); font-size: 13px; font-weight: 550; }
-.stale { color: var(--warning); font-size: 13px; }
 
 /* ---- Tabs ---- */
 .shops { display: flex; flex-wrap: wrap; gap: var(--s-1); }
@@ -64,53 +52,22 @@
 .shops a[aria-current="page"] { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); font-weight: 650; }
 
 /* ---- Forms ---- */
-.search, .lookup, .exportForm { display: flex; flex-wrap: wrap; align-items: end; gap: var(--s-3); }
-.search label, .lookup label, .exportForm label { flex: 1 1 150px; max-width: 340px; }
-.exportForm label, .search label:has(input[type="date"]) { max-width: 180px; }
-.exportForm { padding-top: var(--s-4); border-top: 1px solid var(--border); }
-.formGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; gap: var(--s-4); }
-.formGrid > button { align-self: end; }
-.formGrid > p { grid-column: 1 / -1; }
-.formGrid > label:has(> input[type="checkbox"]), .checks { align-self: end; min-height: var(--control-h); }
-.wide { grid-column: span 2; }
-.checks { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-5); }
+.search { display: flex; flex-wrap: wrap; align-items: end; gap: var(--s-3); }
+.search label { flex: 1 1 150px; max-width: 340px; }
+.search label:has(input[type="date"]) { max-width: 180px; }
 .formStack { display: grid; gap: var(--s-4); max-width: 560px; }
 .formStack > div { display: grid; gap: var(--s-1); }
 .actions { display: flex; flex-wrap: wrap; gap: var(--s-3); }
-.operationFields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); align-items: end; gap: var(--s-4); margin-top: var(--s-3); padding: var(--s-4); border: 1px solid var(--border); border-radius: var(--radius-sm); }
-.operationFields > p { grid-column: 1 / -1; }
-.operationFields legend { padding: 0 var(--s-2); }
-.correction { margin-top: var(--s-1); }
-.correction form { margin-top: var(--s-3); }
 
 /* ---- Tables ---- */
 .tableWrap, .importTable { width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .tableWrap table, .importTable table { min-width: 640px; }
-.tableWrap table.metricTable { min-width: 0; }
 .tableWrap > p { padding: var(--s-3) var(--s-4); }
 .tableWrap td[colspan] { padding: var(--s-5); color: var(--text-muted); text-align: center; }
 .tableWrap td a { font-weight: 600; text-decoration: none; }
 .tableWrap td a:hover { text-decoration: underline; }
 .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .pager { display: flex; justify-content: space-between; gap: var(--s-3); }
-
-/* ---- Metrics and financial values ---- */
-.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--s-4) var(--s-5); }
-.totals { display: flex; flex-wrap: wrap; gap: var(--s-4) var(--s-8); }
-.metrics > div, .totals > span { display: grid; align-content: start; gap: 2px; padding-top: var(--s-2); border-top: 2px solid var(--border); overflow-wrap: anywhere; }
-.metrics span, .totals > span { color: var(--text-muted); font-size: 12px; }
-.metrics strong, .totals strong { color: var(--text); font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.metrics strong.badge { justify-self: start; font-size: 12px; }
-.metrics strong.badge[data-tone="success"] { color: var(--success); }
-.metrics strong.badge[data-tone="solid"] { color: var(--surface); }
-.totals > span { min-width: 120px; }
-.totals strong { font-size: 18px; }
-.totals strong.due { color: var(--warning); }
-.detailTotals { padding-bottom: var(--s-4); border-bottom: 1px solid var(--border); }
-.detailGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--s-4) var(--s-5); }
-.detailGrid > div { min-width: 0; }
-.detailGrid dt { color: var(--text-muted); font-size: 12px; }
-.detailGrid dd { margin-top: 2px; font-weight: 600; overflow-wrap: anywhere; }
 
 /* ---- Record lists ---- */
 .detailList { display: grid; }
@@ -119,34 +76,13 @@
 .detailList article > span, .detailList article > small { color: var(--text-muted); font-size: 13px; }
 .detailList article > form { margin-top: var(--s-2); }
 .detailList h3 small { margin-left: var(--s-3); }
-.expenseHeading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s-1) var(--s-4); }
-.expenseHeading strong { font-variant-numeric: tabular-nums; }
-.expenseHeading span { color: var(--text-muted); font-size: 13px; }
-.review, .paymentReview { display: grid; justify-items: start; gap: var(--s-3); padding-top: var(--s-4); border-top: 1px solid var(--border); }
-.reviewRows { display: grid; width: 100%; font-variant-numeric: tabular-nums; }
-.reviewRows > div { display: grid; grid-template-columns: 2fr repeat(4, 1fr); gap: var(--s-4); padding: var(--s-2) 0; border-bottom: 1px solid var(--border); }
 
-/* ---- Invoice entry ---- */
-.draftBar:empty { display: none; }
-.draftBar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-4); min-height: 20px; color: var(--text-muted); font-size: 13px; }
-.workspace .draftStatus { color: var(--primary); font-weight: 650; }
-.entryTopRow { display: flex; flex-wrap: wrap; align-items: start; gap: var(--s-4); }
-.entryTopRow > .batchDate { flex: 1 1 260px; }
-.entryTopRow > .importPanel { flex: 2 1 380px; }
-.batchDate { display: flex; flex-wrap: wrap; gap: var(--s-4); }
-.batchDate label { flex: 0 1 180px; }
-.batchDate label + label { flex: 1 1 260px; }
+/* ---- Invoice entry: Excel import and customer search ---- */
 .importPanel { display: grid; gap: var(--s-3); padding: var(--s-5) var(--s-6); border: 1px solid var(--border); border-radius: 24px; background: var(--surface); }
 .importControls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--s-4); }
 .importPanel details[open] { display: grid; gap: var(--s-3); }
 .importPreview { display: grid; gap: var(--s-3); }
 .importTable { background: var(--surface); }
-.rows { display: grid; }
-.row { display: grid; gap: var(--s-3); padding: var(--s-4) 0; border-top: 1px solid var(--border); }
-.rowHeading { display: flex; justify-content: space-between; align-items: center; min-height: 26px; color: var(--text-muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
-.rowFields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto; align-items: start; gap: var(--s-3) var(--s-4); }
-.customerFields { display: grid; grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr)); align-items: start; gap: var(--s-3) var(--s-4); }
-.checkbox { align-self: end; min-height: var(--control-h); }
 .customerSearch { position: relative; display: grid; align-content: start; gap: var(--s-2); }
 .customerSearch > input { min-height: 44px; padding: 0 14px; border-color: var(--border-strong); border-radius: 12px; font-size: 15px; }
 .customerSearch > label { font-size: 13px; font-weight: 500; }
@@ -158,92 +94,8 @@
 .moreCustomers { min-height: calc(var(--control-h) - 8px); padding: 0 var(--s-3); background: var(--surface); border-color: var(--border-strong); color: var(--text); font-size: 12px; }
 .moreCustomers:hover:not(:disabled) { background: var(--surface-muted); border-color: var(--text-muted); }
 
-/* ---- Recent invoices: a link per row, columns aligned through the shared grid ---- */
-.savedList { display: grid; grid-template-columns: minmax(0, 1fr) repeat(4, auto); column-gap: var(--s-7); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; font-variant-numeric: tabular-nums; }
-.saved, .savedHead { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center; padding: var(--s-2) var(--s-4); }
-.savedHead { background: var(--surface-muted); color: var(--text-muted); font-size: 12px; font-weight: 600; }
-.saved { border-top: 1px solid var(--border); color: inherit; text-decoration: none; }
-.saved:hover { background: var(--surface-muted); color: inherit; }
-.saved strong { color: var(--primary); overflow-wrap: anywhere; }
-.saved > :nth-child(3) { justify-self: start; }
-.saved > :nth-child(n + 4), .savedHead > :nth-child(n + 4) { text-align: right; }
-.saved > :last-child { color: var(--text-muted); }
-.saved > .due { color: var(--warning); font-weight: 650; }
-
-/* ---- Dashboard ---- */
-.quickActions { display: flex; flex-wrap: wrap; gap: var(--s-3); }
-.trendBars { display: grid; gap: var(--s-2); margin-bottom: var(--s-4); }
-.trendRow { display: grid; grid-template-columns: 92px 1fr auto; align-items: center; gap: var(--s-3); font-size: 12px; }
-.trendRow > span:first-child { color: var(--text-muted); }
-.trendBar { display: block; height: 10px; border-radius: 999px; background: var(--surface-muted); overflow: hidden; }
-.trendBar > span { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
-.trendRow > strong { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
-
-/* ---- Payment ---- */
-.paymentDetails { display: grid; gap: var(--s-4); }
-.paymentDetails h3 { font-size: 16px; }
-.paymentAmount { max-width: 240px; }
-
-@media (min-width: 1100px) {
-  .split:has(> :nth-child(2)) { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
-}
-
-/* The nine links need about 1000px beside the brand and the controls; below that the nav takes its own row. */
-@media (max-width: 1100px) {
-  .appBar { flex-wrap: wrap; gap: var(--s-2) var(--s-4); padding: var(--s-2) var(--s-4); }
-  .nav { order: 3; flex-basis: 100%; flex-wrap: wrap; }
-}
-
-@media (max-width: 900px) {
-  .formGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@media (max-width: 800px) {
-  /* A wrapped line would start with a stray divider and indent, so the groups flatten. */
-  .nav a[data-group] { margin-left: 0; }
-  .nav a[data-group]::before { display: none; }
-}
-
 @media (max-width: 760px) {
   .workspace { gap: var(--s-4); padding: var(--s-4) var(--s-4) var(--s-7); }
   .panel { padding: var(--s-4); }
   .header { flex-wrap: wrap; align-items: start; gap: var(--s-3); }
-  .identity { justify-content: flex-start; }
-  .rowFields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .rowFields > label:first-child { grid-column: 1 / -1; }
-  .customerFields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .reviewRows > div { grid-template-columns: 1fr 1fr; }
-  .metrics { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
-  .totals { gap: var(--s-4) var(--s-5); }
 }
-
-@media (max-width: 640px) {
-  /* Two rows of four: every destination stays visible without scrolling. */
-  .nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-1); }
-  .nav a, .nav a[data-group] { margin: 0; padding: var(--s-3) 2px; background: var(--surface-muted); font-size: 13px; text-align: center; }
-  .nav a[data-group]::before { display: none; }
-
-  .savedList { display: block; }
-  .savedHead { display: none; }
-  .saved { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "id id total" "date status due"; gap: 2px var(--s-3); padding: var(--s-3) var(--s-4); }
-  .saved:first-of-type { border-top: 0; }
-  .saved > :nth-child(1) { grid-area: id; }
-  .saved > :nth-child(2) { grid-area: date; color: var(--text-muted); font-size: 13px; }
-  .saved > :nth-child(3) { grid-area: status; }
-  .saved > :nth-child(4) { grid-area: total; }
-  .saved > :nth-child(5) { grid-area: due; }
-
-  /* Metric / value on one line, the explanation underneath, instead of a three-column squeeze. */
-  .metricTable thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .metricTable tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; border-bottom: 1px solid var(--border); }
-  .metricTable tr:last-child { border-bottom: 0; }
-  .metricTable td { border-bottom: 0; }
-  .metricTable td:nth-child(3) { grid-column: 1 / -1; padding-top: 0; }
-}
-
-@media (max-width: 460px) {
-  .detailGrid > div:has(.mono) { grid-column: auto; }
-  .formGrid, .customerFields { grid-template-columns: 1fr; }
-  .wide { grid-column: auto; }
-}
-.detailGrid > div:has(.mono) { grid-column: span 2; }

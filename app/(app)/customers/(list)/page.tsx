@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SearchIcon, UsersIcon } from "lucide-react";
 
 import { CustomerDirectory } from "@/components/customers/customer-directory";
+import { ui } from "@/components/sales/ui";
 import { can, getCurrentActor } from "@/lib/auth/permissions";
 import { getVisibleShops } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -9,8 +10,7 @@ import { cn } from "@/lib/utils";
 import { CustomerCreateForm } from "../../customer-create-form";
 
 const PAGE_SIZE = 30;
-const field = "h-10 w-full rounded-full border border-input bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground";
-const pillButton = "inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold no-underline sk-press";
+const { toolbarField: field, toolbarButton: pillButton } = ui;
 
 export default async function CustomersPage({ searchParams }: PageProps<"/customers">) {
   const actor = await getCurrentActor();

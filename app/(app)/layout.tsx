@@ -5,9 +5,8 @@ import { can, getCurrentActor, type Actor } from "@/lib/auth/permissions";
 import { getVisibleShops } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-import styles from "@/app/ui.module.css";
-
 import { AppShell } from "@/components/shell/app-shell";
+import { Notice } from "@/components/shell/notice";
 
 import { SignOut } from "./sign-out";
 
@@ -24,11 +23,9 @@ export default async function AppLayout({
   // The database already refuses a deactivated account every read and write;
   // this tells the person why instead of showing empty screens.
   if (!actor.isActive) {
-    return <main className={styles.notice}>
-      <h1>Account deactivated</h1>
+    return <Notice title="Account deactivated" action={<SignOut userId={actor.id} />}>
       <p role="alert">This account has been deactivated by an owner and can no longer view or record anything. Ask an owner if this is a mistake.</p>
-      <SignOut userId={actor.id} />
-    </main>;
+    </Notice>;
   }
 
   // The same shop list every page reads; the shell only needs names for the switcher.

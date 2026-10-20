@@ -1,5 +1,6 @@
 import { categorySlot } from "@/lib/dashboard-view";
 import { categoryLabel, FLAG_LABEL, type ExpenseFlag } from "@/lib/expense-view";
+import { ui } from "@/components/sales/ui";
 import { cn } from "@/lib/utils";
 
 /** The category's Dashboard colour as a small swatch; the word carries the meaning. */
@@ -19,6 +20,6 @@ const TONE: Record<ExpenseFlag, string> = {
 export function ExpenseFlags({ flags, className }: { flags: readonly ExpenseFlag[]; className?: string }) {
   if (flags.length === 0) return null;
   return <span className={cn("inline-flex flex-wrap gap-1", className)}>
-    {flags.map((flag) => <span key={flag} data-flag={flag} className={cn("inline-flex h-5 items-center rounded-full px-2 text-[11px] font-semibold tracking-wide whitespace-nowrap uppercase", TONE[flag])}>{FLAG_LABEL[flag]}</span>)}
+    {flags.map((flag) => <span key={flag} data-flag={flag} className={cn(ui.badge, TONE[flag])}>{FLAG_LABEL[flag]}</span>)}
   </span>;
 }

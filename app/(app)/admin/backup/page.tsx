@@ -15,8 +15,7 @@ import { AdminTabs } from "../admin-tabs";
 
 const age = (hours: number) => hours < 1 ? "less than an hour ago" : hours < 48 ? `${Math.round(hours)} hours ago` : `${Math.round(hours / 24)} days ago`;
 const card = cn(ui.card, "grid content-start gap-3 p-5 sm:p-6");
-// The word carries the meaning; colour only repeats it.
-const badge = "inline-flex h-5 w-fit items-center rounded-full px-2 text-[11px] font-semibold tracking-wide whitespace-nowrap uppercase";
+const { badge } = ui;
 const tone = { good: "bg-success-soft text-success", warn: "bg-warning-soft text-warning", bad: "bg-danger-soft text-destructive", plain: "bg-card text-muted-foreground ring-1 ring-border ring-inset" };
 
 function Rehearsal({ entry }: { entry: BackupEntry }) {

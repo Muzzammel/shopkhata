@@ -5,7 +5,7 @@ import { qatarBusinessDate } from "@/lib/invoice-entry";
 import { getVisibleShops } from "@/lib/shop-switching";
 import { readShopWorkspace } from "@/lib/shop-workspace";
 
-import styles from "@/app/ui.module.css";
+import { Notice } from "@/components/shell/notice";
 
 import { InvoiceEntry } from "./invoice-entry";
 
@@ -18,10 +18,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const query = await searchParams;
   const shop = availableShops.find((s) => s.id === query.shop) ?? availableShops[0];
   // A newly registered account, or one whose last shop was removed.
-  if (!shop) return <main className={styles.notice}>
-    <h1>No shop assigned</h1>
+  if (!shop) return <Notice title="No shop assigned">
     <p role="alert">This account is not assigned to a shop yet, so there is nothing to show. Ask an owner to assign one under Accounts.</p>
-  </main>;
+  </Notice>;
   const [{ data: profile, error: profileError }, workspace] = await Promise.all([
     supabase.from("profiles").select("display_name").eq("id", actor.id).single(),
     readShopWorkspace(actor, shop.id),

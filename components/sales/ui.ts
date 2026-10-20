@@ -13,6 +13,13 @@ export const ui = {
   money: "text-right font-semibold tabular-nums",
   fieldError: "text-[13px] font-medium text-destructive",
   card: "rounded-3xl border border-border bg-card",
+  /** Status badge shape; the tone classes are added per use. The word carries the meaning; colour only repeats it. */
+  badge: "inline-flex h-5 w-fit items-center rounded-full px-2 text-[11px] font-semibold tracking-wide whitespace-nowrap uppercase",
+  /** List-page toolbars (Sales, Customers, Expenses): search field and the pill buttons beside it. */
+  toolbarField: "h-10 w-full rounded-full border border-input bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground",
+  toolbarButton: "inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold no-underline sk-press",
+  /** Link pills that switch a view (shop, report, period). */
+  chip: "inline-flex min-h-10 items-center rounded-full px-4 text-sm font-semibold no-underline sk-press",
   /** Serious notices: tinted, bordered on the leading edge, never playful. */
   warn: "rounded-2xl border-l-4 border-warning bg-warning-soft px-4 py-3 text-sm text-foreground",
   danger: "rounded-2xl border-l-4 border-destructive bg-danger-soft px-4 py-3 text-sm text-foreground",

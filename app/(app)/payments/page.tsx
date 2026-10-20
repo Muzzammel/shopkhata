@@ -4,6 +4,7 @@ import { can, getCurrentActor } from "@/lib/auth/permissions";
 import { formatQar } from "@/lib/domain/money";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
 import { fetchPaymentAllocation, fetchPaymentList, PAYMENT_PAGE_SIZE, PAYMENT_SOURCES, parsePaymentListFilter } from "@/lib/payment-list";
+import { qatarDateTime } from "@/lib/sales-view";
 import { getVisibleShops } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -11,7 +12,7 @@ import { PaymentEntry } from "./payment-entry";
 import styles from "@/app/ui.module.css";
 
 const qar = (dirham: number) => `QAR ${formatQar(dirham)}`;
-const qatarTime = (iso: string | null) => iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Qatar" }) : "—";
+const qatarTime = (iso: string | null) => iso ? qatarDateTime(iso) : "—";
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -42,7 +43,6 @@ export default async function PaymentsPage({ searchParams }: PageProps<"/payment
   return <main className={styles.workspace}>
     <header className={styles.header}>
       <div><p className={styles.eyebrow}>{shop.name}</p><h1>Payments</h1><p>Default view shows the last 30 days. Search by invoice number to find an older payment.</p></div>
-      <Link href="/">Back to overview</Link>
     </header>
     {shops.length > 1 && <nav className={styles.shops} aria-label="Choose shop">{shops.map((item) => <Link key={item.id} aria-current={item.id === shop.id ? "page" : undefined} href={`/payments?shop=${item.id}`}>{item.name}</Link>)}</nav>}
 
