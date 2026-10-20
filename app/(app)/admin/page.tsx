@@ -1,25 +1,49 @@
-import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { HistoryIcon, KeyRoundIcon } from "lucide-react";
 
-import { effectiveAccess } from "@/lib/account-admin";
-import { can, getCurrentActor } from "@/lib/auth/permissions";
+import { ui } from "@/components/sales/ui";
+import { Skeleton } from "@/components/ui/skeleton";
+import { describeAccountEvent, ROLE_LABEL, ROLE_SUMMARY } from "@/lib/account-view";
+import { can, getCurrentActor, type Actor } from "@/lib/auth/permissions";
+import { qatarDateTime } from "@/lib/sales-view";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { cn } from "@/lib/utils";
 
-import { AccountForm, RegisterAccountForm } from "./account-forms";
+import { AccountDirectory, RegisterAccountDrawer } from "./account-forms";
 import { AdminTabs } from "./admin-tabs";
-import styles from "@/app/ui.module.css";
 
-const qatarTime = (iso: string) => new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Qatar" });
-const ACTIONS: Record<string, string> = {
-  "account.register": "Registered account", "account.update": "Changed role or status",
-  "assignment.add": "Added shop access", "assignment.remove": "Removed shop access",
-};
+const shell = "mx-auto grid w-full max-w-[1280px] grid-cols-1 content-start gap-4 px-4 pt-5 pb-10 sm:gap-5 sm:px-6";
+const card = cn(ui.card, "grid content-start gap-3 p-5 sm:p-6");
 
 export default async function AdminPage() {
   const actor = await getCurrentActor();
-  // A non-owner gets the same answer as for a page that does not exist.
+  // A non-owner gets the same answer as for a page that does not exist. Checked before anything
+  // streams, so the 404 status is kept; only the reads below wait behind the skeleton.
   if (!can(actor, "users.manage")) notFound();
 
+  return <main className={shell}>
+    <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 px-1">
+      <div className="grid min-w-0 gap-1.5">
+        <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Owner only · All shops</p>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Accounts</h1>
+        <p className="max-w-2xl text-sm text-muted-foreground">Who can sign in to ShopKhata, in which role, and which shops they can use. Changes apply to an account&apos;s next action, and every change is recorded.</p>
+      </div>
+      <RegisterAccountDrawer className="h-10 min-h-10 px-4 max-sm:h-11 max-sm:min-h-11 max-sm:w-full" />
+    </header>
+    <AdminTabs current="/admin" />
+    <Suspense fallback={<AccountsSkeleton />}><AccountsWorkspace actor={actor} /></Suspense>
+  </main>;
+}
+
+function AccountsSkeleton() {
+  return <div aria-busy="true" aria-label="Loading accounts" className="grid gap-4 sm:gap-5">
+    <Skeleton className="h-8 w-80 max-w-full rounded-full" />
+    <div className="grid gap-3 sm:max-lg:grid-cols-2 lg:rounded-3xl lg:border lg:border-border lg:bg-card lg:p-4">{Array.from({ length: 5 }, (_, i) => <div key={i} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-border bg-card p-4 lg:border-0 lg:p-2"><Skeleton className="size-10 rounded-full" /><div className="grid gap-1.5"><Skeleton className="h-4 w-36" /><Skeleton className="h-3 w-48 max-w-full" /></div><Skeleton className="h-5 w-16 rounded-full" /></div>)}</div>
+  </div>;
+}
+
+async function AccountsWorkspace({ actor }: { actor: Actor }) {
   const supabase = await createServerSupabaseClient();
   const [profiles, assignments, shops, audit] = await Promise.all([
     supabase.from("profiles").select("id,email,display_name,role,is_active").order("display_name").limit(500),
@@ -31,50 +55,46 @@ export default async function AdminPage() {
 
   const shopName = new Map(shops.data.map((shop) => [shop.id, shop.name]));
   const name = new Map(profiles.data.map((profile) => [profile.id, profile.display_name]));
-  const accounts = profiles.data.map((profile) => {
-    const shopIds = assignments.data.filter((assignment) => assignment.user_id === profile.id).map((assignment) => assignment.shop_id);
-    return { id: profile.id, email: profile.email, displayName: profile.display_name, role: profile.role, isActive: profile.is_active, shopIds, shopNames: shopIds.map((id) => shopName.get(id) ?? id).sort() };
-  });
+  const accounts = profiles.data.map((profile) => ({
+    id: profile.id, email: profile.email, displayName: profile.display_name, role: profile.role, isActive: profile.is_active,
+    shopIds: assignments.data.filter((assignment) => assignment.user_id === profile.id).map((assignment) => assignment.shop_id),
+  }));
+  const active = accounts.filter((account) => account.isActive);
+  const counts = [
+    { label: "Accounts", value: accounts.length },
+    { label: "Active", value: active.length },
+    ...([["owner", "Owners"], ["manager", "Managers"], ["staff", "Staff"]] as const).map(([role, label]) => ({ label, value: active.filter((account) => account.role === role).length })),
+    { label: "Deactivated", value: accounts.length - active.length },
+    { label: "No shop access", value: active.filter((account) => account.role !== "owner" && account.shopIds.length === 0).length, warn: true },
+  ];
 
-  return <main className={styles.workspace}>
-    <header className={styles.header}><div><p className={styles.eyebrow}>Owner only</p><h1>Accounts and shop access</h1><p>Changes apply to an account&apos;s next action. Every change is recorded below.</p></div><Link href="/">Back to overview</Link></header>
-    <AdminTabs current="/admin" />
+  return <>
+    <ul aria-label="Account summary" className="flex list-none flex-wrap gap-x-5 gap-y-1.5 px-1 text-sm">
+      {counts.map((count) => <li key={count.label} className={cn("text-muted-foreground", count.warn && count.value > 0 && "font-medium text-warning")}><strong className={cn("font-semibold text-foreground tabular-nums", count.warn && count.value > 0 && "text-warning")}>{count.value}</strong> {count.label}</li>)}
+    </ul>
 
-    <section className={styles.panel}>
-      <h2>Accounts</h2>
-      <div className={styles.tableWrap}><table>
-        <caption className={styles.muted}>What each account can reach right now</caption>
-        <thead><tr><th scope="col">Account</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Effective access</th></tr></thead>
-        <tbody>{accounts.map((account) => <tr key={account.id} data-account={account.email}>
-          <th scope="row">{account.displayName}<small>{account.email}</small></th>
-          <td><span className={styles.badge} data-tone={account.role === "owner" ? "info" : undefined}>{account.role}</span></td><td><span className={styles.badge} data-tone={account.isActive ? "success" : "danger"}>{account.isActive ? "Active" : "Deactivated"}</span></td><td>{effectiveAccess(account)}</td>
-        </tr>)}</tbody>
-      </table></div>
-    </section>
+    {accounts.length === 0
+      ? <section className="grid justify-items-center gap-2 rounded-3xl border border-dashed border-input bg-card px-6 py-14 text-center"><h2 className="text-lg font-semibold">No accounts registered</h2><p className="max-w-sm text-sm text-muted-foreground">Register a sign-in to give it a role.</p></section>
+      : <AccountDirectory accounts={accounts} shops={shops.data} actorId={actor.id} />}
 
-    <section className={styles.panel}>
-      <h2>Role, status and shop access</h2>
-      <div className={styles.detailList}>{accounts.map((account) => <article key={account.id} data-manage={account.email}>
-        <h3>{account.displayName}<small>{account.email}</small></h3>
-        {account.id === actor.id
-          ? <p className={styles.muted}>This is your own account. Another owner must change your role or status, so the shops are never left without an owner.</p>
-          : <AccountForm account={account} shops={shops.data} />}
-      </article>)}</div>
-    </section>
+    <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">
+      <section aria-labelledby="account-history-heading" className={card}>
+        <div className="flex items-center gap-2"><HistoryIcon aria-hidden className="size-4 text-muted-foreground" /><h2 id="account-history-heading" className="text-lg font-semibold tracking-tight">Recent account changes</h2></div>
+        {audit.data.length === 0 ? <p className="text-sm text-muted-foreground">No account change has been recorded.</p> : <ol className="grid list-none gap-3 pl-0">{audit.data.map((event) => {
+          const line = describeAccountEvent(event, name, shopName);
+          return <li key={event.id} className="grid gap-0.5 border-l-2 border-border pl-4 text-sm">
+            <strong className="font-semibold [overflow-wrap:anywhere]">{line.title}</strong>
+            {line.detail && <span>{line.detail}</span>}
+            <span className="text-xs text-muted-foreground">{qatarDateTime(event.recorded_at)} (Qatar time) by {name.get(event.actor_id ?? "") ?? event.actor_id ?? "Unknown actor"}</span>
+          </li>;
+        })}</ol>}
+      </section>
 
-    <section className={styles.panel}>
-      <h2>Register an account</h2>
-      <p className={styles.muted}>First create the sign-in (email and password) in the Supabase dashboard under Authentication. Then register it here to give it a role. A new account has no shop access until you assign one above.</p>
-      <RegisterAccountForm />
-    </section>
-
-    <section className={styles.panel}>
-      <h2>Recent account changes</h2>
-      {audit.data.length === 0 ? <p className={styles.empty}>No account change has been recorded.</p> : <div className={styles.detailList}>{audit.data.map((event) => <article key={event.id}>
-        <strong>{ACTIONS[event.action] ?? event.action} · {name.get(event.entity_id ?? "") ?? event.entity_id}{event.shop_id ? ` · ${shopName.get(event.shop_id) ?? event.shop_id}` : ""}</strong>
-        <span>{qatarTime(event.recorded_at)} (Qatar time) by {name.get(event.actor_id ?? "") ?? event.actor_id ?? "Unknown actor"}</span>
-        {event.action === "account.update" && <span>{JSON.stringify((event.metadata as { before?: unknown }).before)} → {JSON.stringify((event.metadata as { after?: unknown }).after)}</span>}
-      </article>)}</div>}
-    </section>
-  </main>;
+      <aside aria-labelledby="access-rules-heading" className={cn(card, "content-start")}>
+        <div className="flex items-center gap-2"><KeyRoundIcon aria-hidden className="size-4 text-muted-foreground" /><h2 id="access-rules-heading" className="text-lg font-semibold tracking-tight">How access works</h2></div>
+        <dl className="grid gap-3 text-sm">{(["owner", "manager", "staff"] as const).map((role) => <div key={role} className="grid gap-0.5"><dt className="font-semibold">{ROLE_LABEL[role]}</dt><dd className="text-muted-foreground">{ROLE_SUMMARY[role]}</dd></div>)}</dl>
+        <p className="border-t border-border pt-3 text-[13px] text-muted-foreground">Sign-in emails and passwords are managed in the Supabase dashboard (Authentication), not here. ShopKhata never shows or stores a password. You cannot change your own role or status, so the shops always keep an owner.</p>
+      </aside>
+    </div>
+  </>;
 }

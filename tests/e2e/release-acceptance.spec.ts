@@ -52,31 +52,46 @@ test.describe("owner administration", () => {
 
     await login(page, OWNER);
     await page.getByRole("link", { name: "Accounts" }).click();
-    await expect(page.getByRole("heading", { name: "Accounts and shop access" })).toBeVisible();
-    const accounts = page.getByRole("table");
+    await expect(page.getByRole("heading", { name: "Accounts", level: 1 })).toBeVisible();
+    const accounts = page.getByRole("table", { name: "What each account can reach right now" });
     await expect(accounts.getByRole("row", { name: /owner@shopkhata\.local/ })).toContainText("All shops (owner)");
     await expect(accounts.getByRole("row", { name: /staff1@shopkhata\.local/ })).toContainText("Shop 1");
-    await expect(page.locator('[data-manage="owner@shopkhata.local"]')).toContainText("This is your own account.");
-    await expect(page.locator('[data-manage="owner@shopkhata.local"]').getByRole("button")).toHaveCount(0);
+    await expect(page.locator('[data-account="owner@shopkhata.local"]')).toContainText("Another owner changes your account");
+    await expect(page.locator('[data-account="owner@shopkhata.local"]').getByRole("button")).toHaveCount(0);
 
     // Register: an unknown email is refused, the real one is accepted with no access yet.
-    const register = page.getByRole("heading", { name: "Register an account" }).locator("..");
+    await page.getByRole("button", { name: "Register account" }).click();
+    const register = page.getByRole("dialog", { name: "Register an account" });
+    const submitRegistration = async () => {
+      await register.getByRole("button", { name: "Review account" }).click();
+      await register.getByRole("button", { name: "Register account" }).click();
+    };
     await register.getByLabel("Sign-in email").fill(`nobody-${stamp}@shopkhata.local`);
     await register.getByLabel("Display name").fill("Nobody");
-    await register.getByRole("button", { name: "Register account" }).click();
+    await submitRegistration();
     await expect(register.getByRole("alert")).toContainText("No sign-in exists for that email");
     await register.getByLabel("Sign-in email").fill(hire.email);
     await register.getByLabel("Display name").fill(`New Hire ${stamp}`);
-    await register.getByRole("button", { name: "Register account" }).click();
+    await submitRegistration();
+    await expect(register).toHaveCount(0);
     const row = accounts.getByRole("row", { name: new RegExp(hire.email) });
     await expect(row).toContainText("No access (no shop assigned)");
     await hirePage.goto("/");
     await expect(hirePage.getByRole("heading", { name: "No shop assigned" })).toBeVisible();
 
+    // Every change is made in the Manage drawer and saved after its review step.
+    const manage = page.getByRole("dialog", { name: `Manage New Hire ${stamp}` });
+    const openManage = async () => { await row.getByRole("button", { name: `Manage New Hire ${stamp}` }).click(); await expect(manage).toBeVisible(); };
+    const saveAccount = async () => {
+      await manage.getByRole("button", { name: "Review changes" }).click();
+      await manage.getByRole("button", { name: "Save account" }).click();
+      await expect(manage).toHaveCount(0);
+    };
+
     // Assign Shop 2: the account's next page load is Shop 2 and only Shop 2.
-    const manage = page.locator(`[data-manage="${hire.email}"]`);
+    await openManage();
     await manage.getByLabel("Shop 2").check();
-    await manage.getByRole("button", { name: "Save account" }).click();
+    await saveAccount();
     await expect(row).toContainText("Shop 2");
     await hirePage.goto("/");
     await expect(hirePage.getByRole("heading", { name: "Shop 2" })).toBeVisible();
@@ -85,19 +100,21 @@ test.describe("owner administration", () => {
     await expect(hirePage.getByRole("heading", { name: "Shop 1" })).toHaveCount(0);
 
     // Deactivate: the open session is told why and can do nothing.
+    await openManage();
     await manage.getByLabel("Account is active").uncheck();
-    await manage.getByRole("button", { name: "Save account" }).click();
+    await saveAccount();
     await expect(row).toContainText("No access (deactivated)");
     await hirePage.goto("/customers");
     await expect(hirePage.getByRole("heading", { name: "Account deactivated" })).toBeVisible();
     await expect(hirePage.getByRole("navigation")).toHaveCount(0);
 
     // Reactivate as a Shop 1 manager and take Shop 2 away.
+    await openManage();
     await manage.getByLabel("Account is active").check();
-    await manage.getByLabel("Role").selectOption("manager");
+    await manage.getByRole("radio", { name: "Manager" }).check();
     await manage.getByLabel("Shop 1").check();
     await manage.getByLabel("Shop 2").uncheck();
-    await manage.getByRole("button", { name: "Save account" }).click();
+    await saveAccount();
     await expect(row).toContainText("manager");
     await expect(row).toContainText("Shop 1");
     await expect(row).not.toContainText("Shop 2");
@@ -111,12 +128,13 @@ test.describe("owner administration", () => {
     expect(scalar(`select string_agg(action, ',' order by recorded_at, action) from public.audit_events where entity_type = 'profile' and entity_id = '${id}'`))
       .toBe("account.register,assignment.add,account.update,account.update,assignment.add,assignment.remove");
     expect(scalar(`select count(distinct actor_id) from public.audit_events where entity_type = 'profile' and entity_id = '${id}' and actor_id = '10000000-0000-4000-8000-000000000101'`)).toBe("1");
-    const history = page.getByRole("heading", { name: "Recent account changes" }).locator("..");
+    const history = page.getByRole("region", { name: "Recent account changes" });
     await expect(history).toContainText(`Registered account · New Hire ${stamp}`);
     await expect(history).toContainText(`Removed shop access · New Hire ${stamp} · Shop 2`);
     // Leave no usable extra manager behind for other tests.
+    await openManage();
     await manage.getByLabel("Account is active").uncheck();
-    await manage.getByRole("button", { name: "Save account" }).click();
+    await saveAccount();
     await expect(row).toContainText("No access (deactivated)");
   });
 });
@@ -410,8 +428,11 @@ test.describe("responsive usability and accessibility", () => {
 
       // Owner administration.
       await page.goto("/admin");
-      await expect(page.getByRole("table")).toBeVisible();
+      await expect(page.getByRole("table", { name: "What each account can reach right now" })).toBeVisible();
       await check("administration");
+      await page.goto("/admin/backup");
+      await expect(page.getByRole("heading", { name: "Recovery workflow" })).toBeVisible();
+      await check("backup and recovery");
 
       // The navigation reaches every workspace and the offline state is announced in words.
       // Wide screens show the pills in the top bar; tablets and phones list every page in a menu sheet.
