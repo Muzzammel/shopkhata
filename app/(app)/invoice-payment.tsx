@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 
+import { PaymentMethodField } from "@/components/sales/payment-method-field";
 import { ui } from "@/components/sales/ui";
 import { groupedQar, qar } from "@/lib/dashboard-view";
 import { parseQar } from "@/lib/domain/money";
 import { isValidPaymentReceipt, preparePaymentAttempt, type PaymentCommand } from "@/lib/invoice-payment";
+import { paymentMethodLabel, type PaymentMethod } from "@/lib/payment-method";
 import { cn } from "@/lib/utils";
 
 import { lookupInvoiceForPayment, recordInvoicePayment, type PaymentLookup } from "./payment-actions";
@@ -27,6 +29,7 @@ export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onAct
   const [invoice, setInvoice] = useState<PaymentInvoice | null>(initialInvoice ?? null);
   const [lookupMessage, setLookupMessage] = useState("");
   const [amount, setAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const [attempt, setAttempt] = useState<PaymentCommand | null>(null);
   const [uncertain, setUncertain] = useState(false);
@@ -71,6 +74,7 @@ export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onAct
         setInvoice(result.invoice);
         setLookupMessage("");
         setAmount("");
+        setPaymentMethod("cash");
         setIdempotencyKey(crypto.randomUUID());
       } else {
         setLookupMessage(result.message);
@@ -97,6 +101,7 @@ export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onAct
       invoiceId: invoice.id,
       invoiceNumber: invoice.invoiceNumber,
       amount,
+      paymentMethod,
       idempotencyKey,
     }, invoice.effectiveDue, new Date(), attempt);
     if (!prepared.command) {
@@ -136,6 +141,7 @@ export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onAct
       setUncertain(false);
       setReview(false);
       setAmount("");
+      setPaymentMethod("cash");
       setIdempotencyKey(crypto.randomUUID());
       setSaved(true);
       setMessage("Payment recorded.");
@@ -181,11 +187,11 @@ export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onAct
         <button data-slot="button" type="button" className={ui.primary} onClick={savePayment} disabled={disabled || busy}>{busy ? "Retrying…" : "Retry payment"}</button>
       </div> : invoice.effectiveDue <= 0 ? <p role="alert" className={ui.ok}>Already paid — no amount due</p> : <>
         {!review && <div className="grid gap-4">
-          <label data-slot="label" className="grid gap-1.5"><span className={ui.label}>Cash amount (QAR)</span>
-            <input data-slot="input" aria-label="Cash amount (QAR)" inputMode="decimal" autoComplete="off" placeholder="0.00" value={amount} disabled={disabled || busy} onChange={(event) => { if (disabled || busy) return; setAmount(event.target.value); if (attempt) editPayment(); }} className={cn(ui.field, ui.money, "h-14 text-2xl max-sm:h-14 max-sm:text-2xl")} />
+          <label data-slot="label" className="grid gap-1.5"><span className={ui.label}>Payment amount (QAR)</span>
+            <input data-slot="input" aria-label="Payment amount (QAR)" inputMode="decimal" autoComplete="off" placeholder="0.00" value={amount} disabled={disabled || busy} onChange={(event) => { if (disabled || busy) return; setAmount(event.target.value); if (attempt) editPayment(); }} className={cn(ui.field, ui.money, "h-14 text-2xl max-sm:h-14 max-sm:text-2xl")} />
           </label>
+          <PaymentMethodField name="invoice-payment-method" value={paymentMethod} disabled={disabled || busy} onChange={(next) => { setPaymentMethod(next); if (attempt) editPayment(); }} />
           <dl className="grid gap-2 rounded-2xl border border-border p-4 text-sm">
-            <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Payment method</dt><dd className="font-semibold">Cash</dd></div>
             <div className="flex justify-between gap-3 tabular-nums"><dt className="text-muted-foreground">Remaining after payment</dt><dd className="font-semibold">{remaining(typedDirham) === null ? "—" : qar(Math.max(0, remaining(typedDirham)!))}</dd></div>
           </dl>
           <button data-slot="button" type="button" className={ui.primary} onClick={reviewPayment} disabled={disabled || busy}>Review payment</button>
@@ -194,12 +200,12 @@ export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onAct
           <h4 data-slot="heading" className="text-sm font-semibold">Review payment</h4>
           <dl className="grid gap-2 rounded-2xl border border-border p-4 text-sm tabular-nums">
             <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Invoice</dt><dd className="font-semibold">{invoice.invoiceNumber}</dd></div>
-            <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Payment method</dt><dd className="font-semibold">Cash</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Payment method</dt><dd className="font-semibold">{paymentMethodLabel(attempt.payment_method)}</dd></div>
             <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Business date (Qatar)</dt><dd className="font-semibold">{attempt.business_date}</dd></div>
             <div className="flex justify-between gap-3 border-t border-border pt-2"><dt className="text-muted-foreground">Payment amount</dt><dd className="text-base font-semibold">{qar(attempt.amount_dirham)}</dd></div>
             <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Remaining after payment</dt><dd className="font-semibold">{qar(Math.max(0, invoice.effectiveDue - attempt.amount_dirham))}</dd></div>
           </dl>
-          <p className="sr-only">Cash payment of {qar(attempt.amount_dirham)} for invoice {invoice.invoiceNumber}.</p>
+          <p className="sr-only">{paymentMethodLabel(attempt.payment_method)} payment of {qar(attempt.amount_dirham)} for invoice {invoice.invoiceNumber}.</p>
           <div className="flex flex-wrap gap-2">
             <button data-slot="button" type="button" className={cn(ui.primary, "flex-1")} onClick={savePayment} disabled={disabled || busy || saved}>{busy ? "Saving…" : saved ? "Saved" : "Confirm payment"}</button>
             {!saved && <button data-slot="button" type="button" className={ui.secondary} onClick={editPayment} disabled={disabled || busy}>Edit</button>}
@@ -214,7 +220,7 @@ export function InvoicePayment({ shopId, disabled, onSaved, onStateChange, onAct
   return <section id="invoice-payments" className={cn(ui.card, "grid content-start gap-4 p-5 sm:p-6")} aria-labelledby="payment-title">
     <div className="grid gap-1">
       <h2 id="payment-title" data-slot="heading" className="text-lg font-semibold tracking-tight">Record payment</h2>
-      <p className="text-sm text-muted-foreground">Record cash against an existing invoice. This does not create an invoice.</p>
+      <p className="text-sm text-muted-foreground">Record a cash or bank payment against an existing invoice. This does not create an invoice.</p>
     </div>
     {body}
   </section>;

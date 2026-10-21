@@ -41,7 +41,7 @@ test("the critical workflow works end to end", async ({ page, browserName }) => 
   const payment = page.getByRole("region", { name: "Record payment" });
   await payment.getByLabel("Invoice number").fill(invoice);
   await payment.getByRole("button", { name: "Find invoice" }).click();
-  await payment.getByLabel("Cash amount (QAR)").fill("20.00");
+  await payment.getByLabel("Payment amount (QAR)").fill("20.00");
   await payment.getByRole("button", { name: "Review payment" }).click();
   await payment.getByRole("button", { name: "Confirm payment" }).click();
   await expect(payment.getByRole("status")).toBeVisible();

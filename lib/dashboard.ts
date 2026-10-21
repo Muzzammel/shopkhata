@@ -48,7 +48,7 @@ async function fetchShopTotals(supabase: Client, shop: { id: string; name: strin
   const expenseTotal = expenses.data.find((row) => row.category === null)?.amount_dirham ?? 0;
   return {
     shopId: shop.id, shopName: shop.name, salesDirham: sales.data[0].effective_total_dirham, invoiceCount: sales.data[0].invoice_count,
-    paymentsReceivedDirham: mapPaymentTotals(payments.data).cashDirham, expensesDirham: expenseTotal, outstandingDueDirham: due.data[0].outstanding_due_dirham,
+    paymentsReceivedDirham: mapPaymentTotals(payments.data).receivedDirham, expensesDirham: expenseTotal, outstandingDueDirham: due.data[0].outstanding_due_dirham,
   };
 }
 
@@ -79,7 +79,8 @@ async function topCustomersByPayments(supabase: Client, shopId: string, from: st
   return data.map((row) => ({ customerId: row.customer_id, name: row.name, amountDirham: row.amount_dirham }));
 }
 
-export type TrendPoint = { businessDate: string; salesDirham: number; paymentsDirham: number; expensesDirham: number };
+/** paymentsDirham is cash only; receivedDirham is cash plus bank. */
+export type TrendPoint = { businessDate: string; salesDirham: number; paymentsDirham: number; receivedDirham: number; expensesDirham: number };
 export type ExpenseLine = { id: string; businessDate: string; recordedAt: string | null; category: string; description: string; amountDirham: number };
 export type ActivityEvent = { id: string; action: string; label: string; actorName: string; businessReference: string; recordedAt: string; href: string | null };
 export type CreditCustomer = { customerId: string; name: string; availableCreditDirham: number };
@@ -88,13 +89,14 @@ export type RecentCustomer = { customerId: string; name: string; lastActivity: s
 export type DashboardData = {
   range: DashboardRange;
   kpi: {
-    invoiceCount: number; salesDirham: number; averageInvoiceDirham: number; paymentsReceivedDirham: number; expensesDirham: number;
+    /** paymentsReceivedDirham is cash only. */
+    invoiceCount: number; salesDirham: number; averageInvoiceDirham: number; paymentsReceivedDirham: number; bankReceivedDirham: number; totalReceivedDirham: number; expensesDirham: number;
     netCashMovementDirham: number; outstandingDueDirham: number; availableCreditDirham: number; customersWithDue: number;
     /** Unpaid balance of every invoice dated in the period, customerless ones included (report_sales_totals.effective_due_dirham). */
     unpaidInvoicesDirham: number;
   };
   invoiceHealth: { total: number; delivered: number; advance: number; fullyPaid: number; withDue: number };
-  collection: { outstandingDueDirham: number; availableCreditDirham: number; customersWithDue: number; paymentsReceivedDirham: number; largestDues: CustomerDueRow[]; creditCustomers: CreditCustomer[] };
+  collection: { outstandingDueDirham: number; availableCreditDirham: number; customersWithDue: number; paymentsReceivedDirham: number; bankReceivedDirham: number; largestDues: CustomerDueRow[]; creditCustomers: CreditCustomer[] };
   trend: { days: TrendPoint[]; today: DailySummary };
   expenses: { totalDirham: number; byCategory: { category: string; amountDirham: number; count: number }[]; recent: ExpenseLine[]; largest: ExpenseLine[] };
   closing: { state: "open" | "closed"; lastClose: CloseEvent | null; recentEvents: (CloseEvent & { actorName: string })[]; recentlyReopened: string[] };
@@ -111,6 +113,7 @@ const ACTION_LABELS: Record<string, string> = {
   "create_expense": "Expense recorded", "request_expense_correction": "Expense correction requested", "decide_expense_correction": "Expense correction decided",
   "attach_expense_receipt": "Expense receipt attached", "date.close": "Business date closed", "date.reopen": "Business date reopened",
   "admin_register_account": "Account registered", "admin_update_account": "Account updated", "admin_set_shop_assignment": "Shop assignment changed",
+  "shop.create": "Shop created", "shop.update": "Shop renamed", "admin_create_shop": "Shop created", "admin_update_shop": "Shop renamed",
 };
 
 function activityHref(entityType: string, entityId: string, shopId: string): string | null {
@@ -194,7 +197,8 @@ export async function loadDashboard(supabase: Client, shops: readonly { id: stri
     kpi: {
       invoiceCount: salesRow.invoice_count, salesDirham: salesRow.effective_total_dirham,
       averageInvoiceDirham: salesRow.invoice_count > 0 ? Math.round(salesRow.effective_total_dirham / salesRow.invoice_count) : 0,
-      paymentsReceivedDirham: paymentTotals.cashDirham, expensesDirham: expenseTotals.totalDirham, netCashMovementDirham,
+      paymentsReceivedDirham: paymentTotals.cashDirham, bankReceivedDirham: paymentTotals.bankDirham, totalReceivedDirham: paymentTotals.receivedDirham,
+      expensesDirham: expenseTotals.totalDirham, netCashMovementDirham,
       outstandingDueDirham: dueRow.outstanding_due_dirham, availableCreditDirham: dueRow.available_credit_dirham, customersWithDue: dueRow.customers_with_due,
       unpaidInvoicesDirham: salesRow.effective_due_dirham,
     },
@@ -204,10 +208,10 @@ export async function loadDashboard(supabase: Client, shops: readonly { id: stri
     },
     collection: {
       outstandingDueDirham: dueRow.outstanding_due_dirham, availableCreditDirham: dueRow.available_credit_dirham, customersWithDue: dueRow.customers_with_due,
-      paymentsReceivedDirham: paymentTotals.cashDirham, largestDues: dueRows.rows, creditCustomers,
+      paymentsReceivedDirham: paymentTotals.cashDirham, bankReceivedDirham: paymentTotals.bankDirham, largestDues: dueRows.rows, creditCustomers,
     },
     trend: {
-      days: days.map((day) => ({ businessDate: day.businessDate, salesDirham: day.grossInvoiceDirham, paymentsDirham: day.cashReceivedDirham, expensesDirham: day.expensesDirham })),
+      days: days.map((day) => ({ businessDate: day.businessDate, salesDirham: day.grossInvoiceDirham, paymentsDirham: day.cashReceivedDirham, receivedDirham: day.totalReceivedDirham, expensesDirham: day.expensesDirham })),
       today: todaySummary,
     },
     expenses: {

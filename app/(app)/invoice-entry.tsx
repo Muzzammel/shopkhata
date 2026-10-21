@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChevronDownIcon, CircleCheckIcon, PencilLineIcon, PlusIcon, StoreIcon, Trash2Icon } from "lucide-react";
 
 import { InvoiceBadges } from "@/components/sales/invoice-badges";
+import { PaymentMethodField } from "@/components/sales/payment-method-field";
 import { ui } from "@/components/sales/ui";
 import { groupedQar, qar } from "@/lib/dashboard-view";
 
@@ -29,6 +30,7 @@ import { InvoicePayment } from "./invoice-payment";
 import { loadShopWorkspace } from "./workspace-actions";
 import { invoiceBadges } from "@/lib/sales-view";
 import { parseQar } from "@/lib/domain/money";
+import { paymentMethodLabel } from "@/lib/payment-method";
 import { cn } from "@/lib/utils";
 
 /** Errors shown on their own input; any other row error is listed under the invoice. */
@@ -52,7 +54,7 @@ function typedDirham(value: string): number | null {
 }
 
 function emptyRow(): EntryRow {
-  return { rowId: crypto.randomUUID(), invoiceId: "", total: "", received: "", delivered: false, customerId: "", customerName: "", customerMobile: "", note: "" };
+  return { rowId: crypto.randomUUID(), invoiceId: "", total: "", received: "", paymentMethod: "cash", delivered: false, customerId: "", customerName: "", customerMobile: "", note: "" };
 }
 
 export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRole, invoices, duplicateInvoiceNumbers, businessDate, offlineShell = false }: {
@@ -561,7 +563,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
               </div>
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm tabular-nums sm:grid-cols-4">
                 <div className="grid gap-0.5"><dt className="text-xs text-muted-foreground">Total</dt><dd className="font-semibold">{total === null ? "—" : qar(total)}</dd></div>
-                <div className="grid gap-0.5"><dt className="text-xs text-muted-foreground">Received</dt><dd className="font-semibold">{qar(received)}</dd></div>
+                <div className="grid gap-0.5"><dt className="text-xs text-muted-foreground">Received</dt><dd className="font-semibold">{qar(received)}{received > 0 && <span className="font-medium text-muted-foreground"> · {paymentMethodLabel(row.paymentMethod)}</span>}</dd></div>
                 <div className="grid gap-0.5"><dt className="text-xs text-muted-foreground">Due</dt><dd className={cn("font-semibold", total !== null && total - received > 0 && "text-warning")}>{total === null ? "—" : qar(total - received)}</dd></div>
                 <div className="grid gap-0.5"><dt className="text-xs text-muted-foreground">Delivery</dt><dd className="font-semibold">{row.delivered ? "Delivered" : "Not delivered"}</dd></div>
               </dl>
@@ -598,7 +600,8 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
                   <input {...fieldProps(row, index, "received")} inputMode="decimal" autoComplete="off" placeholder="0.00" value={row.received} onChange={(event) => updateRow(row.rowId, { received: event.target.value })} className={cn(fieldProps(row, index, "received").className, ui.money)} />
                   {errorText(row, index, "received")}
                 </div>
-                <p className="flex items-center justify-between rounded-xl bg-muted px-3.5 py-2.5 text-sm"><span className="text-muted-foreground">Payment method</span><strong className="font-semibold">Cash</strong></p>
+                <PaymentMethodField name={`payment-method-${index}`} value={row.paymentMethod ?? "cash"} disabled={locked} onChange={(paymentMethod) => updateRow(row.rowId, { paymentMethod })} />
+                <p className="text-xs text-muted-foreground">{(typedDirham(row.received) ?? 0) > 0 ? `${paymentMethodLabel(row.paymentMethod)} receipt.` : "Applies when an amount is received."}</p>
               </div>
               <div className={section}>
                 <p className={sectionTitle}>Delivery</p>
@@ -673,7 +676,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
             <strong className="text-3xl font-semibold tracking-tight tabular-nums"><span className="text-sm font-medium opacity-65">QAR</span> {groupedQar(preview.totals?.invoiced ?? 0)}</strong>
           </div>
           <dl className="grid gap-2 text-sm tabular-nums">
-            <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Received (cash)</dt><dd className="font-semibold">{qar(preview.totals?.received ?? 0)}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Received</dt><dd className="font-semibold">{qar(preview.totals?.received ?? 0)}</dd></div>
             <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Due</dt><dd className={cn("font-semibold", (preview.totals?.due ?? 0) > 0 && "text-warning")}>{qar(preview.totals?.due ?? 0)}</dd></div>
             <div className="flex justify-between gap-3 border-t border-border pt-2"><dt className="text-muted-foreground">Delivery</dt><dd className="font-semibold">{deliveredCount === 0 ? "Not delivered" : deliveredCount === rows.length ? "Delivered" : `${deliveredCount} of ${rows.length} delivered`}</dd></div>
             <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Customer</dt><dd className="text-right font-semibold">{rows.some((row) => customerRequired(row.rowId)) ? <span className="text-warning">Required{multiple ? ` for ${rows.map((row, i) => customerRequired(row.rowId) ? `#${i + 1}` : "").filter(Boolean).join(", ")}` : ""}</span> : "Optional"}</dd></div>
@@ -696,13 +699,14 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
           </div>
           {preview.command && <ul className="grid list-none divide-y divide-border pl-0 text-sm tabular-nums">{preview.command.rows.map((row) => <li key={row.row_id} className="grid gap-0.5 py-2 first:pt-0">
             <div className="flex justify-between gap-3"><strong className="[overflow-wrap:anywhere]">{row.invoice_number}</strong><span>{qar(row.total_dirham)}</span></div>
-            <div className="flex flex-wrap justify-between gap-x-3 text-xs text-muted-foreground"><span>{row.delivered ? "Delivered" : "Not delivered"} · Cash</span><span>Received {qar(row.received_dirham)}</span><span>Due {qar(row.total_dirham - row.received_dirham)}</span></div>
+            <div className="flex flex-wrap justify-between gap-x-3 text-xs text-muted-foreground"><span>{row.delivered ? "Delivered" : "Not delivered"}{row.received_dirham > 0 && ` · ${paymentMethodLabel(row.payment_method)}`}</span><span>Received {qar(row.received_dirham)}</span><span>Due {qar(row.total_dirham - row.received_dirham)}</span></div>
           </li>)}</ul>}
           {preview.totals && <dl className="grid grid-cols-3 gap-2 rounded-2xl bg-muted p-3 text-center tabular-nums">
             <div><dt className="text-[11px] text-muted-foreground">Invoiced</dt><dd className="text-sm font-semibold">{qar(preview.totals.invoiced)}</dd></div>
             <div><dt className="text-[11px] text-muted-foreground">Received</dt><dd className="text-sm font-semibold">{qar(preview.totals.received)}</dd></div>
             <div><dt className="text-[11px] text-muted-foreground">Due</dt><dd className="text-sm font-semibold">{qar(preview.totals.due)}</dd></div>
           </dl>}
+          {preview.command && preview.command.rows.some((row) => row.received_dirham > 0 && row.payment_method === "bank") && <p className="text-[13px] text-muted-foreground tabular-nums">Received by method: Cash <strong className="text-foreground">{qar(preview.command.rows.reduce((sum, row) => sum + (row.payment_method === "cash" ? row.received_dirham : 0), 0))}</strong> · Bank <strong className="text-foreground">{qar(preview.command.rows.reduce((sum, row) => sum + (row.payment_method === "bank" ? row.received_dirham : 0), 0))}</strong></p>}
           {preview.errors.length ? <p role="alert" className={ui.danger}>{preview.errors.find((error) => error.field === "rows")?.message ?? `Fix ${preview.errors.length} row error${preview.errors.length === 1 ? "" : "s"} before saving.`}</p> : <div className="flex flex-wrap gap-2">
             <button data-slot="button" type="button" className={cn(ui.primary, "flex-1")} disabled={workspaceLocked} onClick={save}>{busy ? "Saving…" : submission ? "Retry same sale" : online ? (multiple ? `Save ${rows.length} invoices` : "Save sale") : "Save when back online"}</button>
             {submission?.status === "queued" ? <button data-slot="button" type="button" className={ui.secondary} disabled={workspaceLocked} onClick={editDraft}>Edit draft</button>

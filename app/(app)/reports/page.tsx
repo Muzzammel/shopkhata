@@ -7,6 +7,7 @@ import { can, getCurrentActor } from "@/lib/auth/permissions";
 import { dailyGroups } from "@/lib/closing-view";
 import { qar } from "@/lib/dashboard-view";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
+import { paymentMethodLabel } from "@/lib/payment-method";
 import {
   PAYMENT_SOURCES, REPORT_KINDS, REPORT_TITLES, SCREEN_ROW_LIMIT, emptyDailySummary, fetchCustomerDueReport,
   fetchDailySummary, fetchExpenseReport, fetchPaymentReport, fetchSalesReport, parseReportFilter, type ReportKind,
@@ -99,9 +100,9 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
         <Stat label="Delivered" value={totals.deliveredCount} />
         <Stat label="Advance (not delivered)" value={totals.undeliveredCount} />
       </Group>
-      <Group title="Cash and collection">
+      <Group title="Collection">
         <Stat label="Payments received" value={qar(totals.paidDirham)} total="paid" />
-        <Stat label="Customer credit applied" value={qar(totals.creditAppliedDirham)} total="credit" note="Not cash" />
+        <Stat label="Customer credit applied" value={qar(totals.creditAppliedDirham)} total="credit" note="Not a receipt" />
         <Stat label="Outstanding due now" value={qar(totals.dueDirham)} total="due" note="Current position" />
       </Group>
       <Table num={[4, 5, 6, 7]} head={["Invoice", "Business date", "Recorded (Qatar)", "Customer", "Total", "Paid", "Credit applied", "Due", "Status"]} empty="No invoices in this range.">
@@ -138,14 +139,16 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
   } else {
     const { rows, totals } = await fetchPaymentReport(supabase, shop.id, from, to, limit);
     body = <>
-      <p className="text-sm text-muted-foreground">Every money movement whose business date is in the range, one row per record. A correction is its own row on the day it was approved. Applied customer credit is listed but is not cash.</p>
-      <Group title="Cash and collection">
+      <p className="text-sm text-muted-foreground">Every money movement whose business date is in the range, one row per record. A correction is its own row on the day it was approved. Applied customer credit is listed but is not a cash or bank receipt.</p>
+      <Group title="Money received">
         <Stat label="Cash received" value={qar(totals.cashDirham)} total="cash" />
-        <Stat label="Customer credit applied (not cash)" value={qar(totals.creditDirham)} total="credit" />
-        {totals.bySource.map((item) => <Stat key={`${item.source}-${item.method}`} label={`${PAYMENT_SOURCES[item.source]} (${item.count})`} value={qar(item.amountDirham)} />)}
+        <Stat label="Bank received" value={qar(totals.bankDirham)} total="bank" />
+        <Stat label="Total received (cash + bank)" value={qar(totals.receivedDirham)} total="received" />
+        <Stat label="Customer credit applied (not a receipt)" value={qar(totals.creditDirham)} total="credit" />
+        {totals.bySource.map((item) => <Stat key={`${item.source}-${item.method}`} label={`${PAYMENT_SOURCES[item.source]} · ${paymentMethodLabel(item.method)} (${item.count})`} value={qar(item.amountDirham)} />)}
       </Group>
       <Table num={[4]} head={["Business date", "Recorded (Qatar)", "Type", "Method", "Amount", "Invoice", "Customer", "Reference"]} empty="No payments in this range.">
-        {rows.map((row) => <tr key={`${row.source}-${row.entryId}`}><td>{row.businessDate}</td><td>{qatarTime(row.recordedAt)}</td><td>{PAYMENT_SOURCES[row.source]}</td><td>{row.method}</td><td className={num}>{qar(row.amountDirham)}</td><td>{row.invoiceNumber || "—"}</td><td>{row.customerName || "—"}</td><td><small>{row.reference}</small></td></tr>)}
+        {rows.map((row) => <tr key={`${row.source}-${row.entryId}`}><td>{row.businessDate}</td><td>{qatarTime(row.recordedAt)}</td><td>{PAYMENT_SOURCES[row.source]}</td><td>{paymentMethodLabel(row.method)}</td><td className={num}>{qar(row.amountDirham)}</td><td>{row.invoiceNumber || "—"}</td><td>{row.customerName || "—"}</td><td><small>{row.reference}</small></td></tr>)}
       </Table>
     </>;
   }

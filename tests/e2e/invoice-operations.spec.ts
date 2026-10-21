@@ -38,7 +38,7 @@ test("complete staff invoice lifecycle with separate owner approvals, canonical 
   await expect(totals(page)).toContainText("QAR 100.00");
   await page.getByRole("button", { name: "Record payment" }).click();
   const payment = page.getByRole("dialog", { name: "Record payment" });
-  await payment.getByLabel("Cash amount (QAR)").fill("20.00");
+  await payment.getByLabel("Payment amount (QAR)").fill("20.00");
   await payment.getByRole("button", { name: "Review payment", exact: true }).click();
   await payment.getByRole("button", { name: "Confirm payment" }).click();
   await expect(totals(page).getByText("QAR 80.00", { exact: true })).toBeVisible();
@@ -184,7 +184,7 @@ test("uncertain detail payment retains exact command and allows retry without du
   await page.getByRole("link", { name: `View invoice ${number}` }).click();
   await page.getByRole("button", { name: "Record payment" }).click();
   const payment = page.getByRole("dialog", { name: "Record payment" });
-  await payment.getByLabel("Cash amount (QAR)").fill("20.00");
+  await payment.getByLabel("Payment amount (QAR)").fill("20.00");
   await payment.getByRole("button", { name: "Review payment", exact: true }).click();
   let dropped = false;
   await page.route("**/*", async (route) => {

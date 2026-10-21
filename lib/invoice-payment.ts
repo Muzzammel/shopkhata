@@ -1,11 +1,12 @@
 import { parseQar } from "@/lib/domain/money";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
+import type { PaymentMethod } from "@/lib/payment-method";
 
 export type PaymentCommand = {
   shop_id: string;
   invoice_id: string;
   amount_dirham: number;
-  payment_method: "cash";
+  payment_method: PaymentMethod;
   business_date: string;
   idempotency_key: string;
 };
@@ -15,6 +16,7 @@ export type PaymentDraft = {
   invoiceId: string;
   invoiceNumber: string;
   amount: string;
+  paymentMethod?: PaymentMethod;
   idempotencyKey: string;
 };
 
@@ -43,7 +45,7 @@ export function preparePaymentAttempt(
       shop_id: draft.shopId,
       invoice_id: draft.invoiceId,
       amount_dirham: amountDirham,
-      payment_method: "cash",
+      payment_method: draft.paymentMethod ?? "cash",
       business_date: qatarBusinessDate(now),
       idempotency_key: draft.idempotencyKey,
     },

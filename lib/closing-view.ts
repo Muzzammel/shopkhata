@@ -5,7 +5,7 @@ import { DAILY_METRICS, type DailySummary } from "@/lib/reports";
 
 export const DAILY_GROUPS = [
   { title: "Sales", keys: ["grossInvoiceDirham", "invoiceCount", "dueCreatedDirham"] },
-  { title: "Cash received", keys: ["cashReceivedDirham", "initialReceivedDirham", "followupPaymentsDirham", "customerPaymentsDirham", "paymentCorrectionsDirham", "creditCreatedDirham"] },
+  { title: "Money received", keys: ["totalReceivedDirham", "cashReceivedDirham", "bankReceivedDirham", "initialReceivedDirham", "followupPaymentsDirham", "customerPaymentsDirham", "paymentCorrectionsDirham", "creditCreatedDirham"] },
   { title: "Expenses", keys: ["expensesDirham", "expenseCount", "netCashMovementDirham"] },
   { title: "Dues and credit", keys: ["netDueMovementDirham", "invoiceCorrectionsDirham", "creditAppliedDirham"] },
 ] as const;
@@ -19,7 +19,7 @@ export function dailyGroups(): DailyGroup[] {
 
 /** V2 colour language: green for money received, orange for money still due. The label always carries the meaning too. */
 export function metricTone(key: string): "received" | "due" | null {
-  if (key === "cashReceivedDirham") return "received";
+  if (key === "cashReceivedDirham" || key === "bankReceivedDirham" || key === "totalReceivedDirham") return "received";
   if (key === "dueCreatedDirham" || key === "netDueMovementDirham") return "due";
   return null;
 }

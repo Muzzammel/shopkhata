@@ -12,7 +12,7 @@ export function shortDate(iso: string): string {
   return `${Number(iso.slice(8, 10))} ${MONTHS[Number(iso.slice(5, 7)) - 1]}`;
 }
 
-export type Bucket = { key: string; label: string; salesDirham: number; paymentsDirham: number; expensesDirham: number };
+export type Bucket = { key: string; label: string; salesDirham: number; paymentsDirham: number; receivedDirham: number; expensesDirham: number };
 export type BucketUnit = "day" | "week" | "month";
 
 /**
@@ -24,12 +24,13 @@ export function bucketTrend(days: readonly TrendPoint[], from: string, to: strin
   const byDate = new Map(days.map((day) => [day.businessDate, day]));
   const dense: TrendPoint[] = [];
   for (let date = from; date <= to; date = addDays(date, 1)) {
-    dense.push(byDate.get(date) ?? { businessDate: date, salesDirham: 0, paymentsDirham: 0, expensesDirham: 0 });
+    dense.push(byDate.get(date) ?? { businessDate: date, salesDirham: 0, paymentsDirham: 0, receivedDirham: 0, expensesDirham: 0 });
   }
   const sum = (key: string, label: string, rows: readonly TrendPoint[]): Bucket => ({
     key, label,
     salesDirham: rows.reduce((total, row) => total + row.salesDirham, 0),
     paymentsDirham: rows.reduce((total, row) => total + row.paymentsDirham, 0),
+    receivedDirham: rows.reduce((total, row) => total + row.receivedDirham, 0),
     expensesDirham: rows.reduce((total, row) => total + row.expensesDirham, 0),
   });
   if (dense.length <= maxPoints) return { unit: "day", buckets: dense.map((day) => sum(day.businessDate, shortDate(day.businessDate), [day])) };

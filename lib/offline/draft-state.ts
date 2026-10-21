@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { EntryError, EntryRow, InvoiceEntryInput } from "@/lib/invoice-entry";
+import { PAYMENT_METHODS } from "@/lib/payment-method";
 
 // Local drafts are a convenience copy of unsaved input. They are never
 // financial truth: only a confirmed submit_batch receipt is.
@@ -12,7 +13,7 @@ export const STALE_DRAFT_DAYS = 30;
 export const AUTO_RETRY_DELAYS_MS = [1_000, 5_000, 15_000] as const;
 
 const rowSchema = z.object({
-  rowId: z.string().min(1), invoiceId: z.string(), total: z.string(), received: z.string(), delivered: z.boolean(),
+  rowId: z.string().min(1), invoiceId: z.string(), total: z.string(), received: z.string(), paymentMethod: z.enum(PAYMENT_METHODS).optional(), delivered: z.boolean(),
   customerId: z.string(), customerName: z.string(), customerMobile: z.string(), note: z.string().optional(),
 });
 const customerSchema = z.object({ id: z.string(), name: z.string().nullable(), mobile: z.string().nullable(), public_id: z.string() });

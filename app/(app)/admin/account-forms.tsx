@@ -36,7 +36,7 @@ export function StatusBadges({ account }: { account: Pick<AccountRow, "role" | "
   </span>;
 }
 
-function Failure({ title, message }: { title: string; message: string }) {
+export function Failure({ title, message }: { title: string; message: string }) {
   return <Alert variant="destructive" className="border-destructive/40 bg-danger-soft"><CircleAlertIcon /><AlertTitle>{title}</AlertTitle><AlertDescription>{message}</AlertDescription></Alert>;
 }
 
@@ -182,7 +182,7 @@ function ManageAccountDrawer({ account, shops, open, onOpenChange }: { account: 
   </Drawer>;
 }
 
-function Field({ id, label, error, hint, children }: { id: string; label: string; error?: string; hint?: ReactNode; children: ReactNode }) {
+export function Field({ id, label, error, hint, children }: { id: string; label: string; error?: string; hint?: ReactNode; children: ReactNode }) {
   return <div className="grid content-start gap-1.5">
     <label data-slot="label" htmlFor={id} className={ui.label}>{label}</label>
     {children}

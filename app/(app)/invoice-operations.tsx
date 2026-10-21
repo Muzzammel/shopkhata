@@ -212,7 +212,7 @@ export function InvoiceOperations({ detail, permissions }: {
       })}</ul>
     </section>}
 
-    {permissions.payment && <Drawer open={paying} onOpenChange={closePayment} fallbackFocus={moreButton} title="Record payment" description={<>Cash against invoice {detail.invoiceNumber}. Saved only after ShopKhata confirms it.</>}>
+    {permissions.payment && <Drawer open={paying} onOpenChange={closePayment} fallbackFocus={moreButton} title="Record payment" description={<>Cash or bank payment against invoice {detail.invoiceNumber}. Saved only after ShopKhata confirms it.</>}>
       <InvoicePayment variant="sheet" shopId={detail.shopId} disabled={busy || uncertain} initialInvoice={{ id: detail.id, invoiceNumber: detail.invoiceNumber, effectiveTotal: detail.effectiveTotalDirham, effectivePaid: detail.effectivePaidDirham, effectiveDue: detail.effectiveDueDirham }}
         onSaved={() => router.refresh()} onActivityChange={setBusy} onStateChange={setPaymentGuard} />
     </Drawer>}

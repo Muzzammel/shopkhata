@@ -1,12 +1,15 @@
 import { validateBatch } from "@/lib/domain/batches";
 import { invoiceKey } from "@/lib/domain/ids";
 import { parseQar } from "@/lib/domain/money";
+import type { PaymentMethod } from "@/lib/payment-method";
 
 export type EntryRow = {
   rowId: string;
   invoiceId: string;
   total: string;
   received: string;
+  /** Only meaningful when something is received; a missing value (older drafts, imports) is cash. */
+  paymentMethod?: PaymentMethod;
   delivered: boolean;
   customerId: string;
   customerName: string;
@@ -105,7 +108,7 @@ export function prepareInvoiceBatch(input: InvoiceEntryInput, existingInvoiceIds
       invoice_number: row.invoiceId.trim(),
       total_dirham: amounts[index].total,
       received_dirham: amounts[index].received,
-      payment_method: "cash",
+      payment_method: amounts[index].received > 0 ? row.paymentMethod ?? "cash" : "cash",
       delivered: row.delivered,
       ...(row.note?.trim() ? { note: row.note.trim() } : {}),
       customer: row.customerId.trim()

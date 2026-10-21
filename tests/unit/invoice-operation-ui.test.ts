@@ -26,7 +26,7 @@ describe("invoice operations UI retry and refresh", () => {
     view.rerender(createElement(InvoicePayment, { ...props, initialInvoice: { ...invoice, invoiceNumber: "NEW", effectiveTotal: 9000, effectiveDue: 7000 } }));
     expect(screen.getByText("NEW").closest("p")?.textContent).toBe("Invoice NEW");
     expect(screen.getByText("70.00", { exact: false }).textContent).toContain("QAR 70.00");
-    fireEvent.change(screen.getByLabelText("Cash amount (QAR)"), { target: { value: "75.00" } });
+    fireEvent.change(screen.getByLabelText("Payment amount (QAR)"), { target: { value: "75.00" } });
     fireEvent.click(screen.getByRole("button", { name: "Review payment" }));
     expect(screen.getByRole("alert").textContent).toContain("cannot exceed");
     expect(mocks.payment).not.toHaveBeenCalled();
@@ -36,7 +36,7 @@ describe("invoice operations UI retry and refresh", () => {
     mocks.payment.mockResolvedValueOnce({ ok: false, uncertain: true, message: "Uncertain" }).mockResolvedValueOnce({ ok: false, uncertain: false, message: "Sign in again" }).mockResolvedValueOnce({ ok: true, receipt: { ok: true, invoice_id: id, payment_id: "a9000000-0000-4000-8000-000000000009", effective_paid: 4000, effective_due: 6000 } });
     render(createElement(InvoiceOperations, { detail, permissions }));
     fireEvent.click(screen.getByRole("button", { name: "Record payment" }));
-    fireEvent.change(screen.getByLabelText("Cash amount (QAR)"), { target: { value: "20.00" } });
+    fireEvent.change(screen.getByLabelText("Payment amount (QAR)"), { target: { value: "20.00" } });
     fireEvent.click(screen.getByRole("button", { name: "Review payment" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm payment" }));
     const retry = await screen.findByRole("button", { name: "Retry payment" });

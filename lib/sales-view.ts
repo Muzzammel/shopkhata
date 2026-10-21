@@ -1,5 +1,6 @@
 import { qar } from "@/lib/dashboard-view";
 import type { InvoiceDetail } from "@/lib/invoice-detail";
+import { paymentMethodLabel } from "@/lib/payment-method";
 
 // View-only helpers for Sales, New Sale and Invoice Detail. Nothing here computes a balance:
 // every figure is passed in from effective_invoices or the server's own history rows.
@@ -78,7 +79,7 @@ export function buildTimeline(detail: InvoiceDetail): TimelineEvent[] {
     ],
   }];
   for (const payment of detail.payments) {
-    events.push({ id: payment.id, at: payment.recordedAt, kind: "payment", title: "Payment recorded", actor: person(payment.createdBy), changes: [{ label: `Cash · business date ${payment.businessDate}`, to: qar(payment.amountDirham) }] });
+    events.push({ id: payment.id, at: payment.recordedAt, kind: "payment", title: "Payment recorded", actor: person(payment.createdBy), changes: [{ label: `${paymentMethodLabel(payment.paymentMethod)} · business date ${payment.businessDate}`, to: qar(payment.amountDirham) }] });
   }
   for (const change of detail.changes) {
     const decision = change.decision;

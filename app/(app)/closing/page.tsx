@@ -26,7 +26,7 @@ function CloseReview({ summary, attention }: { summary: DailySummary; attention:
     <div className={ui.warn}>Closing blocks every new invoice, payment, expense and correction dated {summary.businessDate} for this shop. Nothing is deleted, and an owner or manager can reopen the date with a reason.</div>
     <dl className="grid grid-cols-2 gap-3 text-sm">
       <div className="grid gap-0.5 rounded-2xl bg-muted p-3"><dt className="text-muted-foreground">Invoices entered</dt><dd className="text-lg font-semibold tabular-nums">{summary.invoiceCount}</dd></div>
-      <div className="grid gap-0.5 rounded-2xl bg-muted p-3"><dt className="text-muted-foreground">Cash received</dt><dd className="text-lg font-semibold tabular-nums">{money(summary.cashReceivedDirham)}</dd></div>
+      <div className="grid gap-0.5 rounded-2xl bg-muted p-3"><dt className="text-muted-foreground">Total received</dt><dd className="text-lg font-semibold tabular-nums">{money(summary.totalReceivedDirham)}</dd><dd className="text-xs text-muted-foreground tabular-nums">Cash {money(summary.cashReceivedDirham)} · Bank {money(summary.bankReceivedDirham)}</dd></div>
       <div className="grid gap-0.5 rounded-2xl bg-muted p-3"><dt className="text-muted-foreground">Expenses</dt><dd className="text-lg font-semibold tabular-nums">{money(summary.expensesDirham)}</dd></div>
       <div className="grid gap-0.5 rounded-2xl bg-muted p-3"><dt className="text-muted-foreground">Net due movement</dt><dd className="text-lg font-semibold tabular-nums">{money(summary.netDueMovementDirham)}</dd></div>
     </dl>

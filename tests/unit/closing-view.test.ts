@@ -10,8 +10,8 @@ describe("daily close view", () => {
   });
 
   it("leads each group with its headline figure and tones only received and due money", () => {
-    expect(dailyGroups().map((group) => group.metrics[0].key)).toEqual(["grossInvoiceDirham", "cashReceivedDirham", "expensesDirham", "netDueMovementDirham"]);
-    expect(metricTone("cashReceivedDirham")).toBe("received");
+    expect(dailyGroups().map((group) => group.metrics[0].key)).toEqual(["grossInvoiceDirham", "totalReceivedDirham", "expensesDirham", "netDueMovementDirham"]);
+    expect(["cashReceivedDirham", "bankReceivedDirham", "totalReceivedDirham"].map(metricTone)).toEqual(["received", "received", "received"]);
     expect(metricTone("netDueMovementDirham")).toBe("due");
     expect(metricTone("expensesDirham")).toBeNull();
   });

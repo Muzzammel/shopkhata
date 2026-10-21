@@ -92,7 +92,7 @@ test.describe("Reports", () => {
     await expect(period.getByRole("link", { name: "30 days" })).not.toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("heading", { level: 2, name: "Sales by invoice date" })).toBeVisible();
     await expect(page.getByRole("heading", { level: 3, name: "Sales" })).toBeVisible();
-    await expect(page.getByRole("heading", { level: 3, name: "Cash and collection" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 3, name: "Collection" })).toBeVisible();
   });
 
   test("a custom range is validated and falls back to today with a reason", async ({ page }) => {

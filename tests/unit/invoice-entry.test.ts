@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isValidBatchReceipt, prepareInvoiceBatch, qatarBusinessDate, selectInvoiceAttempt } from "@/lib/invoice-entry";
+import { isValidBatchReceipt, prepareInvoiceBatch, qatarBusinessDate, selectInvoiceAttempt, type EntryRow } from "@/lib/invoice-entry";
 
 const shopId = "10000000-0000-4000-8000-000000000001";
 const base = {
@@ -121,5 +121,27 @@ describe("invoice entry command", () => {
     expect(retry.shopId).toBe(shopId);
     expect(retry.isBackdated).toBe(true);
     expect(retry.backdatedReason).toBe("month-end close");
+  });
+});
+
+describe("invoice entry payment method", () => {
+  const methodOf = (rows: EntryRow[]) => prepareInvoiceBatch({ ...base, rows }, []).command?.rows.map((row) => row.payment_method);
+
+  it("sends each paid row's own method and treats a row without one as cash", () => {
+    const [a, b, c] = base.rows;
+    expect(methodOf([{ ...a, paymentMethod: "bank" as const }, { ...b, paymentMethod: "cash" as const }, c])).toEqual(["bank", "cash", "cash"]);
+  });
+
+  it("does not carry a method for a row that receives nothing", () => {
+    const [a] = base.rows;
+    expect(methodOf([{ ...a, received: "", delivered: false, paymentMethod: "bank" as const }])).toEqual(["cash"]);
+  });
+
+  it("changes the idempotency payload when only the method changes", () => {
+    const [a] = base.rows;
+    const cash = prepareInvoiceBatch({ ...base, rows: [{ ...a, paymentMethod: "cash" as const }] }, []).command;
+    const bank = prepareInvoiceBatch({ ...base, rows: [{ ...a, paymentMethod: "bank" as const }] }, []).command;
+    expect(JSON.stringify(cash)).not.toBe(JSON.stringify(bank));
+    expect(prepareInvoiceBatch({ ...base, rows: [{ ...a, paymentMethod: "bank" as const }] }, [], true).command).toEqual(bank);
   });
 });

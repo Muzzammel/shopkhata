@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { canReopenDate, closeInput, closingError, dayState, reopenInput } from "@/lib/closing";
 import type { ExportSheet } from "@/lib/excel/exports";
+import { IMPORT_HEADERS } from "@/lib/excel/invoice-import";
 import { prepareInvoiceBatch, qatarBusinessDate } from "@/lib/invoice-entry";
 import { classifySaveResult, draftStatusLabel, newSubmission, nextSubmission } from "@/lib/offline/draft-state";
 import {
@@ -20,8 +21,8 @@ async function roundTrip(sheet: ExportSheet) {
 const summaryRow = {
   business_date: "2026-10-04", invoice_count: 3, gross_invoice_dirham: 180000, initial_received_dirham: 90000, due_created_dirham: 90000,
   followup_payments_dirham: 40000, customer_payments_dirham: 20000, payment_corrections_dirham: -1000, invoice_corrections_dirham: -3000,
-  credit_created_dirham: 5000, credit_applied_dirham: 5000, expense_count: 2, expenses_dirham: 23000, cash_received_dirham: 154000,
-  net_cash_movement_dirham: 131000, net_due_movement_dirham: 23000,
+  credit_created_dirham: 5000, credit_applied_dirham: 5000, expense_count: 2, expenses_dirham: 23000, cash_received_dirham: 130000,
+  bank_received_dirham: 24000, total_received_dirham: 154000, net_cash_movement_dirham: 131000, net_due_movement_dirham: 23000,
 };
 
 describe("Qatar business date", () => {
@@ -126,7 +127,7 @@ describe("closed-date conflict on a queued draft", () => {
 describe("report mappers", () => {
   it("maps a daily summary row field by field without recalculating it", () => {
     const day = mapDailySummary(summaryRow);
-    expect(day).toMatchObject({ businessDate: "2026-10-04", invoiceCount: 3, grossInvoiceDirham: 180000, cashReceivedDirham: 154000, netCashMovementDirham: 131000, netDueMovementDirham: 23000 });
+    expect(day).toMatchObject({ businessDate: "2026-10-04", invoiceCount: 3, grossInvoiceDirham: 180000, cashReceivedDirham: 130000, bankReceivedDirham: 24000, totalReceivedDirham: 154000, netCashMovementDirham: 131000, netDueMovementDirham: 23000 });
     // A value the database did not compute consistently is passed through, not "fixed".
     expect(mapDailySummary({ ...summaryRow, net_cash_movement_dirham: 1 }).netCashMovementDirham).toBe(1);
     expect(Object.keys(day).sort()).toEqual(["businessDate", ...DAILY_METRICS.map((metric) => metric.key)].sort());
@@ -157,15 +158,34 @@ describe("report mappers", () => {
     expect(totals.cashDirham).toBe(154000);
     expect(totals.creditDirham).toBe(5000);
     expect(totals.bySource).toEqual([{ source: "credit_application", method: "credit", count: 1, amountDirham: 5000 }, { source: "follow_up", method: "cash", count: 2, amountDirham: 40000 }]);
-    expect(mapPaymentTotals([{ source: null, method: null, entry_count: 0, amount_dirham: 0 }])).toEqual({ cashDirham: 0, creditDirham: 0, bySource: [] });
+    expect(mapPaymentTotals([{ source: null, method: null, entry_count: 0, amount_dirham: 0 }])).toEqual({ cashDirham: 0, bankDirham: 0, receivedDirham: 0, creditDirham: 0, bySource: [] });
+  });
+  it("keeps cash, bank and applied credit apart and sums received from cash and bank only", () => {
+    const rows = [
+      { source: null, method: "cash", entry_count: 2, amount_dirham: 1000 }, { source: null, method: "bank", entry_count: 1, amount_dirham: 250 },
+      { source: null, method: "credit", entry_count: 1, amount_dirham: 400 }, { source: null, method: null, entry_count: 4, amount_dirham: 1650 },
+      { source: "customer_payment", method: "bank", entry_count: 1, amount_dirham: 250 },
+    ];
+    expect(mapPaymentTotals(rows)).toEqual({ cashDirham: 1000, bankDirham: 250, receivedDirham: 1250, creditDirham: 400, bySource: [{ source: "customer_payment", method: "bank", count: 1, amountDirham: 250 }] });
   });
 });
 
 describe("report Excel exports", () => {
+  it("pins the exact column order of the Cash/Bank export contract and the unchanged import template", () => {
+    expect(DAILY_SUMMARY_HEADERS).toEqual([
+      "Business Date", "Invoices entered", "Gross invoice amount QAR", "Received at entry QAR", "Due created at entry QAR", "Follow-up invoice payments QAR",
+      "Customer payments QAR", "Payment corrections QAR", "Invoice corrections QAR", "Overpayment kept as customer credit QAR",
+      "Customer credit applied (not cash) QAR", "Expenses recorded", "Expenses QAR", "Cash received QAR", "Bank received QAR", "Total received QAR",
+      "Net movement (total received − expenses) QAR", "Net change in outstanding due QAR",
+    ]);
+    expect(PAYMENT_REPORT_HEADERS).toEqual(["Business Date", "Recorded At (Qatar)", "Type", "Method", "Amount QAR", "Invoice Number", "Customer", "Reference"]);
+    expect([...IMPORT_HEADERS]).toEqual(["Invoice Number", "Total QAR", "Received QAR", "Delivered", "Customer Name", "Customer Mobile", "Note"]);
+  });
+
   it("round-trips the daily summary with one QAR number per metric", async () => {
     const data = await roundTrip(dailySummarySheet([mapDailySummary(summaryRow)]));
     expect(data[0]).toEqual(DAILY_SUMMARY_HEADERS);
-    expect(data[1]).toEqual(["2026-10-04", 3, 1800, 900, 900, 400, 200, -10, -30, 50, 50, 2, 230, 1540, 1310, 230]);
+    expect(data[1]).toEqual(["2026-10-04", 3, 1800, 900, 900, 400, 200, -10, -30, 50, 50, 2, 230, 1300, 240, 1540, 1310, 230]);
     expect((await roundTrip(dailySummarySheet([])))).toEqual([DAILY_SUMMARY_HEADERS]);
   });
   it("round-trips the sales report with the database totals as its last row", async () => {
@@ -193,10 +213,10 @@ describe("report Excel exports", () => {
     const payments = await roundTrip(paymentReportSheet(
       [{ entryId: "p-1", businessDate: "2026-10-04", recordedAt: null, source: "credit_application", method: "credit", amountDirham: 5000, invoiceNumber: "S-3", customerName: "Mary", reference: "credit-1" },
         { entryId: "p-2", businessDate: "2026-10-04", recordedAt: null, source: "payment_correction", method: "cash", amountDirham: -1000, invoiceNumber: "S-1", customerName: "Mary", reference: "p-0" }],
-      { cashDirham: 154000, creditDirham: 5000, bySource: [{ source: "credit_application", method: "credit", count: 1, amountDirham: 5000 }] }));
+      { cashDirham: 130000, bankDirham: 24000, receivedDirham: 154000, creditDirham: 5000, bySource: [{ source: "credit_application", method: "credit", count: 1, amountDirham: 5000 }] }));
     expect(payments[0]).toEqual(PAYMENT_REPORT_HEADERS);
     expect(payments[1]).toEqual(["2026-10-04", null, "Customer credit applied", "credit", 50, "S-3", "Mary", "credit-1"]);
     expect(payments[2].slice(2, 5)).toEqual(["Payment correction", "cash", -10]);
-    expect(payments.slice(3).map((row) => [row[0], row[3], row[4]])).toEqual([["Type total", "credit", 50], ["Total cash received", "cash", 1540], ["Total customer credit applied", "credit", 50]]);
+    expect(payments.slice(3).map((row) => [row[0], row[3], row[4]])).toEqual([["Type total", "credit", 50], ["Total cash received", "cash", 1300], ["Total bank received", "bank", 240], ["Total received (cash + bank)", null, 1540], ["Total customer credit applied", "credit", 50]]);
   });
 });

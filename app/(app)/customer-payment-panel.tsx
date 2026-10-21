@@ -6,11 +6,13 @@ import { HandCoinsIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { FilterPills } from "@/components/dashboard/filter-pills";
+import { PaymentMethodField } from "@/components/sales/payment-method-field";
 import { Drawer } from "@/components/shell/drawer";
 import { ui } from "@/components/sales/ui";
 import { groupedQar, qar } from "@/lib/dashboard-view";
 import { parseQar } from "@/lib/domain/money";
 import { previewCustomerPaymentAllocation, type OutstandingInvoice } from "@/lib/customer-operations";
+import { paymentMethodLabel, type PaymentMethod } from "@/lib/payment-method";
 import { cn } from "@/lib/utils";
 import { applyCustomerCredit, recordCustomerPayment } from "./customer-actions";
 
@@ -27,6 +29,7 @@ export function CustomerPaymentPanel({ shopId, customerId, customerName, invoice
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState<"payment" | "credit">("payment");
+  const [method, setMethod] = useState<PaymentMethod>("cash");
   const [review, setReview] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -46,10 +49,10 @@ export function CustomerPaymentPanel({ shopId, customerId, customerName, invoice
     setBusy(true); setMessage("");
     try {
       const command = { shop_id: shopId, customer_id: customerId, amount_dirham: amountDirham, business_date: businessDate, idempotency_key: key };
-      const result = mode === "payment" ? await recordCustomerPayment(command) : await applyCustomerCredit(command);
+      const result = mode === "payment" ? await recordCustomerPayment({ ...command, payment_method: method }) : await applyCustomerCredit(command);
       if (!result.ok) { setMessage(result.message); setUncertain(result.uncertain); return; }
       toast.success(mode === "payment" ? `Payment of ${qar(amountDirham)} recorded and allocated.` : `Credit of ${qar(amountDirham)} applied to invoice due.`);
-      setAmount(""); setReview(false); setUncertain(false); setKey(crypto.randomUUID()); setOpen(false);
+      setAmount(""); setMethod("cash"); setReview(false); setUncertain(false); setKey(crypto.randomUUID()); setOpen(false);
       router.refresh();
     } catch { setMessage("Status is uncertain. Retry this exact request before starting another."); setUncertain(true); }
     finally { setBusy(false); }
@@ -70,7 +73,7 @@ export function CustomerPaymentPanel({ shopId, customerId, customerName, invoice
         {availableCreditDirham > 0 && <p className="text-xs text-muted-foreground tabular-nums">Customer credit available: <strong className="text-foreground">{qar(availableCreditDirham)}</strong> · credit is not cash</p>}
       </div>
 
-      {availableCreditDirham > 0 && <FilterPills label="Settle with" value={mode} className="justify-self-start" items={[{ key: "payment", label: "Cash payment" }, { key: "credit", label: "Apply credit" }]}
+      {availableCreditDirham > 0 && <FilterPills label="Settle with" value={mode} className="justify-self-start" items={[{ key: "payment", label: "New payment" }, { key: "credit", label: "Apply credit" }]}
         onPick={(next) => { if (uncertain || busy) return; setMode(next as typeof mode); edit(); }} />}
 
       {!review && <div className="grid gap-4">
@@ -79,8 +82,9 @@ export function CustomerPaymentPanel({ shopId, customerId, customerName, invoice
             onChange={(e) => { setAmount(e.target.value); edit(); }} className={cn(ui.field, ui.money, "h-14 text-2xl max-sm:h-14 max-sm:text-2xl")} />
         </label>
         {amount !== "" && !valid && <p id="customer-payment-error" role="alert" className={ui.fieldError}>Enter a positive amount with at most two decimals, no more than the current due{mode === "credit" ? " or the available credit" : ""}.</p>}
+        {mode === "payment" && <PaymentMethodField name="customer-payment-method" value={method} disabled={uncertain || busy} onChange={(next) => { setMethod(next); edit(); }} />}
         <dl aria-label="Payment summary" className="grid gap-2 rounded-2xl border border-border p-4 text-sm tabular-nums">
-          <div className={row}><dt className="text-muted-foreground">{mode === "payment" ? "Payment method" : "Settled with"}</dt><dd className="font-semibold">{mode === "payment" ? "Cash" : "Customer credit"}</dd></div>
+          <div className={row}><dt className="text-muted-foreground">{mode === "payment" ? "Payment method" : "Settled with"}</dt><dd className="font-semibold">{mode === "payment" ? paymentMethodLabel(method) : "Customer credit"}</dd></div>
           <div className={row}><dt className="text-muted-foreground">Amount applied</dt><dd className="font-semibold">{valid ? qar(amountDirham) : "—"}</dd></div>
           <div className={row}><dt className="text-muted-foreground">Resulting due</dt><dd className="font-semibold">{resultingDue === null ? "—" : qar(resultingDue)}</dd></div>
           <div className={row}><dt className="text-muted-foreground">Resulting credit</dt><dd className="font-semibold">{qar(resultingCredit)}</dd></div>
@@ -91,7 +95,7 @@ export function CustomerPaymentPanel({ shopId, customerId, customerName, invoice
 
       {review && <section aria-labelledby="allocation-heading" className="grid gap-4">
         <h3 id="allocation-heading" data-slot="heading" className="text-sm font-semibold">Allocation preview</h3>
-        <p className="text-sm">{mode === "payment" ? "Cash payment" : "Customer credit"} of <strong className="tabular-nums">{qar(amountDirham)}</strong>, business date {businessDate}.</p>
+        <p className="text-sm">{mode === "payment" ? `${paymentMethodLabel(method)} payment` : "Customer credit"} of <strong className="tabular-nums">{qar(amountDirham)}</strong>, business date {businessDate}.</p>
         <table data-slot="allocation" aria-label="Allocation by invoice" className="w-full border-separate border-spacing-0 overflow-hidden rounded-2xl border border-border text-sm tabular-nums">
           <thead><tr className="bg-muted text-xs text-muted-foreground"><th data-slot="cell" scope="col" className="px-3 py-2 text-left font-medium">Invoice</th><th data-slot="cell" scope="col" className="px-3 py-2 text-right font-medium">Applied</th><th data-slot="cell" scope="col" className="px-3 py-2 text-right font-medium">Due after</th></tr></thead>
           <tbody>{allocation.map((item) => <tr key={item.invoiceId} data-invoice={item.invoiceNumber}>

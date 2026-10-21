@@ -6,9 +6,11 @@ import { Tabs as TabsPrimitive } from "radix-ui";
 import { ArrowRightIcon, BadgeCheckIcon, FilePlusIcon, HandCoinsIcon, PencilLineIcon, ReceiptTextIcon, UserPlusIcon, WalletIcon, type LucideIcon } from "lucide-react";
 
 import { SalesTable } from "@/components/sales/sales-table";
+import { ui } from "@/components/sales/ui";
 import { qar } from "@/lib/dashboard-view";
 import { CUSTOMER_TABS, type ActivityEvent, type ActivityKind, type CustomerCredit, type CustomerInvoice, type CustomerTab, type PaymentGroup } from "@/lib/customer-view";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
+import { paymentMethodLabel } from "@/lib/payment-method";
 import type { InvoiceListRow } from "@/lib/invoice-list";
 import { longDate, personLabel, qatarDateTime, signedQar } from "@/lib/sales-view";
 import { cn } from "@/lib/utils";
@@ -106,14 +108,14 @@ function Payments({ shopId, payments, people }: CustomerTabsProps) {
     {payments.length === 0 ? <Empty>No payments recorded for this customer.</Empty> : <ul className="grid list-none divide-y divide-border pl-0">
       {payments.map((payment) => {
         const cash = payment.kind !== "correction";
-        const method = payment.method ? payment.method[0].toUpperCase() + payment.method.slice(1) : "Cash";
+        const method = paymentMethodLabel(payment.method);
         const title = payment.kind === "payment" ? `${method} payment` : payment.kind === "overpayment" ? "Overpayment kept as credit" : "Payment correction (approved)";
         return <li key={payment.id} data-payment={payment.kind} className="grid gap-2 py-4 first:pt-0 last:pb-0">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
             <span className="flex min-w-0 items-center gap-2.5">
               <span className={cn("grid size-8 shrink-0 place-items-center rounded-full", cash ? "bg-success-soft text-success" : "bg-yellow-soft text-foreground")}>{cash ? <HandCoinsIcon aria-hidden className="size-4" /> : <PencilLineIcon aria-hidden className="size-4" />}</span>
               <span className="grid min-w-0">
-                <span className="text-[15px] font-semibold">{title}</span>
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold">{title}{payment.method && <span data-payment-method={payment.method} className={cn(ui.badge, "bg-muted text-foreground")}>{method}</span>}</span>
                 <span className="text-xs text-muted-foreground">Business date {longDate(payment.businessDate)} · <time dateTime={payment.recordedAt}>{qatarDateTime(payment.recordedAt)}</time> · by {personLabel(people, payment.actorId)}</span>
               </span>
             </span>

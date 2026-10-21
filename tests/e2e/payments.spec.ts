@@ -35,7 +35,7 @@ test("recording a payment on the Payments page uses the authoritative workflow a
   await form.getByLabel("Invoice number").fill(number);
   await form.getByRole("button", { name: "Find invoice" }).click();
   await expect(form.getByRole("heading", { name: number })).toBeVisible();
-  await form.getByLabel("Cash amount (QAR)").fill("15.00");
+  await form.getByLabel("Payment amount (QAR)").fill("15.00");
   await form.getByRole("button", { name: "Review payment" }).click();
   await form.getByRole("button", { name: "Confirm payment" }).click();
   await expect(form.getByRole("status")).toContainText("Payment recorded");
@@ -116,7 +116,7 @@ test("an approved payment correction is shown as its own effective row, not a mu
   await expect(page).toHaveURL(/\/shops\/[^/]+\/invoices\/[0-9a-f-]+$/);
   await page.getByRole("button", { name: "Record payment" }).click();
   const payment = page.getByRole("dialog", { name: "Record payment" });
-  await payment.getByLabel("Cash amount (QAR)").fill("30.00");
+  await payment.getByLabel("Payment amount (QAR)").fill("30.00");
   await payment.getByRole("button", { name: "Review payment", exact: true }).click();
   await payment.getByRole("button", { name: "Confirm payment" }).click();
   await expect(payment.getByRole("status")).toContainText("Payment recorded");

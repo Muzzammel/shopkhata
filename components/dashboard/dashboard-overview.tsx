@@ -19,12 +19,12 @@ export type OverviewProps = {
   range: { period: DashboardPeriod; from: string; to: string; error: string | null };
   today: string;
   kpi: {
-    salesDirham: number; invoiceCount: number; averageInvoiceDirham: number; paymentsReceivedDirham: number; expensesDirham: number;
+    salesDirham: number; invoiceCount: number; averageInvoiceDirham: number; paymentsReceivedDirham: number; bankReceivedDirham: number; totalReceivedDirham: number; expensesDirham: number;
     netCashMovementDirham: number; outstandingDueDirham: number; customersWithDue: number; unpaidInvoicesDirham: number; unpaidInvoiceCount: number;
   };
   days: TrendPoint[];
   /** The last day of the range, shown as meters when the range is a single day and a trend has nothing to plot. */
-  lastDay: { grossInvoiceDirham: number; cashReceivedDirham: number; expensesDirham: number };
+  lastDay: { grossInvoiceDirham: number; cashReceivedDirham: number; bankReceivedDirham: number; totalReceivedDirham: number; expensesDirham: number };
 };
 
 const PERIODS: { key: DashboardPeriod; label: string; title: string }[] = [
@@ -65,7 +65,7 @@ export function DashboardOverview({ shopId, range, today, kpi, days, lastDay }: 
   const bars = bucketTrend(days, range.from, range.to, 10);
   const series = METRICS[metric];
   const salesPoints = buckets.map((bucket) => ({ label: bucket.label, value: bucket.salesDirham }));
-  const points = buckets.map((bucket) => ({ label: bucket.label, value: series.pick({ businessDate: bucket.key, salesDirham: bucket.salesDirham, paymentsDirham: bucket.paymentsDirham, expensesDirham: bucket.expensesDirham }) }));
+  const points = buckets.map((bucket) => ({ label: bucket.label, value: series.pick({ businessDate: bucket.key, salesDirham: bucket.salesDirham, paymentsDirham: bucket.paymentsDirham, receivedDirham: bucket.receivedDirham, expensesDirham: bucket.expensesDirham }) }));
 
   function emphasize(next: Metric) {
     setMetric(next);
@@ -74,7 +74,7 @@ export function DashboardOverview({ shopId, range, today, kpi, days, lastDay }: 
     chart.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
   }
 
-  const incomeShare = kpi.paymentsReceivedDirham + kpi.expensesDirham;
+  const incomeShare = kpi.totalReceivedDirham + kpi.expensesDirham;
   const net = kpi.netCashMovementDirham;
   const unpaidHref = `/invoices?shop=${shopId}&from=${range.from}&to=${range.to}&status=with_due`;
 
@@ -104,12 +104,12 @@ export function DashboardOverview({ shopId, range, today, kpi, days, lastDay }: 
         <FilterPills tone="ink" label="Choose period" items={periodItems} value={shownPeriod} onPick={pickPeriod} className="relative z-20 self-start lg:hidden" />
       </KpiCard>
 
-      <KpiCard tone="success" icon={HandCoinsIcon} label="Cash Received" value={kpi.paymentsReceivedDirham} onClick={() => emphasize("cash")} pressed={emphasized && metric === "cash"} caption="Cash in this period" className="order-1 lg:order-none lg:col-span-4" index={1} />
+      <KpiCard tone="success" icon={HandCoinsIcon} label="Cash Received" value={kpi.paymentsReceivedDirham} onClick={() => emphasize("cash")} pressed={emphasized && metric === "cash"} caption={<>Cash only · Bank {money(kpi.bankReceivedDirham)} · Total {money(kpi.totalReceivedDirham)}</>} className="order-1 lg:order-none lg:col-span-4" index={1} />
       <KpiCard tone="plain" icon={WalletIcon} label="Expenses" value={kpi.expensesDirham} onClick={() => emphasize("expenses")} pressed={emphasized && metric === "expenses"} caption="Recorded this period" className="order-2 lg:order-none lg:col-span-3" index={2} />
 
-      <KpiCard tone="accent" icon={ScaleIcon} label="Net Position" value={net} caption="Cash received − expenses. Not profit." className="order-5 lg:order-none lg:col-span-7" index={3}>
+      <KpiCard tone="accent" icon={ScaleIcon} label="Net Position" value={net} caption="Total received (cash + bank) − expenses. Not profit." className="order-5 lg:order-none lg:col-span-7" index={3}>
         {incomeShare > 0 && <span aria-hidden className="flex h-2 gap-0.5 overflow-hidden rounded-full">
-          <span className="origin-left rounded-full bg-[var(--series-income)] animate-[sk-grow-x_var(--dur-chart)_var(--ease-out)_both]" style={{ flexGrow: kpi.paymentsReceivedDirham }} />
+          <span className="origin-left rounded-full bg-[var(--series-income)] animate-[sk-grow-x_var(--dur-chart)_var(--ease-out)_both]" style={{ flexGrow: kpi.totalReceivedDirham }} />
           <span className="origin-left rounded-full bg-[var(--series-expense)] animate-[sk-grow-x_var(--dur-chart)_var(--ease-out)_both]" style={{ flexGrow: kpi.expensesDirham }} />
         </span>}
       </KpiCard>
@@ -136,8 +136,8 @@ export function DashboardOverview({ shopId, range, today, kpi, days, lastDay }: 
           ? <AreaChart key={`${metric}-${range.period}-${range.from}-${range.to}`} points={points} format={money} caption={`${series.label} overview, ${caption}`} color={series.color} emptyMessage="Nothing recorded in this period" />
           : <div className="grid gap-4 py-2" role="group" aria-label="Today so far">
             <p className="text-sm text-muted-foreground">A single day has no trend to plot. Pick Week, Month or Year to see movement.</p>
-            {([["Invoiced (gross)", lastDay.grossInvoiceDirham, "var(--text)"], ["Cash received", lastDay.cashReceivedDirham, "var(--series-income)"], ["Expenses", lastDay.expensesDirham, "var(--series-expense)"]] as const).map(([label, value, color], index) => {
-              const top = Math.max(1, lastDay.grossInvoiceDirham, lastDay.cashReceivedDirham, lastDay.expensesDirham);
+            {([["Invoiced (gross)", lastDay.grossInvoiceDirham, "var(--text)"], ["Cash received", lastDay.cashReceivedDirham, "var(--series-income)"], ["Bank received", lastDay.bankReceivedDirham, "var(--series-income)"], ["Expenses", lastDay.expensesDirham, "var(--series-expense)"]] as const).map(([label, value, color], index) => {
+              const top = Math.max(1, lastDay.grossInvoiceDirham, lastDay.cashReceivedDirham, lastDay.bankReceivedDirham, lastDay.expensesDirham);
               return <div key={label} className="grid gap-1.5">
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">{label}</span><strong className="tabular-nums">{money(value)}</strong></div>
                 <span aria-hidden className="block h-2.5 overflow-hidden rounded-full bg-muted"><span className="block h-full origin-left rounded-full animate-[sk-grow-x_var(--dur-chart)_var(--ease-out)_both]" style={{ width: `${Math.max(value > 0 ? 2 : 0, (value / top) * 100)}%`, background: color, animationDelay: `${index * 70}ms` }} /></span>
@@ -148,7 +148,7 @@ export function DashboardOverview({ shopId, range, today, kpi, days, lastDay }: 
 
       <ChartCard
         title="Income vs Expense" className="lg:col-span-4" dimmed={loading}
-        description={`Cash received against expenses${bars.unit === "day" ? "" : `, by ${UNIT_NOUN[bars.unit]}`}`}
+        description={`Money received (cash and bank) against expenses${bars.unit === "day" ? "" : `, by ${UNIT_NOUN[bars.unit]}`}`}
         actions={<ul className="flex list-none gap-3 pl-0 text-xs text-muted-foreground">
           <li className="flex items-center gap-1.5"><i aria-hidden className="size-2.5 rounded-sm bg-[var(--series-income)]" />Income</li>
           <li className="flex items-center gap-1.5"><i aria-hidden className="size-2.5 rounded-sm bg-[var(--series-expense)]" />Expense</li>
@@ -156,7 +156,7 @@ export function DashboardOverview({ shopId, range, today, kpi, days, lastDay }: 
       >
         <GroupedBars
           key={`${range.period}-${range.from}-${range.to}`} names={["Income", "Expense"]} format={money} caption={`Income against expenses, ${caption}`}
-          groups={range.from === range.to ? [{ label: shortDate(range.from), a: lastDay.cashReceivedDirham, b: lastDay.expensesDirham }] : bars.buckets.map((bucket) => ({ label: bucket.label, a: bucket.paymentsDirham, b: bucket.expensesDirham }))}
+          groups={range.from === range.to ? [{ label: shortDate(range.from), a: lastDay.totalReceivedDirham, b: lastDay.expensesDirham }] : bars.buckets.map((bucket) => ({ label: bucket.label, a: bucket.receivedDirham, b: bucket.expensesDirham }))}
         />
       </ChartCard>
     </div>

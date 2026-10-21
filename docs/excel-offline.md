@@ -16,7 +16,7 @@ The sheet must be named `Invoices` (or be the only sheet). Row 1 holds exactly t
 | --- | --- | --- |
 | Invoice Number | yes | Text, or a whole number. Format the cell as Text to keep leading zeros. |
 | Total QAR | yes | Number or text, greater than zero, at most two decimals. |
-| Received QAR | no | Blank (treated as 0), or zero up to the total, at most two decimals. |
+| Received QAR | no | Blank (treated as 0), or zero up to the total, at most two decimals. Imported as Cash; the template has no payment-method column. |
 | Delivered | no | `Yes`/`No`, `Y`/`N`, `TRUE`/`FALSE`, `1`/`0`, or a boolean cell. Blank means No. |
 | Customer Name | no | Text. Creates a quick-add customer, exactly as typing a new customer name does. |
 | Customer Mobile | no | Text or digits. |
@@ -56,6 +56,8 @@ Money is exported as QAR numbers with a two-decimal format, converted from integ
 | Invoices | Workspace → Recent invoices, date range | Invoice Number, Business Date, Total QAR, Paid QAR, Credit Applied QAR, Due QAR, Delivered, Customer, Customer Mobile, Recorded At (Qatar), Original Number, Invoice Reference |
 | Customer ledger | Customer page | Business Date, Type, Reference, Invoice Number, Debit QAR, Credit QAR, Balance QAR, Recorded At (Qatar) |
 | Expenses | Expenses page, date range | Business Date, Category, Description, Amount QAR, Created By, Recorded At (Qatar), Expense Reference |
+
+Cash and Bank (payment methods) change only the report exports; these three exports and the import template are unchanged. "Paid QAR" is paid by either method. See [daily-close-reports.md](daily-close-reports.md#export-contract-cash-and-bank) for the report column order.
 
 Values are the effective ones users see, not stale originals:
 

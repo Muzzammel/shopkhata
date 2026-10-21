@@ -4,7 +4,7 @@ import { hrefForShop, NAV_ITEMS, navHref } from "@/components/shell/nav-items";
 import { quickActions } from "@/components/shell/quick-actions";
 import { activityKind, activityWhen, bucketTrend, categorySlot, compactQar, deriveAttention, initials, monotonePath, niceMax, shortDate } from "@/lib/dashboard-view";
 
-const day = (businessDate: string, salesDirham: number, paymentsDirham = 0, expensesDirham = 0) => ({ businessDate, salesDirham, paymentsDirham, expensesDirham });
+const day = (businessDate: string, salesDirham: number, paymentsDirham = 0, expensesDirham = 0) => ({ businessDate, salesDirham, paymentsDirham, receivedDirham: paymentsDirham, expensesDirham });
 
 describe("bucketTrend", () => {
   it("fills the days without activity with zeros, so a sparse week still has seven points", () => {
@@ -28,7 +28,7 @@ describe("bucketTrend", () => {
     }
   });
   it("returns a single bucket for a single day", () => {
-    expect(bucketTrend([], "2026-10-04", "2026-10-04", 31).buckets).toEqual([{ key: "2026-10-04", label: "4 Oct", salesDirham: 0, paymentsDirham: 0, expensesDirham: 0 }]);
+    expect(bucketTrend([], "2026-10-04", "2026-10-04", 31).buckets).toEqual([{ key: "2026-10-04", label: "4 Oct", salesDirham: 0, paymentsDirham: 0, receivedDirham: 0, expensesDirham: 0 }]);
   });
 });
 

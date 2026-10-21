@@ -213,3 +213,37 @@ describe("draft status line", () => {
     }
   });
 });
+
+describe("local draft payment method", () => {
+  const owner = { userId: userA, shopId: shop1 };
+  const bankRows = [row("a", { received: "5.00", paymentMethod: "bank" }), row("b", { received: "2.00", paymentMethod: "cash" })];
+
+  it("keeps Bank and Cash on their own rows through storage", () => {
+    const stored = serializeDraft({ ...base, rows: bankRows });
+    const loaded = normalizeStoredDraft(JSON.parse(JSON.stringify(stored)), owner);
+    expect(loaded?.rows.map((item) => item.paymentMethod)).toEqual(["bank", "cash"]);
+  });
+
+  it("keeps the method in a queued submission, so a retry replays the same method", () => {
+    const queued = newSubmission({ ...payload, rows: bankRows }, "2026-10-03T08:04:00.000Z");
+    const loaded = normalizeStoredDraft(JSON.parse(JSON.stringify(serializeDraft({ ...base, rows: bankRows, submission: queued }))), owner);
+    expect(loaded?.submission?.payload.rows.map((item) => item.paymentMethod)).toEqual(["bank", "cash"]);
+    const afterRetry = nextSubmission(queued, { kind: "uncertain" }, "retry");
+    expect(afterRetry?.payload.rows.map((item) => item.paymentMethod)).toEqual(["bank", "cash"]);
+    expect(afterRetry?.idempotencyKey).toBe(queued.idempotencyKey);
+  });
+
+  it("does not hand a Bank draft saved for one shop to another shop", () => {
+    const stored = serializeDraft({ ...base, rows: bankRows });
+    expect(normalizeStoredDraft(stored, { userId: userA, shopId: shop2 })).toBeNull();
+  });
+
+  it("loads an older record whose rows have no method, and rejects an unsupported one", () => {
+    const stored = serializeDraft({ ...base, rows: [row("a", { received: "5.00" })] });
+    const older = JSON.parse(JSON.stringify(stored));
+    for (const item of older.rows) delete item.paymentMethod;
+    expect(normalizeStoredDraft(older, owner)?.rows[0].paymentMethod).toBeUndefined();
+    older.rows[0].paymentMethod = "card";
+    expect(normalizeStoredDraft(older, owner)).toBeNull();
+  });
+});

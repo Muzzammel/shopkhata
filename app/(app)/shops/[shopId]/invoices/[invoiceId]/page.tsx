@@ -5,9 +5,11 @@ import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 
 import { InvoiceBadges } from "@/components/sales/invoice-badges";
 import { InvoiceTimeline } from "@/components/sales/invoice-timeline";
+import { ui } from "@/components/sales/ui";
 import { can, getCurrentActor } from "@/lib/auth/permissions";
 import { groupedQar, qar } from "@/lib/dashboard-view";
 import { readInvoiceDetail } from "@/lib/invoice-detail";
+import { paymentMethodLabel } from "@/lib/payment-method";
 import { buildTimeline, invoiceBadges, longDate, personLabel, qatarDateTime } from "@/lib/sales-view";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
@@ -83,7 +85,7 @@ export default async function InvoiceDetailPage({ params }: PageProps<"/shops/[s
         <h2 id="payment-history-heading" data-slot="heading" className="text-base font-semibold">Payments received</h2>
         {detail.payments.length === 0 ? <p className="text-sm text-muted-foreground">No payments recorded.</p> : <ul className="grid list-none divide-y divide-border pl-0">
           {detail.payments.map((payment) => <li key={payment.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2.5 text-sm first:pt-0 last:pb-0">
-            <span className="min-w-0"><span className="font-medium capitalize">{payment.paymentMethod}</span> <span className="text-muted-foreground">· {longDate(payment.businessDate)} · by {personLabel(detail.people, payment.createdBy)}</span></span>
+            <span className="min-w-0"><span data-payment-method={payment.paymentMethod} className={cn(ui.badge, "mr-1 bg-muted text-foreground")}>{paymentMethodLabel(payment.paymentMethod)}</span> <span className="text-muted-foreground">· {longDate(payment.businessDate)} · by {personLabel(detail.people, payment.createdBy)}</span></span>
             <strong className="font-semibold tabular-nums">{qar(payment.amountDirham)}</strong>
           </li>)}
         </ul>}

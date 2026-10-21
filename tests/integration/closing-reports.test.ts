@@ -269,7 +269,7 @@ describe("daily close, backdating and reports against real Supabase", () => {
       businessDate: today, invoiceCount: 3, grossInvoiceDirham: 1800, initialReceivedDirham: 900, dueCreatedDirham: 900,
       followupPaymentsDirham: 400, customerPaymentsDirham: 200, paymentCorrectionsDirham: -10, invoiceCorrectionsDirham: -30,
       creditCreatedDirham: 50, creditAppliedDirham: 50, expenseCount: 2, expensesDirham: 230, cashReceivedDirham: 1540,
-      netCashMovementDirham: 1310, netDueMovementDirham: 230,
+      bankReceivedDirham: 0, totalReceivedDirham: 1540, netCashMovementDirham: 1310, netDueMovementDirham: 230,
     });
 
     // Sales: equal to the effective invoice projection; the replaced invoice is one row under its new number.
@@ -301,6 +301,8 @@ describe("daily close, backdating and reports against real Supabase", () => {
     // Payments: every movement once; cash equals the daily summary, credit equals credit applied.
     const payments = await fetchPaymentReport(staff2, SHOP2, today, today);
     expect(payments.totals.cashDirham).toBe(day.cashReceivedDirham);
+    expect(payments.totals.bankDirham).toBe(day.bankReceivedDirham);
+    expect(payments.totals.receivedDirham).toBe(day.totalReceivedDirham);
     expect(payments.totals.creditDirham).toBe(day.creditAppliedDirham);
     expect(payments.rows.map((item) => [item.source, item.amountDirham]).sort()).toEqual([
       ["credit_application", 50], ["customer_payment", 200], ["follow_up", 100], ["follow_up", 300], ["invoice_entry", 400], ["invoice_entry", 500],
@@ -312,13 +314,13 @@ describe("daily close, backdating and reports against real Supabase", () => {
     expect(paidOnA).toBe((await must(staff2.from("effective_invoices").select("effective_paid_dirham").eq("canonical_invoice_id", invoiceA).single())).effective_paid_dirham);
 
     // Exports carry the same authoritative values as the fetches above.
-    expect((await sheetData(dailySummarySheet([day])))[1]).toEqual([today, 3, 18, 9, 9, 4, 2, -0.1, -0.3, 0.5, 0.5, 2, 2.3, 15.4, 13.1, 2.3]);
+    expect((await sheetData(dailySummarySheet([day])))[1]).toEqual([today, 3, 18, 9, 9, 4, 2, -0.1, -0.3, 0.5, 0.5, 2, 2.3, 15.4, 0, 15.4, 13.1, 2.3]);
     const salesSheet = await sheetData(salesReportSheet(sales.rows, sales.totals));
     expect(salesSheet).toHaveLength(5);
     expect(salesSheet[4].slice(0, 7)).toEqual(["Total", "3 invoices", 17.7, 14.9, 0.5, 2.3, "2 delivered, 1 not delivered"]);
     expect((await sheetData(customerDueSheet(dues.rows, dues.totals))).slice(-2).map((item) => item[3])).toEqual([2.3, 0]);
     expect((await sheetData(expenseReportSheet(expenses.rows, expenses.totals))).at(-1)?.slice(0, 4)).toEqual(["Total", null, "2 expenses", 2.3]);
-    expect((await sheetData(paymentReportSheet(payments.rows, payments.totals))).slice(-2).map((item) => [item[0], item[4]])).toEqual([["Total cash received", 15.4], ["Total customer credit applied", 0.5]]);
+    expect((await sheetData(paymentReportSheet(payments.rows, payments.totals))).slice(-4).map((item) => [item[0], item[4]])).toEqual([["Total cash received", 15.4], ["Total bank received", 0], ["Total received (cash + bank)", 15.4], ["Total customer credit applied", 0.5]]);
 
     // A shop the actor is not assigned to yields nothing, on every report.
     expect(await fetchDailySummary(staff, SHOP2, today, today)).toEqual([]);

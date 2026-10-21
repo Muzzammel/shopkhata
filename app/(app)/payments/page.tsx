@@ -3,6 +3,7 @@ import Link from "next/link";
 import { can, getCurrentActor } from "@/lib/auth/permissions";
 import { formatQar } from "@/lib/domain/money";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
+import { paymentMethodLabel } from "@/lib/payment-method";
 import { fetchPaymentAllocation, fetchPaymentList, PAYMENT_PAGE_SIZE, PAYMENT_SOURCES, parsePaymentListFilter } from "@/lib/payment-list";
 import { qatarDateTime } from "@/lib/sales-view";
 import { getVisibleShops } from "@/lib/shop-switching";
@@ -62,12 +63,14 @@ export default async function PaymentsPage({ searchParams }: PageProps<"/payment
       </div>
       {filter.invoiceQuery && <p className={styles.muted}>Showing every payment on invoice &quot;{filter.invoiceQuery}&quot; in {shop.name}, regardless of date.</p>}
       {filter.error && <p role="alert">{filter.error} Showing the last 30 days instead.</p>}
-      <div className={styles.tableWrap}>
+      {/* The table scrolls sideways on a phone; the region is focusable so keyboard users can scroll to Method and the rest. */}
+      <div className={styles.tableWrap} role="region" aria-label="Payment history table (scrolls sideways on narrow screens)" tabIndex={0}>
         <table>
-          <thead><tr><th scope="col">Business date</th><th scope="col">Recorded (Qatar)</th><th scope="col">Type</th><th scope="col">Invoice</th><th scope="col">Customer</th><th scope="col" className={styles.num}>Amount</th><th scope="col">Recorded by</th><th scope="col">Allocation</th></tr></thead>
-          <tbody>{rows.length === 0 ? <tr><td colSpan={8}>No payments match this search.</td></tr> : rows.map((row) => <tr key={row.entryId}>
+          <thead><tr><th scope="col">Business date</th><th scope="col">Recorded (Qatar)</th><th scope="col">Type</th><th scope="col">Method</th><th scope="col">Invoice</th><th scope="col">Customer</th><th scope="col" className={styles.num}>Amount</th><th scope="col">Recorded by</th><th scope="col">Allocation</th></tr></thead>
+          <tbody>{rows.length === 0 ? <tr><td colSpan={9}>No payments match this search.</td></tr> : rows.map((row) => <tr key={row.entryId}>
             <td>{row.businessDate}</td><td>{qatarTime(row.recordedAt)}</td>
             <td><span className={styles.badge} data-tone={row.source === "payment_correction" ? "warning" : undefined}>{PAYMENT_SOURCES[row.source]}</span></td>
+            <td data-payment-method={row.method}>{paymentMethodLabel(row.method)}</td>
             <td>{row.invoiceId ? <Link href={`/shops/${shop.id}/invoices/${row.invoiceId}`}>{row.invoiceNumber}</Link> : "—"}</td>
             <td>{row.customerId ? <Link href={`/customers/${row.customerId}?shop=${shop.id}`}>{row.customerName}</Link> : row.customerName || "—"}</td>
             <td className={styles.num}>{qar(row.amountDirham)}</td><td>{row.createdByName || "—"}</td>
@@ -87,7 +90,7 @@ export default async function PaymentsPage({ searchParams }: PageProps<"/payment
         <p className={styles.muted}>This customer payment was applied across {allocation.length} invoice{allocation.length === 1 ? "" : "s"} using the existing FIFO allocation.</p>
         <div className={styles.detailList}>{allocation.map((row) => <article key={row.entryId}>
           <strong>{qar(row.amountDirham)} {row.invoiceId ? <>applied to <Link href={`/shops/${shop.id}/invoices/${row.invoiceId}`}>{row.invoiceNumber}</Link></> : "unapplied"}</strong>
-          <span>{row.businessDate} · recorded {qatarTime(row.recordedAt)}</span>
+          <span>{paymentMethodLabel(row.method)} · {row.businessDate} · recorded {qatarTime(row.recordedAt)}</span>
         </article>)}</div>
       </>}
     </section>}

@@ -123,13 +123,17 @@ An offline draft cannot turn into an unauthorized backdated batch. A draft that 
 | Payment corrections | Σ `corrections.amount_delta_dirham` dated D, approved, `payment_id` set |
 | Invoice corrections | Σ `corrections.amount_delta_dirham` dated D, approved, `invoice_id` set |
 | Overpayment kept as customer credit | Σ `customer_credits.amount_dirham` dated D, approved |
-| Customer credit applied (not cash) | Σ `credit_applications.amount_dirham` dated D |
+| Customer credit applied (not a receipt) | Σ `credit_applications.amount_dirham` dated D |
 | Expenses recorded / Expenses | count and Σ `effective_expenses.amount_dirham` dated D (latest approved correction) |
-| Cash received | received at entry + follow-up payments + customer payments + payment corrections + overpayment kept as credit |
-| Net cash movement | cash received − expenses |
+| Cash received | the part of (received at entry + follow-up payments + customer payments + payment corrections + overpayment kept as credit) recorded as **cash** |
+| Bank received | the part of the same receipts recorded as **bank** |
+| Total received | cash received + bank received |
+| Net movement | total received − expenses |
 | Net change in outstanding due | gross invoice amount + invoice corrections − received at entry − follow-up payments − customer payments − payment corrections − credit applied |
 
-**No figure is profit.** ShopKhata records sales, receipts, dues and expenses. It has no cost of goods, so it reports no profit, margin, COGS or income statement. "Net cash movement" is cash in minus expenses out and is labelled as such everywhere.
+Payment methods are **Cash** and **Bank**. "Received at entry", "Follow-up invoice payments", "Customer payments", "Payment corrections" and "Overpayment kept as customer credit" count receipts of either method; they never mentioned cash in their labels and still do not. A payment correction or an overpayment credit follows the method of the payment it belongs to. Expenses carry no method. Customer credit applied is not a receipt and is in neither Cash nor Bank.
+
+**No figure is profit.** ShopKhata records sales, receipts, dues and expenses. It has no cost of goods, so it reports no profit, margin, COGS or income statement. "Net movement" is total received (cash and bank) minus expenses and is labelled as such everywhere. It was previously labelled "Net cash movement"; with no bank receipts the figures are identical.
 
 Summed over all dates, "net change in outstanding due" equals the total effective due of all invoices: it uses exactly the terms of `invoice_effective_balances.effective_due_dirham`.
 
@@ -143,7 +147,7 @@ Screen: `/reports?shop=…&report=daily|sales|dues|expenses|payments`. Anyone wh
 | Sales by invoice date | shop, date range | `effective_invoices` whose `business_date` is in range | `report_sales_totals`: count, Σ effective total, Σ effective paid, Σ credit applied, Σ effective due, delivered / not delivered counts |
 | Customer dues | shop | `customer_financial_balances` with due > 0 or credit > 0, with customer name, mobile, invoice count, latest activity date | `report_customer_due_totals`: customers with due, Σ outstanding due, Σ available credit, due on invoices without a customer |
 | Expenses | shop, date range | `effective_expenses` in range with category, creator, recorded time, backdate reason, and whether a correction was applied | `report_expense_totals`: per category and overall |
-| Payments | shop, date range | `report_payments` in range | `report_payment_totals`: per type, total cash, total credit applied |
+| Payments | shop, date range | `report_payments` in range | `report_payment_totals`: per type, total cash, total bank, total credit applied |
 
 Two reports answer different questions and are not expected to show the same number:
 
@@ -154,11 +158,11 @@ Two reports answer different questions and are not expected to show the same num
 
 | Type | Source | Method |
 | --- | --- | --- |
-| Received at invoice entry | `payments` with `batch_id` | cash |
-| Follow-up invoice payment | `payments` with neither batch | cash |
-| Customer payment | `payments` with `customer_payment_batch_id` | cash |
-| Payment correction | approved `corrections` with `payment_id`, on the correction's date, signed | cash |
-| Overpayment kept as credit | approved `customer_credits` | cash |
+| Received at invoice entry | `payments` with `batch_id` | cash or bank |
+| Follow-up invoice payment | `payments` with neither batch | cash or bank |
+| Customer payment | `payments` with `customer_payment_batch_id` | cash or bank |
+| Payment correction | approved `corrections` with `payment_id`, on the correction's date, signed | that of the corrected payment |
+| Overpayment kept as credit | approved `customer_credits` | the method recorded on the credit |
 | Customer credit applied | `credit_applications` | credit (not cash) |
 
 Reports never recompute money in the application. `lib/reports.ts` maps database rows to labels and passes amounts through; a value that is not a safe integer is refused rather than rounded.
@@ -171,7 +175,7 @@ Each of these is asserted in `supabase/tests/daily_close_reports.test.sql` and a
 2. Customer due total + due on invoices without a customer = Σ `effective_invoices.effective_due_dirham` for the shop.
 3. Sales report totals = the same sums over `effective_invoices` for the same shop and date range.
 4. Expense report total = Σ `effective_expenses.amount_dirham` for the same filter = Σ of its category totals = "Expenses" in the daily summary.
-5. Cash rows of the payment report for a date = "Cash received" in the daily summary; credit rows = "Customer credit applied".
+5. Cash rows of the payment report for a date = "Cash received" in the daily summary; bank rows = "Bank received"; credit rows = "Customer credit applied". Cash + bank = "Total received".
 6. For one invoice, its payment and payment-correction rows across all dates add up to its `effective_paid_dirham`.
 7. A credit application is one row; an approved correction is one row; a pending or rejected request is no row.
 8. A replaced invoice is one canonical row; its earlier number produces no second row.
@@ -203,7 +207,28 @@ A draft on a device is never server state.
 | Sales | the invoice export columns | Total |
 | Customer dues | Customer ID, Customer, Mobile, Outstanding Due, Available Credit, Invoices, Last Activity | Total; Due on invoices without a customer |
 | Expenses | Business Date, Category, Description, Amount, Correction State, Created By, Recorded At (Qatar), Backdate Reason, Expense Reference | one total per category; Total |
-| Payments | Business Date, Recorded At (Qatar), Type, Method, Amount, Invoice Number, Customer, Reference | one total per type; Total cash received; Total customer credit applied |
+| Payments | Business Date, Recorded At (Qatar), Type, Method, Amount, Invoice Number, Customer, Reference | one total per type; Total cash received; Total bank received; Total received (cash + bank); Total customer credit applied |
+
+### Export contract: Cash and Bank
+
+Workbooks are positional (column order is part of the contract), so every change made when Bank was added is listed. Money columns are named `… QAR` in the file. Sheet names, file names, the invoice, ledger, expense, customer-dues and sales exports and the Excel import template did not change.
+
+**Daily summary** (`shopkhata-report-daily-{from}_{to}.xlsx`, sheet `Daily summary`), 16 columns before, 18 now:
+
+| # | Column | Change |
+| --- | --- | --- |
+| 1–13 | Business Date … Expenses QAR | unchanged |
+| 14 | Cash received QAR | unchanged position; now cash only |
+| 15 | Bank received QAR | **new** |
+| 16 | Total received QAR | **new** (cash + bank) |
+| 17 | Net movement (total received − expenses) QAR | was column 15, "Net cash movement (cash received − expenses) QAR"; renamed and moved |
+| 18 | Net change in outstanding due QAR | was column 16; moved, unchanged |
+
+A reader that picks columns by position must read "Net movement" and "Net change in outstanding due" two columns to the right. Before any bank receipt exists, Cash received = Total received = the former Cash received, and Net movement = the former Net cash movement.
+
+**Payments** (`shopkhata-report-payments-{from}_{to}.xlsx`, sheet `Payments`): the eight columns and their order are unchanged. `Method` (column 4) already existed and holds the stored lower-case value: `cash`, `bank` (new), or `credit` for an applied customer credit. Rows recorded before Bank existed all read `cash`. The closing rows are now: Total cash received, **Total bank received**, **Total received (cash + bank)**, Total customer credit applied; "Total cash received" no longer includes bank.
+
+**Excel import** (`shopkhata-invoice-import-template.xlsx`) has no payment-method column and is unchanged: every amount in `Received QAR` is imported as Cash, as before. Bank receipts are entered in the app, not by import.
 
 Money cells are numbers in QAR with two decimals. The existing invoice, ledger and expense exports are unchanged.
 

@@ -1,5 +1,5 @@
 import {
-  CalendarCheckIcon, ChartColumnIcon, DatabaseBackupIcon, HandCoinsIcon, LayoutDashboardIcon, ReceiptTextIcon, UserCogIcon, UsersIcon, WalletIcon,
+  CalendarCheckIcon, ChartColumnIcon, DatabaseBackupIcon, HandCoinsIcon, LayoutDashboardIcon, ReceiptTextIcon, StoreIcon, UserCogIcon, UsersIcon, WalletIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -26,7 +26,8 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "expenses", label: "Expenses", href: "/expenses", icon: WalletIcon, shopScoped: true, current: (p) => p.startsWith("/expenses") },
   { key: "closing", label: "Daily Close", href: "/closing", icon: CalendarCheckIcon, shopScoped: true, current: (p) => p.startsWith("/closing") },
   { key: "reports", label: "Reports", href: "/reports", icon: ChartColumnIcon, shopScoped: true, current: (p) => p.startsWith("/reports") },
-  { key: "accounts", label: "Accounts", href: "/admin", icon: UserCogIcon, shopScoped: false, ownerOnly: true, current: (p) => p.startsWith("/admin") && !p.startsWith("/admin/backup") },
+  { key: "accounts", label: "Accounts", href: "/admin", icon: UserCogIcon, shopScoped: false, ownerOnly: true, current: (p) => p.startsWith("/admin") && !p.startsWith("/admin/backup") && !p.startsWith("/admin/shops") },
+  { key: "shops", label: "Shops", href: "/admin/shops", icon: StoreIcon, shopScoped: false, ownerOnly: true, secondary: true, current: (p) => p.startsWith("/admin/shops") },
   { key: "backup", label: "Backup", href: "/admin/backup", icon: DatabaseBackupIcon, shopScoped: false, ownerOnly: true, current: (p) => p.startsWith("/admin/backup") },
 ];
 

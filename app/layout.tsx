@@ -20,7 +20,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body>
         <ThemeProvider>
           <TooltipProvider><Pwa />{children}</TooltipProvider>
-          <Toaster position="top-center" richColors closeButton />
+          <Toaster richColors closeButton />
         </ThemeProvider>
       </body>
     </html>

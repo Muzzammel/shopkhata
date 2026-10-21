@@ -48,7 +48,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const last = data.trend.today;
   const attention = deriveAttention({
     shopId: shop.id,
-    dayOpenWithActivity: can(actor, "date.close", shop.id) && data.closing.state === "open" && range.to === today && last.grossInvoiceDirham + last.cashReceivedDirham + last.expensesDirham > 0,
+    dayOpenWithActivity: can(actor, "date.close", shop.id) && data.closing.state === "open" && range.to === today && last.grossInvoiceDirham + last.totalReceivedDirham + last.expensesDirham > 0,
     customersWithDue: data.kpi.customersWithDue, outstandingDueDirham: data.kpi.outstandingDueDirham,
     backup: backup && { freshness: backup.freshness, ageHours: backup.ageHours },
   });
@@ -64,9 +64,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     </header>
 
     <DashboardOverview
-      shopId={shop.id} range={range} today={today} days={data.trend.days} lastDay={{ grossInvoiceDirham: last.grossInvoiceDirham, cashReceivedDirham: last.cashReceivedDirham, expensesDirham: last.expensesDirham }}
+      shopId={shop.id} range={range} today={today} days={data.trend.days} lastDay={{ grossInvoiceDirham: last.grossInvoiceDirham, cashReceivedDirham: last.cashReceivedDirham, bankReceivedDirham: last.bankReceivedDirham, totalReceivedDirham: last.totalReceivedDirham, expensesDirham: last.expensesDirham }}
       kpi={{
-        salesDirham: data.kpi.salesDirham, invoiceCount: data.kpi.invoiceCount, averageInvoiceDirham: data.kpi.averageInvoiceDirham, paymentsReceivedDirham: data.kpi.paymentsReceivedDirham,
+        salesDirham: data.kpi.salesDirham, invoiceCount: data.kpi.invoiceCount, averageInvoiceDirham: data.kpi.averageInvoiceDirham, paymentsReceivedDirham: data.kpi.paymentsReceivedDirham, bankReceivedDirham: data.kpi.bankReceivedDirham, totalReceivedDirham: data.kpi.totalReceivedDirham,
         expensesDirham: data.kpi.expensesDirham, netCashMovementDirham: data.kpi.netCashMovementDirham, outstandingDueDirham: data.kpi.outstandingDueDirham,
         customersWithDue: data.kpi.customersWithDue, unpaidInvoicesDirham: data.kpi.unpaidInvoicesDirham, unpaidInvoiceCount: data.invoiceHealth.withDue,
       }}
@@ -111,7 +111,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <Rows empty="" rows={[
             { key: "out", label: "Outstanding due · current balance", value: qar(data.collection.outstandingDueDirham), tone: data.collection.outstandingDueDirham > 0 ? "due" : undefined },
             { key: "n", label: "Customers with due", value: String(data.collection.customersWithDue) },
-            { key: "paid", label: "Payments received (cash) this period", value: qar(data.collection.paymentsReceivedDirham) },
+            { key: "paid", label: "Cash received this period", value: qar(data.collection.paymentsReceivedDirham) },
+            { key: "bank", label: "Bank received this period", value: qar(data.collection.bankReceivedDirham) },
             { key: "credit", label: "Available customer credit · current balance", value: qar(data.collection.availableCreditDirham) },
           ]} />
         </ListCard>

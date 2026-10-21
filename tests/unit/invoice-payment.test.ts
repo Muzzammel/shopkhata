@@ -55,3 +55,19 @@ describe("follow-up payment command", () => {
     expect(isValidPaymentReceipt({ ok: true }, invoice.invoiceId)).toBe(false);
   });
 });
+
+describe("follow-up payment method", () => {
+  it("defaults to cash and carries bank when chosen", () => {
+    const now = new Date("2026-09-24T10:00:00.000Z");
+    expect(preparePaymentAttempt(invoice, 5000, now).command?.payment_method).toBe("cash");
+    expect(preparePaymentAttempt({ ...invoice, paymentMethod: "bank" }, 5000, now).command?.payment_method).toBe("bank");
+  });
+
+  it("keeps a bank command bank on retry even if the draft has since changed to cash", () => {
+    const now = new Date("2026-09-24T10:00:00.000Z");
+    const first = preparePaymentAttempt({ ...invoice, paymentMethod: "bank" }, 5000, now);
+    const retry = preparePaymentAttempt({ ...invoice, paymentMethod: "cash" }, 5000, now, first.command);
+    expect(retry.command).toBe(first.command);
+    expect(retry.command?.payment_method).toBe("bank");
+  });
+});

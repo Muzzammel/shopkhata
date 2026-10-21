@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { can, getCurrentActor } from "@/lib/auth/permissions";
+import { PAYMENT_METHODS } from "@/lib/payment-method";
 import { logFailure } from "@/lib/server-log";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
@@ -13,6 +14,8 @@ function isRpcObject(value: Json | null): value is { [key: string]: Json | undef
 }
 
 const paymentSchema = z.object({ shop_id: z.uuid(), customer_id: z.uuid(), amount_dirham: z.number().int().positive().safe(), business_date: z.iso.date(), idempotency_key: z.uuid() }).strict();
+// Applying credit is not a receipt, so only a cash/bank payment names a method.
+const customerPaymentSchema = z.object({ ...paymentSchema.shape, payment_method: z.enum(PAYMENT_METHODS) }).strict();
 const customerSchema = z.object({ shop_id: z.uuid(), name: z.string().max(160).optional(), mobile: z.string().max(40).optional() }).strict();
 const creditSchema = paymentSchema;
 const attachmentSchema = z.object({ shop_id: z.uuid(), expense_id: z.uuid(), file_path: z.string().max(500), file_name: z.string().max(255), content_type: z.enum(["image/jpeg", "image/png", "image/webp", "application/pdf"]), byte_size: z.number().int().positive().max(10_485_760), idempotency_key: z.uuid() }).strict();
@@ -34,7 +37,7 @@ export async function createCustomer(raw: unknown) {
 }
 
 export async function recordCustomerPayment(raw: unknown) {
-  const parsed = paymentSchema.safeParse(raw);
+  const parsed = customerPaymentSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, uncertain: false, message: "Check the payment amount." };
   const actor = await getCurrentActor();
   if (!can(actor, "payment.record", parsed.data.shop_id)) return { ok: false as const, uncertain: false, message: "You cannot record payments for this shop." };

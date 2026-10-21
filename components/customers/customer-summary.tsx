@@ -23,7 +23,7 @@ export function CustomerSummary({ salesDirham, paidDirham, creditAppliedDirham, 
       <div className={cn(figure, "bg-success-soft")}>
         <span className="text-xs text-muted-foreground">Total paid</span>
         <strong className={cn(amount, "text-success")}><Qar dirham={paidDirham} /></strong>
-        <span className="text-xs text-muted-foreground">{creditAppliedDirham > 0 ? `Cash received · plus ${qar(creditAppliedDirham)} settled with credit` : "Cash received"}</span>
+        <span className="text-xs text-muted-foreground">{creditAppliedDirham > 0 ? `Received · plus ${qar(creditAppliedDirham)} settled with credit` : "Received (cash and bank)"}</span>
       </div>
       <div className={cn(figure, dueDirham > 0 ? "bg-warning-soft" : "bg-muted")}>
         <span className="text-xs text-muted-foreground">Current due</span>

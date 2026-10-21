@@ -433,6 +433,16 @@ test.describe("responsive usability and accessibility", () => {
       await page.goto("/admin/backup");
       await expect(page.getByRole("heading", { name: "Recovery workflow" })).toBeVisible();
       await check("backup and recovery");
+      await page.goto("/admin/shops");
+      await expect(page.getByRole("table", { name: "Every shop and how many accounts are assigned to it" })).toBeVisible();
+      await check("shops");
+      await page.getByRole("button", { name: "Add shop" }).click();
+      await page.getByLabel("Shop / Branch name").fill(`RWD Shop ${stamp}`);
+      await check("add shop");
+      await page.getByRole("button", { name: "Review shop" }).click();
+      await expect(page.getByText("Every owner can use it automatically")).toBeVisible();
+      await check("add shop review");
+      await page.keyboard.press("Escape");
 
       // The navigation reaches every workspace and the offline state is announced in words.
       // Wide screens show the pills in the top bar; tablets and phones list every page in a menu sheet.
@@ -441,7 +451,7 @@ test.describe("responsive usability and accessibility", () => {
         for (const link of links) await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: link, exact: true })).toBeInViewport({ ratio: 1 });
       } else {
         await page.getByRole("button", { name: width >= 768 ? "Menu" : "More" }).click();
-        for (const link of [...links, "Payments"]) await expect(page.getByRole("navigation", { name: "All pages" }).getByRole("link", { name: link, exact: true })).toBeInViewport({ ratio: 1 });
+        for (const link of [...links, "Payments", "Shops"]) await expect(page.getByRole("navigation", { name: "All pages" }).getByRole("link", { name: link, exact: true })).toBeInViewport({ ratio: 1 });
         await page.keyboard.press("Escape");
       }
       await page.goto("/");

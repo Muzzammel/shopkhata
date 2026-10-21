@@ -6,13 +6,14 @@ import { z } from "zod";
 import { can, getCurrentActor } from "@/lib/auth/permissions";
 import { isValidPaymentReceipt, type PaymentCommand } from "@/lib/invoice-payment";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
+import { PAYMENT_METHODS } from "@/lib/payment-method";
 import { logFailure } from "@/lib/server-log";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const lookupSchema = z.object({ shopId: z.uuid(), invoiceNumber: z.string().trim().min(1).max(120) }).strict();
 const commandSchema = z.object({
   shop_id: z.uuid(), invoice_id: z.uuid(), amount_dirham: z.number().int().positive().safe(),
-  payment_method: z.literal("cash"), business_date: z.iso.date(), idempotency_key: z.uuid(),
+  payment_method: z.enum(PAYMENT_METHODS), business_date: z.iso.date(), idempotency_key: z.uuid(),
 }).strict();
 
 export type PaymentLookup =

@@ -345,12 +345,12 @@ test("records partial and full cash payments and rejects overpayment in review",
   await expect(payment).toContainText("Received so farQAR 0.00");
   await expect(payment).toContainText("Outstanding nowQAR 50.00");
 
-  await payment.getByLabel("Cash amount (QAR)").fill("50.01");
+  await payment.getByLabel("Payment amount (QAR)").fill("50.01");
   await payment.getByRole("button", { name: "Review payment" }).click();
   await expect(payment.getByRole("alert")).toContainText("cannot exceed");
   await expect(payment.getByRole("button", { name: "Confirm payment" })).toHaveCount(0);
 
-  await payment.getByLabel("Cash amount (QAR)").fill("20.00");
+  await payment.getByLabel("Payment amount (QAR)").fill("20.00");
   await payment.getByRole("button", { name: "Review payment" }).click();
   await expect(payment.getByText("Cash payment of QAR 20.00")).toBeVisible();
   await payment.getByRole("button", { name: "Confirm payment" }).click();
@@ -358,11 +358,11 @@ test("records partial and full cash payments and rejects overpayment in review",
   await expect(payment).toContainText("Received so farQAR 20.00");
   await expect(payment).toContainText("Outstanding nowQAR 30.00");
 
-  await payment.getByLabel("Cash amount (QAR)").fill("30.00");
+  await payment.getByLabel("Payment amount (QAR)").fill("30.00");
   await payment.getByRole("button", { name: "Review payment" }).click();
   await payment.getByRole("button", { name: "Confirm payment" }).click();
   await expect(payment.getByRole("alert")).toContainText("Already paid — no amount due");
-  await expect(payment.getByLabel("Cash amount (QAR)")).toHaveCount(0);
+  await expect(payment.getByLabel("Payment amount (QAR)")).toHaveCount(0);
 });
 
 test("shows approved corrections in the payment lookup and blocks zero due", async ({ page }) => {
@@ -387,7 +387,7 @@ test("shows approved corrections in the payment lookup and blocks zero due", asy
   await expect(payment).toContainText("Invoice totalQAR 75.00");
   await expect(payment).toContainText("Received so farQAR 15.00");
   await expect(payment).toContainText("Outstanding nowQAR 60.00");
-  await payment.getByLabel("Cash amount (QAR)").fill("60.00");
+  await payment.getByLabel("Payment amount (QAR)").fill("60.00");
   await payment.getByRole("button", { name: "Review payment" }).click();
   await payment.getByRole("button", { name: "Confirm payment" }).click();
   await expect(payment.getByRole("alert")).toContainText("Already paid — no amount due");
@@ -444,7 +444,7 @@ test("hides another shop's invoice and retries the same payment command after a 
   const ownInvoice = `UI-PAY-LOST-${Date.now()}`;
   await createDueInvoice(page, ownInvoice, "30.00");
   await findInvoiceForPayment(page, ownInvoice);
-  await payment.getByLabel("Cash amount (QAR)").fill("12.00");
+  await payment.getByLabel("Payment amount (QAR)").fill("12.00");
   await payment.getByRole("button", { name: "Review payment" }).click();
 
   const today = qatarBusinessDate(new Date());

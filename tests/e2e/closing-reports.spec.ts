@@ -280,12 +280,12 @@ test("reports show reconciled values for invoices, payments, dues, credit, expen
   const expectedDay: Record<string, string> = {
     invoiceCount: "3", grossInvoiceDirham: "QAR 18.00", initialReceivedDirham: "QAR 9.00", dueCreatedDirham: "QAR 9.00", followupPaymentsDirham: "QAR 6.00",
     customerPaymentsDirham: "QAR 0.00", paymentCorrectionsDirham: "QAR 0.00", invoiceCorrectionsDirham: "QAR 0.00", creditCreatedDirham: "QAR 0.50",
-    creditAppliedDirham: "QAR 0.00", expenseCount: "2", expensesDirham: "QAR 2.30", cashReceivedDirham: "QAR 15.50", netCashMovementDirham: "QAR 13.20",
+    creditAppliedDirham: "QAR 0.00", expenseCount: "2", expensesDirham: "QAR 2.30", cashReceivedDirham: "QAR 15.50", bankReceivedDirham: "QAR 0.00", totalReceivedDirham: "QAR 15.50", netCashMovementDirham: "QAR 13.20",
     netDueMovementDirham: "QAR 3.00",
   };
   for (const [name, value] of Object.entries(expectedDay)) await expect(metric(page, name)).toHaveText(value);
   await expect(page.getByRole("cell", { name: /profit/i })).toHaveText(/This is not profit/);
-  expect(await exportReport()).toEqual([DAILY_SUMMARY_HEADERS, [date, 3, 18, 9, 9, 6, 0, 0, 0, 0.5, 0, 2, 2.3, 15.5, 13.2, 3]]);
+  expect(await exportReport()).toEqual([DAILY_SUMMARY_HEADERS, [date, 3, 18, 9, 9, 6, 0, 0, 0, 0.5, 0, 2, 2.3, 15.5, 0, 15.5, 13.2, 3]]);
 
   // Sales: current effective values of the invoices dated that day.
   await page.goto(`/reports?shop=${SHOP_2}&report=sales&from=${date}&to=${date}`);
@@ -329,7 +329,7 @@ test("reports show reconciled values for invoices, payments, dues, credit, expen
   expect(payments.slice(1, 6).map((item) => [item[2], item[4]]).sort()).toEqual([
     ["Follow-up invoice payment", 1], ["Follow-up invoice payment", 5], ["Overpayment kept as credit", 0.5], ["Received at invoice entry", 4], ["Received at invoice entry", 5],
   ].sort());
-  expect(payments.slice(-2).map((item) => [item[0], item[4]])).toEqual([["Total cash received", 15.5], ["Total customer credit applied", 0]]);
+  expect(payments.slice(-4).map((item) => [item[0], item[4]])).toEqual([["Total cash received", 15.5], ["Total bank received", 0], ["Total received (cash + bank)", 15.5], ["Total customer credit applied", 0]]);
   // The credit application and customer payment are dated today and appear there exactly once.
   await page.goto(`/reports?shop=${SHOP_2}&report=payments&from=${now}&to=${now}`);
   const todayRows = page.getByRole("row").filter({ hasText: c });

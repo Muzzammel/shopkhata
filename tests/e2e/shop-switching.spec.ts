@@ -217,7 +217,7 @@ test("an uncertain payment blocks switching until its original idempotent comman
   const invoiceNumber = `PAYMENT-RETRY-${Date.now()}`;
   await createInvoice(page, invoiceNumber, "30.00", "0.00");
   const payment = await lookupPayment(page, invoiceNumber);
-  await payment.getByLabel("Cash amount (QAR)").fill("8.00");
+  await payment.getByLabel("Payment amount (QAR)").fill("8.00");
   await payment.getByRole("button", { name: "Review payment" }).click();
 
   let dropped = false;
@@ -312,7 +312,7 @@ test("a delayed successful payment cannot switch shops or move Shop 1 balances i
   const invoiceNumber = `PAY-DELAY-${Date.now()}`;
   await createInvoice(page, invoiceNumber, "30.00", "0.00");
   const payment = await lookupPayment(page, invoiceNumber);
-  await payment.getByLabel("Cash amount (QAR)").fill("8.00");
+  await payment.getByLabel("Payment amount (QAR)").fill("8.00");
   await payment.getByRole("button", { name: "Review payment" }).click();
   const held = await installHeldAction(page, false);
   await payment.getByRole("button", { name: "Confirm payment" }).click();
@@ -336,7 +336,7 @@ test("a committed payment with a lost response keeps its exact retry while switc
   const invoiceNumber = `PAY-LOST-${Date.now()}`;
   await createInvoice(page, invoiceNumber, "30.00", "0.00");
   const payment = await lookupPayment(page, invoiceNumber);
-  await payment.getByLabel("Cash amount (QAR)").fill("7.00");
+  await payment.getByLabel("Payment amount (QAR)").fill("7.00");
   await payment.getByRole("button", { name: "Review payment" }).click();
   const held = await installHeldAction(page, true);
   await payment.getByRole("button", { name: "Confirm payment" }).click();

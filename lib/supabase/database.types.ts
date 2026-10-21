@@ -526,6 +526,7 @@ export type Database = {
           customer_id: string
           id: string
           invoice_id: string | null
+          payment_method: string
           reason: string | null
           recorded_at: string
           shop_id: string
@@ -540,6 +541,7 @@ export type Database = {
           customer_id: string
           id?: string
           invoice_id?: string | null
+          payment_method?: string
           reason?: string | null
           recorded_at?: string
           shop_id: string
@@ -554,6 +556,7 @@ export type Database = {
           customer_id?: string
           id?: string
           invoice_id?: string | null
+          payment_method?: string
           reason?: string | null
           recorded_at?: string
           shop_id?: string
@@ -1349,7 +1352,9 @@ export type Database = {
       admin_register_account: { Args: { command: Json }; Returns: Json }
       admin_update_account: { Args: { command: Json }; Returns: Json }
       admin_set_shop_assignment: { Args: { command: Json }; Returns: Json }
-      report_daily_summary: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { business_date: string; invoice_count: number; gross_invoice_dirham: number; initial_received_dirham: number; due_created_dirham: number; followup_payments_dirham: number; customer_payments_dirham: number; payment_corrections_dirham: number; invoice_corrections_dirham: number; credit_created_dirham: number; credit_applied_dirham: number; expense_count: number; expenses_dirham: number; cash_received_dirham: number; net_cash_movement_dirham: number; net_due_movement_dirham: number }[] }
+      admin_create_shop: { Args: { command: Json }; Returns: Json }
+      admin_update_shop: { Args: { command: Json }; Returns: Json }
+      report_daily_summary: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { business_date: string; invoice_count: number; gross_invoice_dirham: number; initial_received_dirham: number; due_created_dirham: number; followup_payments_dirham: number; customer_payments_dirham: number; payment_corrections_dirham: number; invoice_corrections_dirham: number; credit_created_dirham: number; credit_applied_dirham: number; expense_count: number; expenses_dirham: number; cash_received_dirham: number; bank_received_dirham: number; total_received_dirham: number; net_cash_movement_dirham: number; net_due_movement_dirham: number }[] }
       report_day_pending_requests: { Args: { p_shop_id: string; p_date: string }; Returns: { pending_invoice_corrections: number; pending_invoice_replacements: number; pending_expense_corrections: number }[] }
       report_payment_totals: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { source: string | null; method: string | null; entry_count: number; amount_dirham: number }[] }
       report_sales_totals: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { invoice_count: number; effective_total_dirham: number; effective_paid_dirham: number; credit_applied_dirham: number; effective_due_dirham: number; delivered_count: number; undelivered_count: number }[] }

@@ -61,26 +61,28 @@ export type DailySummary = {
   businessDate: string; invoiceCount: number; grossInvoiceDirham: number; initialReceivedDirham: number; dueCreatedDirham: number;
   followupPaymentsDirham: number; customerPaymentsDirham: number; paymentCorrectionsDirham: number; invoiceCorrectionsDirham: number;
   creditCreatedDirham: number; creditAppliedDirham: number; expenseCount: number; expensesDirham: number; cashReceivedDirham: number;
-  netCashMovementDirham: number; netDueMovementDirham: number;
+  bankReceivedDirham: number; totalReceivedDirham: number; netCashMovementDirham: number; netDueMovementDirham: number;
 };
 type MetricKey = Exclude<keyof DailySummary, "businessDate">;
 
 /** The single list of daily metrics: order, wording and meaning for screen, export and docs. */
-export const DAILY_METRICS: readonly { key: MetricKey; label: string; kind: "count" | "money"; meaning: string }[] = [
+export const DAILY_METRICS: readonly { key: MetricKey; label: string; exportLabel?: string; kind: "count" | "money"; meaning: string }[] = [
   { key: "invoiceCount", label: "Invoices entered", kind: "count", meaning: "Invoices whose business date is this day." },
   { key: "grossInvoiceDirham", label: "Gross invoice amount", kind: "money", meaning: "Original totals of those invoices, before any correction." },
-  { key: "initialReceivedDirham", label: "Received at entry", kind: "money", meaning: "Cash recorded together with the invoices." },
+  { key: "initialReceivedDirham", label: "Received at entry", kind: "money", meaning: "Money received (cash or bank) together with the invoices." },
   { key: "dueCreatedDirham", label: "Due created at entry", kind: "money", meaning: "Gross invoice amount minus received at entry." },
   { key: "followupPaymentsDirham", label: "Follow-up invoice payments", kind: "money", meaning: "Later payments against one invoice, dated this day, including the applied part of an approved overpayment." },
   { key: "customerPaymentsDirham", label: "Customer payments", kind: "money", meaning: "Customer payments dated this day, allocated to that customer's invoices." },
   { key: "paymentCorrectionsDirham", label: "Payment corrections", kind: "money", meaning: "Approved payment corrections approved on this day." },
   { key: "invoiceCorrectionsDirham", label: "Invoice corrections", kind: "money", meaning: "Approved invoice-total corrections approved on this day." },
-  { key: "creditCreatedDirham", label: "Overpayment kept as customer credit", kind: "money", meaning: "Cash received above an invoice's due and held as customer credit." },
-  { key: "creditAppliedDirham", label: "Customer credit applied (not cash)", kind: "money", meaning: "Existing customer credit used against invoices on this day." },
+  { key: "creditCreatedDirham", label: "Overpayment kept as customer credit", kind: "money", meaning: "Money received (cash or bank) above an invoice's due and held as customer credit." },
+  { key: "creditAppliedDirham", label: "Customer credit applied (not a receipt)", exportLabel: "Customer credit applied (not cash)", kind: "money", meaning: "Existing customer credit used against invoices on this day." },
   { key: "expenseCount", label: "Expenses recorded", kind: "count", meaning: "Expenses whose business date is this day." },
   { key: "expensesDirham", label: "Expenses", kind: "money", meaning: "Effective (corrected) amount of those expenses." },
-  { key: "cashReceivedDirham", label: "Cash received", kind: "money", meaning: "Received at entry + follow-up payments + customer payments + payment corrections + overpayment kept as credit." },
-  { key: "netCashMovementDirham", label: "Net cash movement (cash received − expenses)", kind: "money", meaning: "Cash received minus expenses. This is not profit: ShopKhata holds no cost of goods." },
+  { key: "cashReceivedDirham", label: "Cash received", kind: "money", meaning: "Receipts recorded as cash only: received at entry + follow-up payments + customer payments + payment corrections + overpayment kept as credit." },
+  { key: "bankReceivedDirham", label: "Bank received", kind: "money", meaning: "The same receipts, recorded as bank. A payment correction or overpayment credit follows the method of its payment." },
+  { key: "totalReceivedDirham", label: "Total received", kind: "money", meaning: "Cash received + bank received." },
+  { key: "netCashMovementDirham", label: "Net movement (total received − expenses)", kind: "money", meaning: "Total received (cash and bank) minus expenses. Expenses carry no payment method. This is not profit: ShopKhata holds no cost of goods." },
   { key: "netDueMovementDirham", label: "Net change in outstanding due", kind: "money", meaning: "Gross invoice amount + invoice corrections − all payments − payment corrections − credit applied." },
 ];
 
@@ -97,6 +99,7 @@ export function mapDailySummary(row: DailySummaryRow): DailySummary {
     paymentCorrectionsDirham: amount(row.payment_corrections_dirham), invoiceCorrectionsDirham: amount(row.invoice_corrections_dirham),
     creditCreatedDirham: amount(row.credit_created_dirham), creditAppliedDirham: amount(row.credit_applied_dirham),
     expenseCount: amount(row.expense_count), expensesDirham: amount(row.expenses_dirham), cashReceivedDirham: amount(row.cash_received_dirham),
+    bankReceivedDirham: amount(row.bank_received_dirham), totalReceivedDirham: amount(row.total_received_dirham),
     netCashMovementDirham: amount(row.net_cash_movement_dirham), netDueMovementDirham: amount(row.net_due_movement_dirham),
   };
 }
@@ -127,7 +130,8 @@ export type PaymentReportRow = {
   entryId: string; businessDate: string; recordedAt: string | null; source: PaymentSource; method: string; amountDirham: number;
   invoiceNumber: string; customerName: string; reference: string;
 };
-export type PaymentTotals = { cashDirham: number; creditDirham: number; bySource: { source: PaymentSource; method: string; count: number; amountDirham: number }[] };
+/** receivedDirham is cash plus bank; applied customer credit (creditDirham) is not a receipt. */
+export type PaymentTotals = { cashDirham: number; bankDirham: number; receivedDirham: number; creditDirham: number; bySource: { source: PaymentSource; method: string; count: number; amountDirham: number }[] };
 
 type Page<T> = PromiseLike<{ data: T[] | null; error: unknown }>;
 const readRows = <T>(fetchPage: (offset: number, end: number) => Page<T>, limit?: number) => limit ? fetchPage(0, limit - 1) : readAllPages(fetchPage);
@@ -209,7 +213,7 @@ type PaymentTotalRow = Functions["report_payment_totals"]["Returns"][number];
 export function mapPaymentTotals(rows: readonly PaymentTotalRow[]): PaymentTotals {
   const method = (name: string) => amount(rows.find((row) => row.source === null && row.method === name)?.amount_dirham ?? 0);
   return {
-    cashDirham: method("cash"), creditDirham: method("credit"),
+    cashDirham: method("cash"), bankDirham: method("bank"), receivedDirham: amount(method("cash") + method("bank")), creditDirham: method("credit"),
     bySource: rows.flatMap((row) => row.source === null || row.method === null ? [] : [{ source: row.source as PaymentSource, method: row.method, count: row.entry_count, amountDirham: amount(row.amount_dirham) }])
       .sort((a, b) => a.source.localeCompare(b.source)),
   };
@@ -253,7 +257,7 @@ export async function fetchPaymentReport(supabase: Client, shopId: string, from:
 
 const bold = (value: string): Cell => ({ value, fontWeight: "bold" });
 
-export const DAILY_SUMMARY_HEADERS = ["Business Date", ...DAILY_METRICS.map((metric) => metric.kind === "money" ? `${metric.label} QAR` : metric.label)];
+export const DAILY_SUMMARY_HEADERS = ["Business Date", ...DAILY_METRICS.map((metric) => metric.kind === "money" ? `${metric.exportLabel ?? metric.label} QAR` : metric.label)];
 export function dailySummarySheet(days: readonly DailySummary[]): ExportSheet {
   return sheet("Daily summary", DAILY_SUMMARY_HEADERS, days.map((day) => [
     day.businessDate, ...DAILY_METRICS.map((metric) => metric.kind === "money" ? qar(day[metric.key]) : day[metric.key]),
@@ -297,6 +301,8 @@ export function paymentReportSheet(rows: readonly PaymentReportRow[], totals: Pa
     ...rows.map((row): Cell[] => [row.businessDate, recordedAt(row.recordedAt), PAYMENT_SOURCES[row.source], row.method, qar(row.amountDirham), row.invoiceNumber, row.customerName, row.reference]),
     ...totals.bySource.map((item): Cell[] => [bold("Type total"), null, PAYMENT_SOURCES[item.source], item.method, qar(item.amountDirham), `${item.count} entries`, null, null]),
     [bold("Total cash received"), null, null, "cash", qar(totals.cashDirham), null, null, null],
+    [bold("Total bank received"), null, null, "bank", qar(totals.bankDirham), null, null, null],
+    [bold("Total received (cash + bank)"), null, null, null, qar(totals.receivedDirham), null, null, null],
     [bold("Total customer credit applied"), null, null, "credit", qar(totals.creditDirham), null, null, null],
   ]);
 }

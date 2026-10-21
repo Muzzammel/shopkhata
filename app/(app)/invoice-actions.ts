@@ -6,12 +6,13 @@ import { z } from "zod";
 import { can, getCurrentActor, type Actor } from "@/lib/auth/permissions";
 import { isValidBatchReceipt, prepareInvoiceBatch, qatarBusinessDate, type EntryError } from "@/lib/invoice-entry";
 import { normalizeInvoiceNumber } from "@/lib/invoice-operations";
+import { PAYMENT_METHODS } from "@/lib/payment-method";
 import { logFailure } from "@/lib/server-log";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const rowSchema = z.object({
   rowId: z.uuid(), invoiceId: z.string().max(120), total: z.string().max(32),
-  received: z.string().max(32), delivered: z.boolean(), customerId: z.string().max(100),
+  received: z.string().max(32), paymentMethod: z.enum(PAYMENT_METHODS).optional(), delivered: z.boolean(), customerId: z.string().max(100),
   customerName: z.string().max(200), customerMobile: z.string().max(100),
   note: z.string().max(1000).optional(),
 }).strict();
