@@ -62,7 +62,8 @@ async function installHeldAction(page: Page, loseResponse: boolean) {
     const request = route.request();
     const actionId = request.headers()["next-action"];
     if (request.method() !== "POST" || !actionId) return route.continue();
-    if (!commandActionId) {
+    // Only a sale or payment command carries an idempotency key; the invoice-number lookup does not.
+    if (!commandActionId && /idempotency(Key|_key)/.test(request.postData() ?? "")) {
       commandActionId = actionId;
       originalPayload = request.postDataBuffer();
       const response = await route.fetch();
@@ -185,7 +186,8 @@ test("an uncertain batch blocks switching and retries the identical command befo
   await page.route("**/*", async (route) => {
     const request = route.request();
     if (request.method() === "POST" && request.headers()["next-action"]) {
-      if (!dropped) {
+      // Only the batch submission carries an idempotency key; the invoice-number lookup does not.
+      if (!dropped && request.postData()?.includes("idempotencyKey")) {
         dropped = true;
         actionId = request.headers()["next-action"];
         originalPayload = request.postDataBuffer();

@@ -27,7 +27,7 @@ import { CustomerSearch } from "./customer-search";
 import { ExcelImport } from "./excel-import";
 import { saveInvoiceBatch, type SaveResult } from "./invoice-actions";
 import { InvoicePayment } from "./invoice-payment";
-import { loadShopWorkspace } from "./workspace-actions";
+import { findTakenInvoiceNumbers, loadShopWorkspace } from "./workspace-actions";
 import { invoiceBadges } from "@/lib/sales-view";
 import { parseQar } from "@/lib/domain/money";
 import { paymentMethodLabel } from "@/lib/payment-method";
@@ -57,7 +57,7 @@ function emptyRow(): EntryRow {
   return { rowId: crypto.randomUUID(), invoiceId: "", total: "", received: "", paymentMethod: "cash", delivered: false, customerId: "", customerName: "", customerMobile: "", note: "" };
 }
 
-export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRole, invoices, duplicateInvoiceNumbers, businessDate, offlineShell = false }: {
+export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRole, invoices, businessDate, offlineShell = false }: {
   appName: string;
   shop: ShopChoice;
   shops: ShopChoice[];
@@ -65,7 +65,6 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
   actorName: string;
   actorRole: string;
   invoices: WorkspaceInvoice[];
-  duplicateInvoiceNumbers: string[];
   businessDate: string;
   /** Rendered by the service worker's offline page: local draft editing only, no server data. */
   offlineShell?: boolean;
@@ -73,7 +72,12 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
   const online = useOnline();
   const [currentShop, setCurrentShop] = useState(shop);
   const [currentInvoices, setCurrentInvoices] = useState(invoices);
-  const [duplicateNumbers, setDuplicateNumbers] = useState(duplicateInvoiceNumbers);
+  // What the registry said about the numbers on screen, by normalized number (true = taken).
+  // Only numbers asked about are known; the save re-checks and submit_batch decides.
+  const [knownNumbers, setKnownNumbers] = useState<ReadonlyMap<string, boolean>>(() => new Map());
+  const [importRows, setImportRows] = useState<EntryRow[]>([]);
+  const [lookupFailed, setLookupFailed] = useState<string | null>(null);
+  const [reviewQueued, setReviewQueued] = useState(false);
   const [rows, setRows] = useState<EntryRow[]>(() => [emptyRow()]);
   const [customers, setCustomers] = useState<Record<string, DraftCustomer>>({});
   const [key, setKey] = useState(() => crypto.randomUUID());
@@ -111,6 +115,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
   const switchInProgressRef = useRef(false);
   const activeShopIdRef = useRef(shop.id);
   const workspaceGenerationRef = useRef(0);
+  const registryGenerationRef = useRef(0);
   const attempt = submission?.payload ?? null;
   const batchUncertain = submission?.status === "uncertain";
   const hydrated = hydratedShop === currentShop.id;
@@ -127,6 +132,29 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
   const displayDate = attempt?.businessDate ?? selectedBusinessDate;
   const displayBackdated = attempt?.isBackdated ?? (displayDate < currentDate);
   const displayReason = attempt?.backdatedReason ?? backdatedReason;
+  const duplicateNumbers = [...knownNumbers].flatMap(([number, taken]) => taken ? [number] : []);
+  const pendingNumbers = JSON.stringify([...new Set([...rows, ...importRows].map((row) => normalizeInvoiceNumber(row.invoiceId)))]
+    .filter((number) => number && !knownNumbers.has(number)));
+  useEffect(() => {
+    const numbers = JSON.parse(pendingNumbers) as string[];
+    if (!numbers.length || offlineShell || !online) return;
+    const shopId = currentShop.id;
+    const generation = registryGenerationRef.current;
+    const current = () => activeShopIdRef.current === shopId && registryGenerationRef.current === generation;
+    // Unknown, not available: review may go ahead and the save checks again.
+    const failed = () => { if (current()) setLookupFailed(pendingNumbers); };
+    const timer = window.setTimeout(() => {
+      void findTakenInvoiceNumbers(shopId, numbers).then((found) => {
+        if (!found.ok) return failed();
+        // Answers are kept per number, so a late one never marks a different number.
+        if (!current()) return;
+        const registered = new Set(found.registered);
+        setKnownNumbers((known) => new Map([...known, ...numbers.map((number) => [number, registered.has(number)] as const)]));
+      }, failed);
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [currentShop.id, offlineShell, online, pendingNumbers]);
+  const checkingNumbers = pendingNumbers !== "[]" && online && !offlineShell && lookupFailed !== pendingNumbers;
   const preview = prepareInvoiceBatch({
     shopId: currentShop.id, businessDate: displayDate, isBackdated: displayBackdated,
     backdatedReason: displayReason, idempotencyKey: key, rows,
@@ -270,7 +298,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
       workspaceGenerationRef.current += 1;
       setCurrentShop(result.workspace.shop);
       setCurrentInvoices(result.workspace.invoices);
-      setDuplicateNumbers(result.workspace.duplicateInvoiceNumbers);
+      forgetRegistry();
       resetDraft();
       setResult(null);
       // Keep the address (and so the shell's shop label) on the shop now shown.
@@ -284,12 +312,19 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
     }
   }
 
+  /** Drops every registry answer, so the numbers on screen are looked up again. */
+  function forgetRegistry() {
+    registryGenerationRef.current += 1;
+    setKnownNumbers(new Map());
+  }
+
   async function refreshCurrentWorkspace(shopId: string, generation: number) {
+    // A save or a rejection changes what is registered.
+    forgetRegistry();
     try {
       const result = await loadShopWorkspace(shopId);
       if (!result.ok || !workspaceIsCurrent(shopId, generation)) return;
       setCurrentInvoices(result.workspace.invoices);
-      setDuplicateNumbers(result.workspace.duplicateInvoiceNumbers);
     } catch {
       // The save is already confirmed; a failed read does not make its outcome uncertain.
     }
@@ -305,6 +340,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
     }
     setConflict(null);
     setReview(false);
+    setReviewQueued(false);
     setResult(null);
   }
 
@@ -460,6 +496,9 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
 
   function startReview() {
     setAttempted(true);
+    // Decided once the numbers on screen are checked, so a taken number never reaches review.
+    if (checkingNumbers) return setReviewQueued(true);
+    setReviewQueued(false);
     if (preview.errors.length) {
       const firstInvalid = preview.errors.find((error) => rows.some((row) => row.rowId === error.rowId));
       if (firstInvalid) setActiveRowId(firstInvalid.rowId ?? null);
@@ -469,6 +508,12 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
     }
     setReview(true);
   }
+  const reviewWhenChecked = useEffectEvent(() => startReview());
+  useEffect(() => {
+    if (!reviewQueued || checkingNumbers) return;
+    const timer = window.setTimeout(() => reviewWhenChecked());
+    return () => window.clearTimeout(timer);
+  }, [checkingNumbers, reviewQueued]);
 
   // Move to the first invalid field; one short shake, skipped when motion is reduced.
   useEffect(() => {
@@ -734,7 +779,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
         <ChevronDownIcon aria-hidden className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open/tools:rotate-180" />
       </summary>
       <div className="mt-4 grid grid-cols-1 items-start gap-4 sm:mt-5 sm:gap-5 lg:grid-cols-2">
-      <div className="min-w-0 lg:col-span-2"><ExcelImport disabled={locked} currentRows={rows} draftIsBlank={!invoiceDraft} onApply={applyImport} validate={(candidate) => prepareInvoiceBatch({
+      <div className="min-w-0 lg:col-span-2"><ExcelImport disabled={locked} currentRows={rows} draftIsBlank={!invoiceDraft} onApply={applyImport} onPreview={setImportRows} validate={(candidate) => prepareInvoiceBatch({
         shopId: currentShop.id, businessDate: displayDate, isBackdated: displayBackdated, backdatedReason: displayReason, idempotencyKey: key, rows: candidate,
       }, duplicateNumbers, false, currentDate).errors} /></div>
       {!offlineShell && <>

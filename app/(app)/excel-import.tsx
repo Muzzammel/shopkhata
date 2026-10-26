@@ -35,18 +35,25 @@ async function downloadTemplate() {
  * review. Nothing is saved here: accepted rows only join the draft, which
  * then goes through the normal Review batch and Save batch steps.
  */
-export function ExcelImport({ disabled, currentRows, draftIsBlank, validate, onApply }: {
+export function ExcelImport({ disabled, currentRows, draftIsBlank, validate, onApply, onPreview }: {
   disabled: boolean;
   currentRows: EntryRow[];
   draftIsBlank: boolean;
   /** The same batch validation manual rows get. */
   validate: (rows: EntryRow[]) => EntryError[];
   onApply: (rows: EntryRow[], mode: "merge" | "replace") => void;
+  /** The rows under preview, so their invoice numbers get the duplicate check before they join the draft. */
+  onPreview?: (rows: EntryRow[]) => void;
 }) {
-  const [parsed, setParsed] = useState<ImportResult | null>(null);
+  const [parsed, setParsedState] = useState<ImportResult | null>(null);
   const [source, setSource] = useState("");
   const [message, setMessage] = useState("");
   const [pasteText, setPasteText] = useState("");
+
+  function setParsed(result: ImportResult | null) {
+    setParsedState(result);
+    onPreview?.(result?.rows ?? []);
+  }
 
   function show(result: ImportResult, label: string) {
     const fileProblem = result.errors.find((error) => error.rowId === "");

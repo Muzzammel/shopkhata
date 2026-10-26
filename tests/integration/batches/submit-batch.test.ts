@@ -3,6 +3,7 @@ import { delimiter, join } from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
+import { findRegisteredInvoiceNumbers } from "@/lib/invoice-number-registry";
 
 const SUITE_TIMEOUT = 120_000;
 const RESET_TIMEOUT = 90_000;
@@ -330,6 +331,41 @@ describe("submit_batch RPC (real network, real sessions)", () => {
 
     expect(shop1Result.error).toBeNull();
     expect(shop2Result.error).toBeNull();
+  });
+
+  it("New Sale's duplicate pre-check looks up only the numbers asked about, even past 1,000 registered numbers", async () => {
+    const owner = await signIn(OWNER_EMAIL, OWNER_PASSWORD);
+    const prefix = uniqueInvoiceNumber("registry");
+    const special = `${prefix}-a,b (x)`;
+    // Not registrable today (submit_batch rejects quotes and backslashes), but asking must still parse.
+    const quoted = `${prefix}-"q" \\ x`;
+    const otherShopOnly = `${prefix}-SHOP2-ONLY`;
+    const submit = async (shopId: string, numbers: string[], key: string) => {
+      const { error } = await owner.rpc("submit_batch", { command: {
+        shop_id: shopId, business_date: qatarBusinessDate(new Date()), idempotency_key: key,
+        rows: numbers.map((invoice_number, index) => ({ row_id: `r${index}`, invoice_number, total_dirham: 100, received_dirham: 0, delivered: false, customer: null })),
+      } });
+      expect(error).toBeNull();
+    };
+    for (let batch = 0; batch < 11; batch++) {
+      await submit(SHOP_1, Array.from({ length: 100 }, (_, i) => `${prefix}-${batch}-${i}`), `${prefix}-k${batch}`);
+    }
+    await submit(SHOP_1, [special], `${prefix}-special`);
+    await submit(SHOP_2, [otherShopOnly], `${prefix}-shop2`);
+
+    let requests = 0;
+    const staff = createClient(credentials.url, credentials.key, { global: { fetch: (...args: Parameters<typeof fetch>) => { requests++; return fetch(...args); } } });
+    const { error: signInError } = await staff.auth.signInWithPassword({ email: STAFF1_EMAIL, password: STAFF1_PASSWORD });
+    expect(signInError).toBeNull();
+    requests = 0;
+    const found = await findRegisteredInvoiceNumbers(staff as never, SHOP_1, [
+      ` ${prefix}-10-99 `.toUpperCase(), special, quoted, `${prefix}-UNUSED`, otherShopOnly,
+    ]);
+    expect(found?.sort()).toEqual([`${prefix}-10-99`.toLowerCase(), special.toLowerCase()].sort());
+    expect(requests).toBe(1);
+    // Staff of Shop 1 learn nothing about Shop 2's numbers, even when asking for that shop directly.
+    expect(await findRegisteredInvoiceNumbers(staff as never, SHOP_2, [otherShopOnly])).toEqual([]);
+    expect(await findRegisteredInvoiceNumbers(owner as never, SHOP_2, [otherShopOnly])).toEqual([otherShopOnly.toLowerCase()]);
   });
 
   it("concurrency: same key + same fingerprint both succeed with the same result and exactly one write set", async () => {

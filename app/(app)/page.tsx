@@ -29,7 +29,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   return <InvoiceEntry
     appName={APP_NAME} shop={workspace.shop} shops={availableShops.map(({ id, name }) => ({ id, name }))}
     actorId={actor.id} actorName={profile.display_name} actorRole={actor.role}
-    invoices={workspace.invoices} duplicateInvoiceNumbers={workspace.duplicateInvoiceNumbers}
+    invoices={workspace.invoices}
     businessDate={qatarBusinessDate(new Date())}
   />;
 }

@@ -63,6 +63,6 @@ export default function OfflinePage() {
   return <InvoiceEntry
     offlineShell appName={APP_NAME} shop={shop} shops={state.marker.shops}
     actorId={state.marker.userId} actorName={state.marker.name} actorRole={state.marker.role}
-    invoices={[]} duplicateInvoiceNumbers={[]} businessDate={state.today}
+    invoices={[]} businessDate={state.today}
   />;
 }

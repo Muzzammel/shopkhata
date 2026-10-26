@@ -297,6 +297,44 @@ test("a duplicate older than the recent preview gets a row error", async ({ page
   await expect(page.getByRole("alert").filter({ hasText: /Fix \d+ row error/ })).toBeVisible();
 });
 
+test("the duplicate check follows the number typed: normalized match, other shop, change and clear", async ({ page }) => {
+  const prefix = `UI-DUP-${Date.now()}`;
+  await page.goto("/login");
+  await page.getByLabel(/email/i).fill("owner@shopkhata.local");
+  await page.getByLabel(/password/i).fill("ShopKhata-Local-Owner-E2E-Only-2026!");
+  await page.getByRole("button", { name: /sign in|log in/i }).click();
+  await expect(page.getByRole("heading", { name: "Shop 1" })).toBeVisible();
+  await page.getByLabel("Current shop").selectOption("10000000-0000-4000-8000-000000000002");
+  await expect(page.getByRole("heading", { name: "Shop 2" })).toBeVisible();
+  await createDueInvoice(page, `${prefix}-S2`, "5.00");
+  await page.getByLabel("Current shop").selectOption("10000000-0000-4000-8000-000000000001");
+  await expect(page.getByRole("heading", { name: "Shop 1" })).toBeVisible();
+  await createDueInvoice(page, `${prefix}-S1`, "7.00");
+
+  const row = page.locator("[data-entry-row]").first();
+  const invoiceId = row.getByLabel("Invoice ID");
+  // A number used only in Shop 2 is free in Shop 1.
+  await invoiceId.fill(`${prefix}-s2`);
+  await row.getByLabel("Total QAR").fill("3.00");
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await expect(page.getByRole("button", { name: "Save sale" })).toBeVisible();
+  await expect(row).not.toContainText("already exists");
+
+  // A normalized-equivalent number is the same invoice.
+  await invoiceId.fill(`  ${prefix.toUpperCase()}-s1  `);
+  await expect(row.getByRole("alert")).toContainText("Invoice already exists. Outstanding due QAR 7.00.");
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await expect(row).toContainText("Invoice ID already exists in this shop.");
+
+  // Typing on to a free number clears the warning; an earlier answer does not bring it back.
+  await invoiceId.pressSequentially("9", { delay: 20 });
+  await expect(row).not.toContainText("already exists");
+  await invoiceId.press("Backspace");
+  await expect(row.getByRole("alert")).toContainText("Invoice already exists");
+  await invoiceId.fill("");
+  await expect(row).not.toContainText("already exists");
+});
+
 test("recent invoices show approved invoice and payment corrections", async ({ page }) => {
   const invoiceNumber = `UI-CORRECTED-${Date.now()}`;
   await page.goto("/login");
@@ -532,7 +570,8 @@ test("a lost save response keeps the original date and retry key across midnight
   await page.getByRole("button", { name: "Review sale" }).click();
   let dropped = false;
   await page.route("**/*", async (route) => {
-    if (!dropped && route.request().method() === "POST" && route.request().headers()["next-action"]) {
+    // Only the batch submission carries an idempotency key; the invoice-number lookup does not.
+    if (!dropped && route.request().method() === "POST" && route.request().headers()["next-action"] && route.request().postData()?.includes("idempotencyKey")) {
       dropped = true;
       await route.fetch();
       await route.abort("failed");

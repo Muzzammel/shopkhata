@@ -22,7 +22,6 @@ export type WorkspaceInvoice = {
 export type ShopWorkspace = {
   shop: { id: string; name: string };
   invoices: WorkspaceInvoice[];
-  duplicateInvoiceNumbers: string[];
 };
 
 export async function readShopWorkspace(actor: Actor, shopId: string): Promise<ShopWorkspace> {
@@ -40,14 +39,7 @@ export async function readShopWorkspace(actor: Actor, shopId: string): Promise<S
     .order("business_date", { ascending: false }).order("recorded_at", { ascending: false }).order("canonical_invoice_id", { ascending: false })
     .limit(RECENT_INVOICE_PREVIEW_SIZE);
   if (invoiceError || !invoices) throw new Error("INVOICE_WORKSPACE_UNAVAILABLE");
-  const registry: { invoice_number: string }[] = [];
-  for (let offset = 0; ; offset += 1000) {
-    const { data, error } = await supabase.from("invoice_number_registry").select("invoice_number")
-      .eq("shop_id", shop.id).order("invoice_number").range(offset, offset + 999);
-    if (error || !data) throw new Error("INVOICE_NUMBER_CHECK_UNAVAILABLE");
-    registry.push(...data);
-    if (data.length < 1000) break;
-  }
+  // No invoice-number registry here: New Sale looks up only the numbers typed (findTakenInvoiceNumbers).
   const recentInvoices = invoices.map((invoice) => ({
     id: invoice.canonical_invoice_id!, invoice_id: invoice.effective_invoice_number!, business_date: invoice.business_date!,
     effective_total_dirham: invoice.effective_total_dirham!, effective_due_dirham: invoice.effective_due_dirham!,
@@ -56,6 +48,5 @@ export async function readShopWorkspace(actor: Actor, shopId: string): Promise<S
   return {
     shop: { id: shop.id, name: shop.name },
     invoices: recentInvoices,
-    duplicateInvoiceNumbers: registry.map((row) => row.invoice_number),
   };
 }

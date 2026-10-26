@@ -1,6 +1,7 @@
 "use server";
 
 import { can, getCurrentActor } from "@/lib/auth/permissions";
+import { findRegisteredInvoiceNumbers } from "@/lib/invoice-number-registry";
 import { readShopWorkspace } from "@/lib/shop-workspace";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -46,6 +47,24 @@ export async function searchShopCustomers(shopId: unknown, rawQuery: unknown, ra
     };
   } catch {
     return { ok: false as const, message: "Customer search is unavailable." };
+  }
+}
+
+/**
+ * New Sale duplicate pre-check for the numbers on screen (draft rows plus an
+ * import preview, so at most 200). Not ok means unknown, never "available";
+ * the save re-checks and submit_batch decides.
+ */
+export async function findTakenInvoiceNumbers(shopId: unknown, numbers: unknown) {
+  if (typeof shopId !== "string" || !Array.isArray(numbers) || numbers.length > 200
+    || !numbers.every((number) => typeof number === "string" && number.length <= 120)) return { ok: false as const };
+  const actor = await getCurrentActor();
+  if (!can(actor, "records.view_assigned", shopId)) return { ok: false as const };
+  try {
+    const registered = await findRegisteredInvoiceNumbers(await createServerSupabaseClient(), shopId, numbers);
+    return registered ? { ok: true as const, registered } : { ok: false as const };
+  } catch {
+    return { ok: false as const };
   }
 }
 

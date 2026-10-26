@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { can, getCurrentActor, type Actor } from "@/lib/auth/permissions";
 import { isValidBatchReceipt, prepareInvoiceBatch, qatarBusinessDate, type EntryError } from "@/lib/invoice-entry";
+import { findRegisteredInvoiceNumbers } from "@/lib/invoice-number-registry";
 import { normalizeInvoiceNumber } from "@/lib/invoice-operations";
 import { PAYMENT_METHODS } from "@/lib/payment-method";
 import { logFailure } from "@/lib/server-log";
@@ -57,15 +58,8 @@ export async function saveInvoiceBatch(raw: unknown): Promise<SaveResult> {
   if (!priorBatch && input.isBackdated !== (input.businessDate < qatarBusinessDate(new Date()))) {
     return { ok: false, code: "STALE_DATE", message: "Refresh the business date and review the batch again.", errors: [] };
   }
-  const existingNumbers: string[] = [];
-  for (let offset = 0; ; offset += 1000) {
-    const { data: existing, error: lookupError } = await supabase
-      .from("invoice_number_registry").select("invoice_number").eq("shop_id", input.shopId)
-      .order("invoice_number").range(offset, offset + 999);
-    if (lookupError || !existing) return { ok: false, code: "UNAVAILABLE", message: "Invoice numbers could not be checked.", errors: [] };
-    existingNumbers.push(...existing.map((row) => row.invoice_number));
-    if (existing.length < 1000) break;
-  }
+  const existingNumbers = await findRegisteredInvoiceNumbers(supabase, input.shopId, input.rows.map((row) => row.invoiceId));
+  if (!existingNumbers) return { ok: false, code: "UNAVAILABLE", message: "Invoice numbers could not be checked.", errors: [] };
   const prepared = prepareInvoiceBatch(input, existingNumbers, Boolean(priorBatch), qatarBusinessDate(new Date()));
   if (!prepared.command) {
     const registered = new Set(existingNumbers.map(normalizeInvoiceNumber));
