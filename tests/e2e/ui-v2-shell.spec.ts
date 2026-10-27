@@ -6,13 +6,15 @@ import { login, OWNER, SHOP_1, SHOP_2 } from "./offline-helpers";
 // search, shop switching, theme, motion preferences and responsive composition.
 
 const dashboard = `/dashboard?shop=${SHOP_1}&period=7d`;
+// The loaded page, not its loading skeleton (React keeps the skeleton up to 300 ms after it paints).
+const openDashboard = async (page: Page) => { await page.goto(dashboard); await expect(page.locator("main:not([aria-busy=true])")).toBeVisible(); };
 const noOverflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 
 test.describe("desktop", () => {
   test.beforeEach(async ({ page }) => { await page.setViewportSize({ width: 1440, height: 900 }); await login(page, OWNER); });
 
   test("the dashboard is an asymmetric composition led by the Sales card", async ({ page }) => {
-    await page.goto(dashboard);
+    await openDashboard(page);
     const kpis = page.locator("[data-slot=kpi]:visible");
     await expect(kpis).toHaveCount(6);
     const sizes = await kpis.evaluateAll((cards) => cards.map((card) => { const box = card.getBoundingClientRect(); return { label: card.textContent!.slice(0, 30), area: box.width * box.height, width: box.width }; }));
@@ -27,7 +29,7 @@ test.describe("desktop", () => {
   });
 
   test("Daily closing health and Shop comparison live only inside the collapsed More detail", async ({ page }) => {
-    await page.goto(dashboard);
+    await openDashboard(page);
     const more = page.locator("details").filter({ has: page.getByText("More detail") });
     await expect(more).not.toHaveAttribute("open");
     for (const title of ["Daily closing health", "Shop comparison"]) await expect(page.getByRole("region", { name: title })).toBeHidden();
@@ -36,7 +38,7 @@ test.describe("desktop", () => {
   });
 
   test("the top bar marks the current page with the black pill and keeps the shop on every link", async ({ page }) => {
-    await page.goto(dashboard);
+    await openDashboard(page);
     const nav = page.getByRole("navigation", { name: "Main navigation" });
     await expect(nav.getByRole("link")).toHaveText(["Dashboard", "Sales", "Customers", "Expenses", "Daily Close", "Reports", "Accounts", "Backup"]);
     await expect(nav.getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
@@ -48,7 +50,7 @@ test.describe("desktop", () => {
   });
 
   test("the quick-action rail stays put while scrolling and labels every icon", async ({ page }) => {
-    await page.goto(dashboard);
+    await openDashboard(page);
     const rail = page.getByRole("navigation", { name: "Quick actions" });
     const before = await rail.boundingBox();
     await page.mouse.wheel(0, 1200);
@@ -65,7 +67,7 @@ test.describe("desktop", () => {
   });
 
   test("Ctrl+K search hands the term to the existing invoice search", async ({ page }) => {
-    await page.goto(dashboard);
+    await openDashboard(page);
     await page.keyboard.press("Control+k");
     const box = page.getByRole("combobox", { name: "Search ShopKhata" });
     await expect(box).toBeFocused();
@@ -76,7 +78,7 @@ test.describe("desktop", () => {
   });
 
   test("the shop switcher moves the whole page to the other shop", async ({ page }) => {
-    await page.goto(dashboard);
+    await openDashboard(page);
     await page.getByRole("button", { name: /^Shop: Shop 1. Change shop$/ }).click();
     await page.getByRole("menuitemradio", { name: "Shop 2" }).click();
     await expect(page).toHaveURL(`/dashboard?shop=${SHOP_2}&period=7d`);
@@ -85,7 +87,7 @@ test.describe("desktop", () => {
   });
 
   test("KPI cards act in place: Cash Received switches the chart to cash, Customer Due navigates", async ({ page }) => {
-    await page.goto(dashboard);
+    await openDashboard(page);
     await page.getByRole("button", { name: "Show Cash Received on the chart" }).click();
     await expect(page.getByRole("navigation", { name: "Chart measure" }).getByRole("button", { name: "Cash" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("region", { name: "Sales Overview" })).toContainText("Cash received per day");
@@ -119,7 +121,7 @@ test.describe("tablet", () => {
   test("pills fold into a Menu sheet and the rail stays available", async ({ page }) => {
     await page.setViewportSize({ width: 820, height: 1180 });
     await login(page, OWNER);
-    await page.goto(dashboard);
+    await openDashboard(page);
     await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeHidden();
     await expect(page.getByRole("navigation", { name: "Quick actions" })).toBeVisible();
     await page.getByRole("button", { name: "Menu" }).click();
@@ -133,7 +135,7 @@ test.describe("phone", () => {
   test.beforeEach(async ({ page }) => { await page.setViewportSize({ width: 390, height: 844 }); await login(page, OWNER); });
 
   test("a dedicated composition: full-width Sales card, two-column KPIs, bottom bar, no rail", async ({ page }) => {
-    await page.goto(dashboard);
+    await openDashboard(page);
     await expect(page.getByRole("navigation", { name: "Quick actions" })).toBeHidden();
     await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeHidden();
     const kpis = await page.locator("[data-slot=kpi]:visible").evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().width));
@@ -145,7 +147,7 @@ test.describe("phone", () => {
   });
 
   test("bottom navigation: Home is current, Add opens the quick actions, More lists every page", async ({ page }) => {
-    await page.goto(dashboard);
+    await openDashboard(page);
     const bar = page.getByRole("navigation", { name: "Mobile navigation" });
     await expect(bar.getByRole("link")).toHaveText(["Home", "Sales", "Customers"]);
     await expect(bar.getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page");
@@ -165,7 +167,7 @@ test.describe("phone", () => {
   });
 
   test("phone order ends in a collapsed More insights holding the secondary cards", async ({ page }) => {
-    await page.goto(dashboard);
+    await openDashboard(page);
     const top = (title: string) => page.getByRole("region", { name: title }).evaluate((element) => element.getBoundingClientRect().top);
     const order: number[] = [];
     for (const title of ["Sales Overview", "Income vs Expense", "Needs Attention", "Top Customers", "Recent Activity"]) order.push(await top(title));
@@ -180,7 +182,7 @@ test.describe("phone", () => {
   });
 
   test("touch targets in the bars are at least 40px", async ({ page }) => {
-    await page.goto(dashboard);
+    await openDashboard(page);
     const targets = page.getByRole("banner").locator("a:visible, button:visible").or(page.getByRole("navigation", { name: "Mobile navigation" }).locator("a, button"));
     for (const box of await targets.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()))) {
       expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(36);
@@ -194,7 +196,7 @@ test.describe("phone bottom bar never covers content", () => {
     test(`${width}x${height}: keyboard focus and the end of the page stay above the bar`, async ({ page }) => {
       await page.setViewportSize({ width, height });
       await login(page, OWNER);
-      await page.goto(dashboard);
+      await openDashboard(page);
       const bar = page.getByRole("navigation", { name: "Mobile navigation" });
       await expect(bar).toBeVisible();
       // The raised Add button and its 4px ring are the highest point of the bar.
@@ -226,7 +228,7 @@ test.describe("phone bottom bar never covers content", () => {
 test.describe("theme and motion", () => {
   test("dark mode is a designed charcoal palette, not an inversion; only Sales is heavily filled", async ({ page }) => {
     await login(page, OWNER);
-    await page.goto(dashboard);
+    await openDashboard(page);
     const colours = () => page.evaluate(() => {
       const card = (label: string) => getComputedStyle([...document.querySelectorAll("[data-slot=kpi]")].find((kpi) => kpi.textContent!.includes(label))!).backgroundColor;
       return { body: getComputedStyle(document.body).backgroundColor, sales: card("Sales"), net: card("Net Position"), due: card("Customer Due") };
@@ -244,7 +246,7 @@ test.describe("theme and motion", () => {
     const context = await browser.newContext({ reducedMotion: "reduce" });
     const page = await context.newPage();
     await login(page, OWNER);
-    await page.goto(dashboard);
+    await openDashboard(page);
     const durations = await page.locator(".sk-enter").evaluateAll((elements) => elements.map((element) => parseFloat(getComputedStyle(element).animationDuration)));
     expect(durations.length).toBeGreaterThan(5);
     expect(Math.max(...durations)).toBeLessThan(0.001);

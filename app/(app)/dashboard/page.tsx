@@ -27,10 +27,13 @@ function Rows({ rows, empty }: { rows: { key: string; label: string; value: stri
 }
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
-  const actor = await getCurrentActor();
   const query = await searchParams;
   const supabase = await createServerSupabaseClient();
-  const { data: allShops, error: shopsError } = await supabase.from("shops").select("id,name,is_active").eq("is_active", true).order("name");
+  // The shop list is RLS-scoped to the session, so it can be read while the actor is verified.
+  const [actor, { data: allShops, error: shopsError }] = await Promise.all([
+    getCurrentActor(),
+    supabase.from("shops").select("id,name,is_active").eq("is_active", true).order("name"),
+  ]);
   if (shopsError || !allShops) throw new Error("DASHBOARD_UNAVAILABLE");
   const shops = getVisibleShops(actor, allShops);
   const requestedShop = Array.isArray(query.shop) ? query.shop[0] : query.shop;
@@ -40,10 +43,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const today = qatarBusinessDate(new Date());
   const range = parseDashboardPeriod(query, today);
   const canViewAudit = can(actor, "audit.view_full", shop.id);
-  const data = await loadDashboard(supabase, shops, shop, range, canViewAudit);
-
   // Owner-only, and never allowed to break the dashboard: no reading, no attention item.
-  const backups = can(actor, "users.manage") ? await supabase.from("backup_records").select("*").order("backup_created_at", { ascending: false }).limit(200) : null;
+  const [data, backups] = await Promise.all([
+    loadDashboard(supabase, shops, shop, range, canViewAudit),
+    can(actor, "users.manage") ? supabase.from("backup_records").select("*").order("backup_created_at", { ascending: false }).limit(200) : null,
+  ]);
   const backup = backups?.data ? summarizeBackups(backups.data, new Date()) : null;
   const last = data.trend.today;
   const attention = deriveAttention({

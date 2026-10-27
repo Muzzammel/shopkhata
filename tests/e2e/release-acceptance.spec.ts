@@ -420,10 +420,12 @@ test.describe("responsive usability and accessibility", () => {
       await check("payments");
 
       // Dashboard: KPIs, trend, and every section's empty/populated state.
+      // Audit the loaded page, not its loading skeleton (React keeps the skeleton up to 300 ms after it paints).
       await page.goto(`/dashboard?shop=${SHOP_1}`);
-      await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+      await expect(page.locator("main:not([aria-busy=true])")).toBeVisible();
       await check("dashboard today");
       await page.goto(`/dashboard?shop=${SHOP_1}&period=30d`);
+      await expect(page.locator("main:not([aria-busy=true])")).toBeVisible();
       await check("dashboard 30 days");
 
       // Owner administration.

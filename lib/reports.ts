@@ -156,31 +156,38 @@ export async function fetchSalesReport(supabase: Client, shopId: string, from: s
   };
 }
 
-export async function fetchCustomerDueReport(supabase: Client, shopId: string, limit?: number): Promise<{ rows: CustomerDueRow[]; totals: CustomerDueTotals }> {
-  const [balances, totals] = await Promise.all([
-    readRows((offset, end) => supabase.from("customer_financial_balances")
-      .select("customer_id,outstanding_due_dirham,available_credit_dirham,invoice_count,last_activity_date").eq("shop_id", shopId)
-      .or("outstanding_due_dirham.gt.0,available_credit_dirham.gt.0")
-      .order("outstanding_due_dirham", { ascending: false }).order("customer_id").range(offset, end), limit),
-    supabase.rpc("report_customer_due_totals", { p_shop_id: shopId }),
-  ]);
-  const total = totals.data?.[0];
-  if (balances.error || !balances.data || totals.error || !total) throw new Error("REPORT_UNAVAILABLE");
+/** The customer rows of the due report, without its totals (the Dashboard reads those itself). */
+export async function fetchCustomerDueRows(supabase: Client, shopId: string, limit?: number): Promise<CustomerDueRow[]> {
+  const balances = await readRows((offset, end) => supabase.from("customer_financial_balances")
+    .select("customer_id,outstanding_due_dirham,available_credit_dirham,invoice_count,last_activity_date").eq("shop_id", shopId)
+    .or("outstanding_due_dirham.gt.0,available_credit_dirham.gt.0")
+    .order("outstanding_due_dirham", { ascending: false }).order("customer_id").range(offset, end), limit);
+  if (balances.error || !balances.data) throw new Error("REPORT_UNAVAILABLE");
   const customers = new Map<string, { public_id: string; name: string | null; mobile: string | null }>();
   for (const ids of chunks(balances.data.map((row) => row.customer_id!))) {
     const result = await supabase.from("customers").select("id,public_id,name,mobile").eq("shop_id", shopId).in("id", ids);
     if (result.error || !result.data) throw new Error("REPORT_UNAVAILABLE");
     for (const customer of result.data) customers.set(customer.id, customer);
   }
+  return balances.data.map((row) => {
+    const customer = customers.get(row.customer_id!);
+    return {
+      customerId: row.customer_id!, publicId: customer?.public_id ?? "", name: customer?.name ?? "", mobile: customer?.mobile ?? "",
+      outstandingDueDirham: amount(row.outstanding_due_dirham ?? 0), availableCreditDirham: amount(row.available_credit_dirham ?? 0),
+      invoiceCount: row.invoice_count ?? 0, lastActivity: row.last_activity_date ?? "",
+    };
+  });
+}
+
+export async function fetchCustomerDueReport(supabase: Client, shopId: string, limit?: number): Promise<{ rows: CustomerDueRow[]; totals: CustomerDueTotals }> {
+  const [rows, totals] = await Promise.all([
+    fetchCustomerDueRows(supabase, shopId, limit),
+    supabase.rpc("report_customer_due_totals", { p_shop_id: shopId }),
+  ]);
+  const total = totals.data?.[0];
+  if (totals.error || !total) throw new Error("REPORT_UNAVAILABLE");
   return {
-    rows: balances.data.map((row) => {
-      const customer = customers.get(row.customer_id!);
-      return {
-        customerId: row.customer_id!, publicId: customer?.public_id ?? "", name: customer?.name ?? "", mobile: customer?.mobile ?? "",
-        outstandingDueDirham: amount(row.outstanding_due_dirham ?? 0), availableCreditDirham: amount(row.available_credit_dirham ?? 0),
-        invoiceCount: row.invoice_count ?? 0, lastActivity: row.last_activity_date ?? "",
-      };
-    }),
+    rows,
     totals: {
       customersWithDue: amount(total.customers_with_due), outstandingDueDirham: amount(total.outstanding_due_dirham),
       availableCreditDirham: amount(total.available_credit_dirham), unassignedDueDirham: amount(total.unassigned_due_dirham),

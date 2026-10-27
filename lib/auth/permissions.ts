@@ -179,11 +179,22 @@ export async function getCurrentActor(): Promise<Actor> {
     failClosed("AUTHENTICATION_REQUIRED");
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("id, role, is_active")
-    .eq("id", user.id)
-    .maybeSingle();
+  // Both reads need only the verified user id; they are checked in the same
+  // fail-closed order as before.
+  const [
+    { data: profile, error: profileError },
+    { data: assignments, error: assignmentError },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, role, is_active")
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("user_shop_assignments")
+      .select("shop_id")
+      .eq("user_id", user.id),
+  ]);
 
   if (
     profileError ||
@@ -195,11 +206,6 @@ export async function getCurrentActor(): Promise<Actor> {
   ) {
     failClosed("TRUSTED_PROFILE_REQUIRED");
   }
-
-  const { data: assignments, error: assignmentError } = await supabase
-    .from("user_shop_assignments")
-    .select("shop_id")
-    .eq("user_id", user.id);
 
   if (
     assignmentError ||

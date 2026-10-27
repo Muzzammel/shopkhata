@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { addDays, first, last30Days, parseDateRangeFilter } from "@/lib/date-range";
 import { dayState, type CloseEvent } from "@/lib/closing";
 import {
-  DAILY_METRICS, fetchCustomerDueReport, fetchDailySummary, mapExpenseTotals, mapPaymentTotals,
+  DAILY_METRICS, fetchCustomerDueRows, fetchDailySummary, mapExpenseTotals, mapPaymentTotals,
   type CustomerDueRow, type DailySummary,
 } from "@/lib/reports";
 import type { Database } from "@/lib/supabase/database.types";
@@ -35,6 +35,16 @@ export function parseDashboardPeriod(query: Record<string, string | string[] | u
 
 export type ShopTotals = { shopId: string; shopName: string; salesDirham: number; invoiceCount: number; paymentsReceivedDirham: number; expensesDirham: number; outstandingDueDirham: number };
 
+type Rpc<Name extends keyof Database["public"]["Functions"]> = Database["public"]["Functions"][Name]["Returns"];
+
+function shopTotals(shop: { id: string; name: string }, sales: Rpc<"report_sales_totals">[number], payments: Rpc<"report_payment_totals">, expenses: Rpc<"report_expense_totals">, due: Rpc<"report_customer_due_totals">[number]): ShopTotals {
+  const expenseTotal = expenses.find((row) => row.category === null)?.amount_dirham ?? 0;
+  return {
+    shopId: shop.id, shopName: shop.name, salesDirham: sales.effective_total_dirham, invoiceCount: sales.invoice_count,
+    paymentsReceivedDirham: mapPaymentTotals(payments).receivedDirham, expensesDirham: expenseTotal, outstandingDueDirham: due.outstanding_due_dirham,
+  };
+}
+
 async function fetchShopTotals(supabase: Client, shop: { id: string; name: string }, from: string, to: string): Promise<ShopTotals> {
   const [sales, payments, expenses, due] = await Promise.all([
     supabase.rpc("report_sales_totals", { p_shop_id: shop.id, p_from: from, p_to: to }),
@@ -45,11 +55,7 @@ async function fetchShopTotals(supabase: Client, shop: { id: string; name: strin
   if (sales.error || !sales.data?.[0] || payments.error || !payments.data || expenses.error || !expenses.data || due.error || !due.data?.[0]) {
     throw new Error("DASHBOARD_UNAVAILABLE");
   }
-  const expenseTotal = expenses.data.find((row) => row.category === null)?.amount_dirham ?? 0;
-  return {
-    shopId: shop.id, shopName: shop.name, salesDirham: sales.data[0].effective_total_dirham, invoiceCount: sales.data[0].invoice_count,
-    paymentsReceivedDirham: mapPaymentTotals(payments.data).receivedDirham, expensesDirham: expenseTotal, outstandingDueDirham: due.data[0].outstanding_due_dirham,
-  };
+  return shopTotals(shop, sales.data[0], payments.data, expenses.data, due.data[0]);
 }
 
 async function customerNames(supabase: Client, shopId: string, ids: readonly string[]): Promise<Map<string, string>> {
@@ -125,7 +131,12 @@ function activityHref(entityType: string, entityId: string, shopId: string): str
 
 export async function loadDashboard(supabase: Client, shops: readonly { id: string; name: string }[], shop: { id: string; name: string }, range: DashboardRange, canViewAudit: boolean): Promise<DashboardData> {
   const { from, to } = range;
-  const [sales, payments, expenses, due, days, fullyPaidCount, withDueCount, anonymousCount, dueRows, creditRows, recentlyActiveRows, closeHistory, recentExpenses, largestExpenses] = await Promise.all([
+  // Two waves: every read that needs only the shop and range goes out at once;
+  // the second wave resolves names for ids the first one returned.
+  const [
+    sales, payments, expenses, due, days, fullyPaidCount, withDueCount, anonymousCount, dueRows, creditRows, recentlyActiveRows, closeHistory, recentExpenses, largestExpenses,
+    topBySales, topByPayments, audit, otherShopTotals,
+  ] = await Promise.all([
     supabase.rpc("report_sales_totals", { p_shop_id: shop.id, p_from: from, p_to: to }),
     supabase.rpc("report_payment_totals", { p_shop_id: shop.id, p_from: from, p_to: to }),
     supabase.rpc("report_expense_totals", { p_shop_id: shop.id, p_from: from, p_to: to }),
@@ -134,19 +145,24 @@ export async function loadDashboard(supabase: Client, shops: readonly { id: stri
     supabase.from("effective_invoices").select("*", { count: "exact", head: true }).eq("shop_id", shop.id).gte("business_date", from).lte("business_date", to).lte("effective_due_dirham", 0),
     supabase.from("effective_invoices").select("*", { count: "exact", head: true }).eq("shop_id", shop.id).gte("business_date", from).lte("business_date", to).gt("effective_due_dirham", 0),
     supabase.from("effective_invoices").select("*", { count: "exact", head: true }).eq("shop_id", shop.id).gte("business_date", from).lte("business_date", to).is("effective_customer_id", null),
-    fetchCustomerDueReport(supabase, shop.id, 5),
+    fetchCustomerDueRows(supabase, shop.id, 5),
     supabase.from("customer_financial_balances").select("customer_id,available_credit_dirham").eq("shop_id", shop.id).gt("available_credit_dirham", 0).order("available_credit_dirham", { ascending: false }).limit(5),
     supabase.from("customer_financial_balances").select("customer_id,last_activity_date").eq("shop_id", shop.id).not("last_activity_date", "is", null).order("last_activity_date", { ascending: false }).limit(5),
     supabase.from("daily_closes").select("event_sequence,event_type,actor_id,recorded_at,reason,note,business_date").eq("shop_id", shop.id).order("recorded_at", { ascending: false }).limit(10),
     supabase.from("effective_expenses").select("id,business_date,recorded_at,category,description,amount_dirham").eq("shop_id", shop.id).order("recorded_at", { ascending: false }).limit(8),
     supabase.from("effective_expenses").select("id,business_date,recorded_at,category,description,amount_dirham").eq("shop_id", shop.id).gte("business_date", from).lte("business_date", to).order("amount_dirham", { ascending: false }).limit(5),
+    topCustomersBySales(supabase, shop.id, from, to),
+    topCustomersByPayments(supabase, shop.id, from, to),
+    canViewAudit ? supabase.from("audit_events").select("id,action,entity_type,entity_id,actor_id,metadata,recorded_at").eq("shop_id", shop.id).order("recorded_at", { ascending: false }).limit(20) : null,
+    // The selected shop's comparison row reuses this wave's totals (same RPCs, same arguments).
+    shops.length > 1 ? Promise.all(shops.filter((item) => item.id !== shop.id).map((item) => fetchShopTotals(supabase, item, from, to))) : null,
   ]);
   if (sales.error || !sales.data?.[0] || payments.error || !payments.data || expenses.error || !expenses.data || due.error || !due.data?.[0]
     || fullyPaidCount.error || withDueCount.error || anonymousCount.error || closeHistory.error || !closeHistory.data || recentExpenses.error || !recentExpenses.data
-    || largestExpenses.error || !largestExpenses.data || creditRows.error || !creditRows.data || recentlyActiveRows.error || !recentlyActiveRows.data) {
+    || largestExpenses.error || !largestExpenses.data || creditRows.error || !creditRows.data || recentlyActiveRows.error || !recentlyActiveRows.data
+    || (audit && (audit.error || !audit.data))) {
     throw new Error("DASHBOARD_UNAVAILABLE");
   }
-  const [topBySales, topByPayments] = await Promise.all([topCustomersBySales(supabase, shop.id, from, to), topCustomersByPayments(supabase, shop.id, from, to)]);
 
   const paymentTotals = mapPaymentTotals(payments.data);
   const expenseTotals = mapExpenseTotals(expenses.data);
@@ -161,10 +177,12 @@ export async function loadDashboard(supabase: Client, shops: readonly { id: stri
   const creditCustomerIds = creditRows.data.map((row) => row.customer_id!);
   const activeCustomerIds = recentlyActiveRows.data.map((row) => row.customer_id!);
   const actorIds = [...new Set(closeHistory.data.flatMap((event) => event.actor_id ? [event.actor_id] : []))];
-  const [creditNames, activeNames, actorNames] = await Promise.all([
+  const auditActorIds = [...new Set((audit?.data ?? []).flatMap((event) => event.actor_id ? [event.actor_id] : []))];
+  const [creditNames, activeNames, actorNames, { data: auditActors }] = await Promise.all([
     customerNames(supabase, shop.id, creditCustomerIds),
     customerNames(supabase, shop.id, activeCustomerIds),
     supabase.from("profiles").select("id,display_name").in("id", actorIds.length ? actorIds : ["00000000-0000-0000-0000-000000000000"]),
+    auditActorIds.length ? supabase.from("profiles").select("id,display_name").in("id", auditActorIds) : { data: [] },
   ]);
   const actorNameMap = new Map((actorNames.data ?? []).map((profile) => [profile.id, profile.display_name]));
   const who = (id: string | null) => id ? actorNameMap.get(id) ?? id : "Unknown actor";
@@ -174,22 +192,16 @@ export async function loadDashboard(supabase: Client, shops: readonly { id: stri
   const closeEvents: CloseEvent[] = closeHistory.data.map((event) => ({ sequence: event.event_sequence, type: event.event_type as CloseEvent["type"], actorId: event.actor_id, recordedAt: event.recorded_at, reason: event.reason, note: event.note }));
   const todayCloseEvents: CloseEvent[] = todayEvents.map((event) => ({ sequence: event.event_sequence, type: event.event_type as CloseEvent["type"], actorId: event.actor_id, recordedAt: event.recorded_at, reason: event.reason, note: event.note }));
 
-  let activity: ActivityEvent[] = [];
-  if (canViewAudit) {
-    const { data, error } = await supabase.from("audit_events").select("id,action,entity_type,entity_id,actor_id,metadata,recorded_at").eq("shop_id", shop.id).order("recorded_at", { ascending: false }).limit(20);
-    if (error || !data) throw new Error("DASHBOARD_UNAVAILABLE");
-    const auditActorIds = [...new Set(data.flatMap((event) => event.actor_id ? [event.actor_id] : []))];
-    const { data: auditActors } = auditActorIds.length ? await supabase.from("profiles").select("id,display_name").in("id", auditActorIds) : { data: [] };
-    const auditNames = new Map((auditActors ?? []).map((profile) => [profile.id, profile.display_name]));
-    activity = data.map((event) => ({
-      id: event.id!, action: event.action!, label: ACTION_LABELS[event.action!] ?? event.action!.replace(/[._]/g, " "),
-      actorName: event.actor_id ? auditNames.get(event.actor_id) ?? event.actor_id : "System", businessReference: event.entity_id ?? "",
-      recordedAt: event.recorded_at!, href: event.entity_id ? activityHref(event.entity_type!, event.entity_id, shop.id) : null,
-    }));
-  }
+  const auditNames = new Map((auditActors ?? []).map((profile) => [profile.id, profile.display_name]));
+  const activity: ActivityEvent[] = (audit?.data ?? []).map((event) => ({
+    id: event.id!, action: event.action!, label: ACTION_LABELS[event.action!] ?? event.action!.replace(/[._]/g, " "),
+    actorName: event.actor_id ? auditNames.get(event.actor_id) ?? event.actor_id : "System", businessReference: event.entity_id ?? "",
+    recordedAt: event.recorded_at!, href: event.entity_id ? activityHref(event.entity_type!, event.entity_id, shop.id) : null,
+  }));
 
-  const shopComparison = shops.length > 1
-    ? await Promise.all(shops.map((item) => fetchShopTotals(supabase, item, from, to)))
+  const currentShopTotals = shopTotals(shop, salesRow, payments.data, expenses.data, dueRow);
+  const shopComparison = otherShopTotals
+    ? shops.map((item) => item.id === shop.id ? currentShopTotals : otherShopTotals.find((row) => row.shopId === item.id)!)
     : null;
 
   return {
@@ -208,7 +220,7 @@ export async function loadDashboard(supabase: Client, shops: readonly { id: stri
     },
     collection: {
       outstandingDueDirham: dueRow.outstanding_due_dirham, availableCreditDirham: dueRow.available_credit_dirham, customersWithDue: dueRow.customers_with_due,
-      paymentsReceivedDirham: paymentTotals.cashDirham, bankReceivedDirham: paymentTotals.bankDirham, largestDues: dueRows.rows, creditCustomers,
+      paymentsReceivedDirham: paymentTotals.cashDirham, bankReceivedDirham: paymentTotals.bankDirham, largestDues: dueRows, creditCustomers,
     },
     trend: {
       days: days.map((day) => ({ businessDate: day.businessDate, salesDirham: day.grossInvoiceDirham, paymentsDirham: day.cashReceivedDirham, receivedDirham: day.totalReceivedDirham, expensesDirham: day.expensesDirham })),
