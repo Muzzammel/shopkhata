@@ -1362,6 +1362,7 @@ export type Database = {
       report_expense_totals: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { category: string | null; expense_count: number; amount_dirham: number }[] }
       report_top_customers_by_sales: { Args: { p_shop_id: string; p_from: string; p_to: string; p_limit?: number }; Returns: { customer_id: string; name: string; amount_dirham: number }[] }
       report_top_customers_by_payments: { Args: { p_shop_id: string; p_from: string; p_to: string; p_limit?: number }; Returns: { customer_id: string; name: string; amount_dirham: number }[] }
+      report_dashboard_snapshot: { Args: { p_shop_id: string; p_from: string; p_to: string; p_comparison_shop_ids?: string[] }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
