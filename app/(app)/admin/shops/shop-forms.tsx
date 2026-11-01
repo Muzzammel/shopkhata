@@ -3,7 +3,7 @@
 import { useState, type ComponentProps, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PencilLineIcon, PlusIcon, SlidersHorizontalIcon, StoreIcon } from "lucide-react";
+import { HistoryIcon, PencilLineIcon, PlusIcon, SlidersHorizontalIcon, StoreIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Drawer } from "@/components/shell/drawer";
@@ -12,8 +12,8 @@ import { createShopInput, isDuplicateShopName, SHOP_NAME_MAX, updateShopInput } 
 import { cn } from "@/lib/utils";
 
 import { Comparison } from "../../invoice-operations";
-import { Failure, Field } from "../account-forms";
-import { createShop, updateShop, type ShopAdminResult } from "../shop-actions";
+import { createShop, setShopStatus, updateShop, type ShopAdminResult } from "../shop-actions";
+import { Failure, Field, StatusChange } from "../status-change";
 
 export type ShopRow = { id: string; name: string; isActive: boolean; assignedNames: string[] };
 const UNCONFIRMED = "The change was not saved. Refresh to see the current shops.";
@@ -44,8 +44,8 @@ export function ShopDirectory({ shops }: { shops: ShopRow[] }) {
           {shops.map((shop) => <tr key={shop.id} data-slot="row" data-shop={shop.name} className="transition-colors duration-150 hover:bg-muted/60 max-lg:grid max-lg:grid-cols-[minmax(0,1fr)_auto] max-lg:gap-x-3 max-lg:gap-y-2.5 max-lg:rounded-2xl max-lg:border max-lg:border-border max-lg:bg-card max-lg:p-4 lg:[&:last-child>td]:border-b-0">
             <Td className="max-lg:col-start-1 max-lg:row-start-1">
               <span className="flex min-w-0 items-center gap-3">
-                <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"><StoreIcon className="size-4" /></span>
-                <strong className="truncate text-[15px] font-semibold lg:text-sm">{shop.name}</strong>
+                <span aria-hidden className={cn("grid size-10 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground", !shop.isActive && "opacity-50")}><StoreIcon className="size-4" /></span>
+                <strong className={cn("truncate text-[15px] font-semibold lg:text-sm", !shop.isActive && "text-muted-foreground")}>{shop.name}</strong>
               </span>
             </Td>
             <Td className="max-lg:col-start-2 max-lg:row-start-1 max-lg:self-start">
@@ -56,6 +56,7 @@ export function ShopDirectory({ shops }: { shops: ShopRow[] }) {
               <span>All owners{shop.assignedNames.length > 0 && <> · <span data-slot="assigned-count">{accessLabel(shop)}</span></>}</span>
             </Td>
             <Td className="text-right max-lg:col-span-2 max-lg:row-start-3 max-lg:text-left">
+              {!shop.isActive && <Link data-slot="view-history" href={`/dashboard?shop=${shop.id}`} aria-label={`View ${shop.name} history (read only)`} className={cn(ui.secondary, "mr-2 min-h-9 px-3.5 no-underline max-lg:mb-2 max-lg:mr-0 max-lg:w-full max-sm:min-h-11")}><HistoryIcon aria-hidden />View history</Link>}
               <button data-slot="button" type="button" aria-label={`Manage ${shop.name}`} className={cn(ui.secondary, "min-h-9 px-3.5 max-lg:w-full max-sm:min-h-11")} onClick={() => { setEditing({ id: shop.id, session: (editing?.session ?? 0) + 1 }); setOpen(true); }}><SlidersHorizontalIcon aria-hidden />Manage</button>
             </Td>
           </tr>)}
@@ -116,7 +117,7 @@ function ShopNameDrawer({ mode, shop, shops, open, onOpenChange }: { mode: "crea
 
   const title = creating ? "Add a shop" : `Manage ${shop?.name}`;
   return <Drawer open={open} onOpenChange={(next) => { if (next || !busy) onOpenChange(next); }} title={title}
-    description={creating ? "Adds an empty shop. No sales, customers or expenses are created." : <>Rename only. <span className="[overflow-wrap:anywhere]">Shop ID {shop?.id}</span></>}>
+    description={creating ? "Adds an empty shop. No sales, customers or expenses are created." : <>Rename, or change whether the shop is active. <span className="[overflow-wrap:anywhere]">Shop ID {shop?.id}</span></>}>
     {!review ? <>
       <form noValidate aria-label={creating ? "Shop details" : `Rename ${shop?.name}`} className="grid gap-5" onSubmit={toReview}>
         <Field id="shop-name" label="Shop / Branch name" error={checked ? issue : undefined} hint="Shown in the shop switcher and on every report for this shop.">
@@ -130,6 +131,14 @@ function ShopNameDrawer({ mode, shop, shops, open, onOpenChange }: { mode: "crea
         <p className="text-sm text-muted-foreground">All owners, automatically.{shop.assignedNames.length > 0 ? ` Also assigned: ${shop.assignedNames.join(", ")}.` : " No manager or staff account is assigned yet."}</p>
         <Link href="/admin" className={cn(ui.secondary, "justify-self-start")}>Change access in Accounts</Link>
       </section>}
+      {!creating && shop && <StatusChange noun="shop" name={shop.name} isActive={shop.isActive} effects={shop.isActive ? [
+        `${shop.name} is refused every new sale, payment, expense, customer and Daily Close change. Managers and staff no longer see it; owners can still open its history, marked INACTIVE — READ ONLY.`,
+        "Every invoice, payment, expense, Daily Close record and report figure stays exactly as recorded. Nothing is deleted.",
+        "Manager and staff assignments are kept. Someone assigned only to this shop will have no shop to work in until it is reactivated.",
+        "Unsaved or offline sales for this shop are not saved while it is inactive; they stay on the device that holds them.",
+      ] : [`${shop.name} accepts new records again and returns to assigned managers and staff, with its existing history and assignments.`]}
+        submit={(reason) => setShopStatus({ shop_id: shop.id, is_active: !shop.isActive, reason })}
+        onDone={(done) => { router.refresh(); toast.success(done); onOpenChange(false); }} />}
     </> : <div className="grid gap-5">
       <section aria-labelledby="shop-review-heading" className="grid gap-3">
         <h3 id="shop-review-heading" data-slot="heading" className="text-sm font-semibold">{creating ? "Review before creating" : "Review before renaming"}</h3>

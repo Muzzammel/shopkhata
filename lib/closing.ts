@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { Role } from "@/lib/auth/permissions";
+import { SHOP_INACTIVE_MESSAGE } from "@/lib/shop-admin";
 
 // Input shapes for the close/reopen RPCs. The database repeats every check;
 // these only give the user an early, readable answer.
@@ -30,6 +31,7 @@ export function closingError(code: string): string {
     REASON_REQUIRED: "Enter a reason for reopening this date.",
     ALREADY_CLOSED: "This date is already closed. Refresh to see who closed it.",
     NOT_CLOSED: "This date is not closed. Refresh to see its current state.",
+    SHOP_INACTIVE: SHOP_INACTIVE_MESSAGE,
   };
   return Object.hasOwn(messages, code) ? messages[code] : "The date could not be changed. Refresh and try again.";
 }

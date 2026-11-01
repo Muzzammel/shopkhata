@@ -12,6 +12,7 @@ import { can, getCurrentActor, type Actor } from "@/lib/auth/permissions";
 import { readCustomerDetail } from "@/lib/customer-detail";
 import { balanceStatuses, buildActivity, CUSTOMER_TABS, customerTotals, groupPayments, type CustomerTab } from "@/lib/customer-view";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
+import { getReadableShops, shopViewer } from "@/lib/shop-switching";
 import { longDate } from "@/lib/sales-view";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,10 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
   if (!shopId || !can(actor, "records.view_assigned", shopId)) notFound();
   // Decided before anything streams, so a customer outside the actor's shops is still a real 404.
   const supabase = await createServerSupabaseClient();
+  // An inactive shop opens read-only, and only for an owner; anyone else gets a 404 as for any other unreadable shop.
+  const { data: shopRow } = await supabase.from("shops").select("id,name,is_active").eq("id", shopId).maybeSingle();
+  const shop = shopRow ? getReadableShops(actor, [shopRow])[0] : undefined;
+  if (!shop) notFound();
   const { data: exists, error } = await supabase.from("customers").select("id").eq("shop_id", shopId).eq("id", customerId).maybeSingle();
   if (error || !exists) notFound();
   const rawTab = Array.isArray(query.tab) ? query.tab[0] : query.tab;
@@ -31,7 +36,7 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
 
   return <main className="mx-auto grid w-full max-w-[1100px] grid-cols-1 content-start gap-4 px-4 pt-5 pb-10 sm:gap-5 sm:px-6">
     <Link href={`/customers?shop=${shopId}`} className="inline-flex min-h-9 items-center gap-1.5 justify-self-start rounded-full px-1 text-[13px] font-semibold text-muted-foreground no-underline hover:text-foreground"><ArrowLeftIcon aria-hidden className="size-4" />Customers</Link>
-    <Suspense fallback={<CustomerDetailSkeleton />}><CustomerDetailBody actor={actor} shopId={shopId} customerId={customerId} initialTab={initialTab} /></Suspense>
+    <Suspense fallback={<CustomerDetailSkeleton />}><CustomerDetailBody actor={shopViewer(actor, shop)} shopId={shopId} customerId={customerId} initialTab={initialTab} /></Suspense>
   </main>;
 }
 

@@ -29,7 +29,7 @@ export default async function ShopsPage() {
       <div className="grid min-w-0 gap-1.5">
         <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Owner only · All shops</p>
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Shops</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">The shops and branches ShopKhata keeps separate books for. Owners reach every shop automatically; assign managers and staff in Accounts. Every change is recorded.</p>
+        <p className="max-w-2xl text-sm text-muted-foreground">The shops and branches ShopKhata keeps separate books for. Owners reach every shop automatically; assign managers and staff in Accounts. An inactive shop keeps all its records but accepts no new ones. Every change is recorded.</p>
       </div>
       <AddShopDrawer shops={shops.map((shop) => ({ id: shop.id, name: shop.name, isActive: shop.is_active, assignedNames: [] }))} className="h-10 min-h-10 px-4 max-sm:h-11 max-sm:min-h-11 max-sm:w-full" />
     </header>
@@ -49,7 +49,7 @@ async function ShopsWorkspace({ shops }: { shops: { id: string; name: string; is
   const [profiles, assignments, audit] = await Promise.all([
     supabase.from("profiles").select("id,display_name,role,is_active").order("display_name").limit(500),
     supabase.from("user_shop_assignments").select("user_id,shop_id").limit(2000),
-    supabase.from("audit_events").select("id,action,actor_id,metadata,recorded_at").eq("entity_type", "shop").order("recorded_at", { ascending: false }).limit(50),
+    supabase.from("audit_events").select("id,action,actor_id,metadata,reason,recorded_at").eq("entity_type", "shop").order("recorded_at", { ascending: false }).limit(50),
   ]);
   if (profiles.error || !profiles.data || assignments.error || !assignments.data || audit.error || !audit.data) throw new Error("SHOPS_UNAVAILABLE");
 
@@ -65,6 +65,7 @@ async function ShopsWorkspace({ shops }: { shops: { id: string; name: string; is
     <ul aria-label="Shop summary" className="flex list-none flex-wrap gap-x-5 gap-y-1.5 px-1 text-sm">
       <li className="text-muted-foreground"><strong className="font-semibold text-foreground tabular-nums">{rows.length}</strong> {rows.length === 1 ? "Shop" : "Shops"}</li>
       <li className="text-muted-foreground"><strong className="font-semibold text-foreground tabular-nums">{rows.filter((row) => row.isActive).length}</strong> Active</li>
+      <li className="text-muted-foreground"><strong className="font-semibold text-foreground tabular-nums">{rows.filter((row) => !row.isActive).length}</strong> Inactive</li>
     </ul>
     {rows.length === 0
       ? <section className="grid justify-items-center gap-2 rounded-3xl border border-dashed border-input bg-card px-6 py-14 text-center"><h2 className="text-lg font-semibold">No shops yet</h2><p className="max-w-sm text-sm text-muted-foreground">Add the first shop to start recording.</p></section>
@@ -74,6 +75,7 @@ async function ShopsWorkspace({ shops }: { shops: { id: string; name: string; is
       <div className="flex items-center gap-2"><HistoryIcon aria-hidden className="size-4 text-muted-foreground" /><h2 id="shop-history-heading" className="text-lg font-semibold tracking-tight">Recent shop changes</h2></div>
       {audit.data.length === 0 ? <p className="text-sm text-muted-foreground">No shop change has been recorded.</p> : <ol className="grid list-none gap-3 pl-0">{audit.data.map((event) => <li key={event.id} className="grid gap-0.5 border-l-2 border-border pl-4 text-sm">
         <strong className="font-semibold [overflow-wrap:anywhere]">{describeShopEvent(event)}</strong>
+        {event.reason && <span className="whitespace-pre-line [overflow-wrap:anywhere]">Reason: {event.reason}</span>}
         <span className="text-xs text-muted-foreground">{qatarDateTime(event.recorded_at)} (Qatar time) by {name.get(event.actor_id ?? "") ?? "Unknown actor"}</span>
       </li>)}</ol>}
     </section>

@@ -12,6 +12,7 @@ import { groupedQar, qar } from "@/lib/dashboard-view";
 import { first } from "@/lib/date-range";
 import { buildExpenseTimeline, expenseFlags } from "@/lib/expense-view";
 import { readAllPages } from "@/lib/read-all-pages";
+import { getReadableShops, shopViewer } from "@/lib/shop-switching";
 import { longDate, personLabel, qatarDateTime } from "@/lib/sales-view";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { ExpenseApprovals, ExpenseCorrectionPanel, type CorrectionView } from "../expense-forms";
@@ -23,13 +24,17 @@ export default async function ExpenseDetailPage({ params, searchParams }: PagePr
   if (!shopId || !can(actor, "records.view_assigned", shopId)) notFound();
   // Decided before anything streams, so an expense outside the actor's shops is still a real 404.
   const supabase = await createServerSupabaseClient();
+  // An inactive shop opens read-only, and only for an owner; anyone else gets a 404 as for any other unreadable shop.
+  const { data: shopRow } = await supabase.from("shops").select("id,name,is_active").eq("id", shopId).maybeSingle();
+  const shop = shopRow ? getReadableShops(actor, [shopRow])[0] : undefined;
+  if (!shop) notFound();
   const { data: exists, error } = await supabase.from("effective_expenses").select("id").eq("shop_id", shopId).eq("id", expenseId).maybeSingle();
   if (error || !exists) notFound();
 
   return <main className="mx-auto grid w-full max-w-[1100px] grid-cols-1 content-start gap-4 px-4 pt-5 pb-10 sm:gap-5 sm:px-6">
     <Link href={`/expenses?shop=${shopId}`} className="inline-flex min-h-9 items-center gap-1.5 justify-self-start rounded-full px-1 text-[13px] font-semibold text-muted-foreground no-underline hover:text-foreground"><ArrowLeftIcon aria-hidden className="size-4" />Expenses</Link>
     <Suspense fallback={<div aria-busy="true" aria-label="Loading expense" className="grid gap-4 sm:gap-5"><Skeleton className="h-48 rounded-3xl" /><div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_20rem]"><Skeleton className="h-64 rounded-3xl" /><Skeleton className="h-40 rounded-3xl" /></div><Skeleton className="h-14 rounded-3xl" /></div>}>
-      <ExpenseDetailBody actor={actor} shopId={shopId} expenseId={expenseId} />
+      <ExpenseDetailBody actor={shopViewer(actor, shop)} shopId={shopId} expenseId={expenseId} />
     </Suspense>
   </main>;
 }

@@ -99,18 +99,24 @@ test.describe("owner administration", () => {
     await expect(hirePage.getByRole("heading", { name: "Shop 2" })).toBeVisible();
     await expect(hirePage.getByRole("heading", { name: "Shop 1" })).toHaveCount(0);
 
-    // Deactivate: the open session is told why and can do nothing.
-    await openManage();
-    await manage.getByLabel("Account is active").uncheck();
-    await saveAccount();
-    await expect(row).toContainText("No access (deactivated)");
+    // Deactivate (with a reason, after review): the open session is told why and can do nothing.
+    const setStatus = async (button: string, reason: string) => {
+      await openManage();
+      await manage.getByRole("button", { name: button }).click();
+      await manage.getByLabel("Reason").fill(reason);
+      await manage.getByRole("button", { name: /^Review (de|re)activation$/ }).click();
+      await manage.getByRole("button", { name: new RegExp(`^Confirm: ${button.toLowerCase()}$`) }).click();
+      await expect(manage).toHaveCount(0);
+    };
+    await setStatus("Deactivate account", "Acceptance: access check");
+    await expect(row).toContainText("No access (inactive)");
     await hirePage.goto("/customers");
     await expect(hirePage.getByRole("heading", { name: "Account deactivated" })).toBeVisible();
     await expect(hirePage.getByRole("navigation")).toHaveCount(0);
 
-    // Reactivate as a Shop 1 manager and take Shop 2 away.
+    // Reactivate, then make it a Shop 1 manager and take Shop 2 away.
+    await setStatus("Reactivate account", "Acceptance: access restored");
     await openManage();
-    await manage.getByLabel("Account is active").check();
     await manage.getByRole("radio", { name: "Manager" }).check();
     await manage.getByLabel("Shop 1").check();
     await manage.getByLabel("Shop 2").uncheck();
@@ -126,16 +132,14 @@ test.describe("owner administration", () => {
 
     // Every change is in the audit trail, attributed to the owner, and shown on the page.
     expect(scalar(`select string_agg(action, ',' order by recorded_at, action) from public.audit_events where entity_type = 'profile' and entity_id = '${id}'`))
-      .toBe("account.register,assignment.add,account.update,account.update,assignment.add,assignment.remove");
+      .toBe("account.register,assignment.add,account.deactivate,account.reactivate,account.update,assignment.add,assignment.remove");
     expect(scalar(`select count(distinct actor_id) from public.audit_events where entity_type = 'profile' and entity_id = '${id}' and actor_id = '10000000-0000-4000-8000-000000000101'`)).toBe("1");
     const history = page.getByRole("region", { name: "Recent account changes" });
     await expect(history).toContainText(`Registered account · New Hire ${stamp}`);
     await expect(history).toContainText(`Removed shop access · New Hire ${stamp} · Shop 2`);
     // Leave no usable extra manager behind for other tests.
-    await openManage();
-    await manage.getByLabel("Account is active").uncheck();
-    await saveAccount();
-    await expect(row).toContainText("No access (deactivated)");
+    await setStatus("Deactivate account", "Acceptance: cleanup");
+    await expect(row).toContainText("No access (inactive)");
   });
 });
 

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 import { hrefForShop } from "./nav-items";
 
-export type ShopOption = { id: string; name: string };
+export type ShopOption = { id: string; name: string; isActive?: boolean };
 
 const chip = "inline-flex h-9 max-w-[11rem] min-w-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[13px] font-medium text-foreground sm:max-w-[14rem]";
 
@@ -33,7 +33,7 @@ export function ShopSwitcher({ shops, current, locked }: { shops: ShopOption[]; 
     <DropdownMenuContent align="start" className="min-w-52 rounded-2xl p-1.5">
       <DropdownMenuLabel>Shop</DropdownMenuLabel>
       <DropdownMenuRadioGroup value={current.id} onValueChange={(id) => id !== current.id && router.push(hrefForShop(pathname, search, id))}>
-        {shops.map((shop) => <DropdownMenuRadioItem key={shop.id} value={shop.id} className="min-h-9 rounded-xl">{shop.name}</DropdownMenuRadioItem>)}
+        {shops.map((shop) => <DropdownMenuRadioItem key={shop.id} value={shop.id} className="min-h-9 rounded-xl">{shop.name}{shop.isActive === false && <span className="text-xs text-muted-foreground">(inactive, read only)</span>}</DropdownMenuRadioItem>)}
       </DropdownMenuRadioGroup>
     </DropdownMenuContent>
   </DropdownMenu>;

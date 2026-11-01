@@ -6,7 +6,7 @@ import { qatarBusinessDate } from "@/lib/invoice-entry";
 import { paymentMethodLabel } from "@/lib/payment-method";
 import { fetchPaymentAllocation, fetchPaymentList, PAYMENT_PAGE_SIZE, PAYMENT_SOURCES, parsePaymentListFilter } from "@/lib/payment-list";
 import { qatarDateTime } from "@/lib/sales-view";
-import { getVisibleShops } from "@/lib/shop-switching";
+import { getReadableShops, pickShop, shopViewer } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 import { PaymentEntry } from "./payment-entry";
@@ -24,11 +24,11 @@ export default async function PaymentsPage({ searchParams }: PageProps<"/payment
   const actor = await getCurrentActor();
   const query = await searchParams;
   const supabase = await createServerSupabaseClient();
-  const { data: allShops, error: shopsError } = await supabase.from("shops").select("id,name,is_active").eq("is_active", true).order("name");
+  const { data: allShops, error: shopsError } = await supabase.from("shops").select("id,name,is_active").order("name");
   if (shopsError || !allShops) throw new Error("PAYMENT_LIST_UNAVAILABLE");
-  const shops = getVisibleShops(actor, allShops);
+  const shops = getReadableShops(actor, allShops);
   const requestedShop = first(query.shop);
-  const shop = shops.find((item) => item.id === requestedShop) ?? shops[0];
+  const shop = pickShop(shops, requestedShop);
   if (!shop || !can(actor, "records.view_assigned", shop.id)) return <main className={styles.workspace}><h1>Payments unavailable</h1></main>;
 
   const today = qatarBusinessDate(new Date());
@@ -45,9 +45,9 @@ export default async function PaymentsPage({ searchParams }: PageProps<"/payment
     <header className={styles.header}>
       <div><p className={styles.eyebrow}>{shop.name}</p><h1>Payments</h1><p>Default view shows the last 30 days. Search by invoice number to find an older payment.</p></div>
     </header>
-    {shops.length > 1 && <nav className={styles.shops} aria-label="Choose shop">{shops.map((item) => <Link key={item.id} aria-current={item.id === shop.id ? "page" : undefined} href={`/payments?shop=${item.id}`}>{item.name}</Link>)}</nav>}
+    {shops.length > 1 && <nav className={styles.shops} aria-label="Choose shop">{shops.map((item) => <Link key={item.id} aria-current={item.id === shop.id ? "page" : undefined} href={`/payments?shop=${item.id}`}>{item.name}{!item.is_active && " (inactive)"}</Link>)}</nav>}
 
-    {can(actor, "payment.record", shop.id) && <PaymentEntry shopId={shop.id} key={shop.id} />}
+    {can(shopViewer(actor, shop), "payment.record", shop.id) && <PaymentEntry shopId={shop.id} key={shop.id} />}
 
     <section className={styles.panel}>
       <div className={styles.sectionHeading}><h2>Payment history</h2><p>{shop.name}</p></div>

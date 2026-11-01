@@ -15,7 +15,7 @@ export const ROLE_SUMMARY: Record<AccountRole, string> = {
 };
 
 const roleLabel = (role: string) => ROLE_LABEL[role] ?? role;
-const statusLabel = (active: boolean) => active ? "Active" : "Deactivated";
+const statusLabel = (active: boolean) => active ? "Active" : "Inactive";
 const shopList = (ids: readonly string[], shops: readonly Shop[]) => {
   const names = shops.filter((shop) => ids.includes(shop.id)).map((shop) => shop.name);
   return names.length ? names.join(", ") : "None";
@@ -56,10 +56,11 @@ export function accountChanges(name: string, before: AccountState, after: Accoun
   return { rows, notes, changed };
 }
 
-export type AuditEvent = { action: string; entity_id: string | null; shop_id: string | null; metadata: unknown };
+export type AuditEvent = { action: string; entity_id: string | null; shop_id: string | null; metadata: unknown; reason?: string | null };
 
 const ACTIONS: Record<string, string> = {
   "account.register": "Registered account", "account.update": "Changed role or status",
+  "account.deactivate": "Deactivated account", "account.reactivate": "Reactivated account",
   "assignment.add": "Added shop access", "assignment.remove": "Removed shop access",
 };
 
@@ -74,5 +75,6 @@ export function describeAccountEvent(event: AuditEvent, names: ReadonlyMap<strin
     if (meta.before.is_active !== meta.after.is_active) parts.push(`${statusLabel(Boolean(meta.before.is_active))} → ${statusLabel(Boolean(meta.after.is_active))}`);
   }
   if (event.action === "account.register" && meta.role) parts.push(`Role ${roleLabel(meta.role)}`);
+  if (event.reason) parts.push(`Reason: ${event.reason}`);
   return { title, detail: parts.join(" · ") };
 }

@@ -49,7 +49,7 @@ select is(pg_temp.audits(), current_setting('adm.audits')::bigint, 'rejected att
 -- 3. Owner: validation --------------------------------------------------------------
 select pg_temp.act('owner');
 select throws_ok($$select public.admin_update_account(pg_temp.account('10000000-0000-4000-8000-000000000101', 'staff', true))$$, 'P0001', 'SELF_CHANGE_FORBIDDEN', 'an owner cannot demote themselves');
-select throws_ok($$select public.admin_update_account(pg_temp.account('10000000-0000-4000-8000-000000000101', 'owner', false))$$, 'P0001', 'SELF_CHANGE_FORBIDDEN', 'an owner cannot deactivate themselves');
+select throws_ok($$select public.admin_set_account_status('{"user_id":"10000000-0000-4000-8000-000000000101","is_active":false,"reason":"leaving"}')$$, 'P0001', 'SELF_CHANGE_FORBIDDEN', 'an owner cannot deactivate themselves');
 select throws_ok($$select public.admin_update_account(pg_temp.account('10000000-0000-4000-8000-000000000102', 'admin', true))$$, 'P0001', 'INVALID_REQUEST', 'an unknown role is rejected');
 select throws_ok($$select public.admin_update_account(pg_temp.account('10000000-0000-4000-8000-000000000102', 'staff', true) || '{"actor_id":"10000000-0000-4000-8000-000000000101"}')$$, 'P0001', 'INVALID_REQUEST', 'unexpected client fields are rejected');
 select throws_ok($$select public.admin_update_account(pg_temp.account('a5000000-0000-4000-8000-000000000099', 'staff', true))$$, 'P0001', 'ACCOUNT_NOT_FOUND', 'an unknown account is rejected');
@@ -71,12 +71,12 @@ select public.admin_set_shop_assignment(pg_temp.assign('10000000-0000-4000-8000-
 select public.admin_set_shop_assignment(pg_temp.assign('10000000-0000-4000-8000-000000000102', '10000000-0000-4000-8000-000000000001', true));
 
 -- 5. Deactivation -------------------------------------------------------------------
-select lives_ok($$select public.admin_update_account(pg_temp.account('10000000-0000-4000-8000-000000000102', 'staff', false))$$, 'owner deactivates the staff account');
+select lives_ok($$select public.admin_set_account_status('{"user_id":"10000000-0000-4000-8000-000000000102","is_active":false,"reason":"on leave"}')$$, 'owner deactivates the staff account (with a reason, through the status RPC)');
 select pg_temp.act('staff');
 select is((select count(*)::int from public.invoices), 0, 'a deactivated account reads nothing although its assignment remains');
 select throws_ok($$select public.create_customer('{"shop_id":"10000000-0000-4000-8000-000000000001","name":"Deactivated Staff Customer","mobile":null}')$$, '28000', 'AUTHENTICATION_REQUIRED', 'a deactivated account cannot write');
 select pg_temp.act('owner');
-select public.admin_update_account(pg_temp.account('10000000-0000-4000-8000-000000000102', 'staff', true));
+select public.admin_set_account_status('{"user_id":"10000000-0000-4000-8000-000000000102","is_active":true,"reason":"back from leave"}');
 select pg_temp.act('staff');
 select ok((select count(*) from public.invoices) > 0, 'reactivation restores access');
 
@@ -99,7 +99,7 @@ select throws_ok($$select public.admin_register_account('{"email":"new.hire@shop
 
 -- 8. Audit ------------------------------------------------------------------------------
 select is((select array_agg(action order by recorded_at, action) from public.audit_events where entity_type = 'profile' and action not like 'assignment.%'),
-  array['account.register', 'account.update', 'account.update', 'account.update', 'account.update'], 'every account change is audited once (pgTAP runs in one transaction, so the timestamps are equal)');
+  array['account.deactivate', 'account.reactivate', 'account.register', 'account.update', 'account.update'], 'every account change is audited once (pgTAP runs in one transaction, so the timestamps are equal)');
 
 select * from finish();
 rollback;

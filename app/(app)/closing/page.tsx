@@ -10,7 +10,7 @@ import { qar } from "@/lib/dashboard-view";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
 import { emptyDailySummary, fetchDailySummary, type DailySummary } from "@/lib/reports";
 import { qatarDateTime } from "@/lib/sales-view";
-import { getVisibleShops } from "@/lib/shop-switching";
+import { getReadableShops, pickShop, shopViewer } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
@@ -38,11 +38,11 @@ export default async function ClosingPage({ searchParams }: PageProps<"/closing"
   const actor = await getCurrentActor();
   const query = await searchParams;
   const supabase = await createServerSupabaseClient();
-  const { data: allShops, error: shopsError } = await supabase.from("shops").select("id,name,is_active").eq("is_active", true).order("name");
+  const { data: allShops, error: shopsError } = await supabase.from("shops").select("id,name,is_active").order("name");
   if (shopsError || !allShops) throw new Error("CLOSING_WORKSPACE_UNAVAILABLE");
-  const shops = getVisibleShops(actor, allShops);
+  const shops = getReadableShops(actor, allShops);
   const requestedShop = Array.isArray(query.shop) ? query.shop[0] : query.shop;
-  const shop = shops.find((item) => item.id === requestedShop) ?? shops[0];
+  const shop = pickShop(shops, requestedShop);
   if (!shop || !can(actor, "records.view_assigned", shop.id)) return <main className="mx-auto max-w-[1280px] px-4 pt-5 sm:px-6"><h1 className="text-3xl font-semibold tracking-tight">Daily close unavailable</h1></main>;
 
   // The business date is the Qatar operating date; it is compared as text and never passed through a time zone.
@@ -76,8 +76,9 @@ export default async function ClosingPage({ searchParams }: PageProps<"/closing"
   const names = new Map((profiles ?? []).map((profile) => [profile.id, profile.display_name]));
   const who = (id: string | null) => id ? names.get(id) ?? id : "Unknown actor";
 
-  const mayClose = state === "open" && can(actor, "date.close", shop.id);
-  const mayReopen = state === "closed" && can(actor, "date.reopen", shop.id) && canReopenDate(actor.role, date, today);
+  const viewer = shopViewer(actor, shop);
+  const mayClose = state === "open" && can(viewer, "date.close", shop.id);
+  const mayReopen = state === "closed" && can(viewer, "date.reopen", shop.id) && canReopenDate(actor.role, date, today);
   const closed = state === "closed";
 
   return <main className="mx-auto grid w-full max-w-[1280px] grid-cols-1 content-start gap-4 px-4 pt-5 pb-10 sm:gap-5 sm:px-6">
@@ -86,7 +87,7 @@ export default async function ClosingPage({ searchParams }: PageProps<"/closing"
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Daily close</h1>
       <p className="max-w-2xl text-sm text-muted-foreground">Closing a business date blocks every new entry for that shop and date until it is reopened with a reason.</p>
     </header>
-    {shops.length > 1 && <nav className="flex flex-wrap gap-2" aria-label="Choose shop">{shops.map((item) => <Link key={item.id} aria-current={item.id === shop.id ? "page" : undefined} href={`/closing?shop=${item.id}&date=${date}`} className={cn(ui.chip, item.id === shop.id ? "bg-primary text-primary-foreground" : "border border-input bg-card text-foreground hover:bg-muted")}>{item.name}</Link>)}</nav>}
+    {shops.length > 1 && <nav className="flex flex-wrap gap-2" aria-label="Choose shop">{shops.map((item) => <Link key={item.id} aria-current={item.id === shop.id ? "page" : undefined} href={`/closing?shop=${item.id}&date=${date}`} className={cn(ui.chip, item.id === shop.id ? "bg-primary text-primary-foreground" : "border border-input bg-card text-foreground hover:bg-muted")}>{item.name}{!item.is_active && " (inactive)"}</Link>)}</nav>}
 
     <section aria-labelledby="closing-status-heading" className={card}>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -135,8 +136,8 @@ export default async function ClosingPage({ searchParams }: PageProps<"/closing"
       <div className={ui.warn}>Only reopen when a real record was missed. The date will show as Open until someone closes it again.</div>
       <div><DayCloseControl mode="reopen" shopId={shop.id} shopName={shop.name} businessDate={date} review={<div className={ui.warn}>Reopening {date} for {shop.name} allows new entries again. Enter the reason below; it is kept in the history.</div>} /></div>
     </section>}
-    {closed && !mayReopen && <section className={card}><p className="text-sm text-muted-foreground">{can(actor, "date.reopen", shop.id) ? "Only the owner can reopen an earlier business date." : "Only a manager or owner can reopen this date."}</p></section>}
-    {!closed && !mayClose && <section className={card}><p className="text-sm text-muted-foreground">Only a manager or owner can close this date.</p></section>}
+    {closed && !mayReopen && shop.is_active && <section className={card}><p className="text-sm text-muted-foreground">{can(actor, "date.reopen", shop.id) ? "Only the owner can reopen an earlier business date." : "Only a manager or owner can reopen this date."}</p></section>}
+    {!closed && !mayClose && shop.is_active && <section className={card}><p className="text-sm text-muted-foreground">Only a manager or owner can close this date.</p></section>}
 
     <section aria-labelledby="backdated-heading" className={card}>
       <h2 id="backdated-heading" className="text-lg font-semibold tracking-tight">Backdated entries for {date}</h2>

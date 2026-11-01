@@ -25,7 +25,8 @@ create temp table priv_fn as
 -- The approved application RPC surface: the only public functions authenticated may execute.
 create temp table priv_rpc(sig text);
 insert into priv_rpc values
-  ('admin_create_shop(jsonb)'), ('admin_register_account(jsonb)'), ('admin_set_shop_assignment(jsonb)'), ('admin_update_account(jsonb)'), ('admin_update_shop(jsonb)'),
+  ('admin_create_shop(jsonb)'), ('admin_register_account(jsonb)'), ('admin_set_account_status(jsonb)'), ('admin_set_shop_assignment(jsonb)'), ('admin_set_shop_status(jsonb)'),
+  ('admin_update_account(jsonb)'), ('admin_update_shop(jsonb)'),
   ('apply_customer_credit(jsonb)'), ('approve_overpayment(jsonb)'), ('close_business_date(jsonb)'),
   ('create_customer(jsonb)'), ('create_expense(jsonb)'), ('decide_expense_correction(jsonb)'),
   ('decide_invoice_correction(jsonb)'), ('decide_invoice_replacement(jsonb)'), ('record_customer_payment(jsonb)'),
@@ -39,10 +40,10 @@ grant select on priv_rel, priv_all, priv_seq, priv_fn, priv_rpc to public;
 
 select ok((select count(*) from priv_rel) >= 30 and (select count(*) from priv_seq) >= 2 and (select count(*) from priv_fn) >= 27,
   'the catalog scan sees the real public tables, views, sequences and functions');
-select is((select count(*) from priv_rpc), 30::bigint, 'the approved RPC list holds 30 distinct signatures');
+select is((select count(*) from priv_rpc), 32::bigint, 'the approved RPC list holds 32 distinct signatures');
 select is((select array_agg(sig order by sig) from priv_fn),
   (select array_agg(sig order by sig) from (select sig from priv_rpc union all select 'reject_append_only_mutation()') u),
-  'the public functions are exactly the 30 approved RPCs plus the append-only trigger function (a new or overloaded function must be classified here)');
+  'the public functions are exactly the 32 approved RPCs plus the append-only trigger function (a new or overloaded function must be classified here)');
 
 -- 1. anon: nothing.
 select is((select count(*) from priv_rel r cross join priv_all a where has_table_privilege('anon', r.oid, a.p)), 0::bigint,

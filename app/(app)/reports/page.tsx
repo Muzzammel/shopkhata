@@ -14,7 +14,7 @@ import {
 } from "@/lib/reports";
 import { REPORT_PERIODS, activePeriod, periodRange } from "@/lib/report-view";
 import { qatarDateTime } from "@/lib/sales-view";
-import { getVisibleShops } from "@/lib/shop-switching";
+import { getReadableShops, pickShop } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
@@ -59,11 +59,11 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
   const actor = await getCurrentActor();
   const query = await searchParams;
   const supabase = await createServerSupabaseClient();
-  const { data: allShops, error: shopsError } = await supabase.from("shops").select("id,name,is_active").eq("is_active", true).order("name");
+  const { data: allShops, error: shopsError } = await supabase.from("shops").select("id,name,is_active").order("name");
   if (shopsError || !allShops) throw new Error("REPORTS_UNAVAILABLE");
-  const shops = getVisibleShops(actor, allShops);
+  const shops = getReadableShops(actor, allShops);
   const requestedShop = Array.isArray(query.shop) ? query.shop[0] : query.shop;
-  const shop = shops.find((item) => item.id === requestedShop) ?? shops[0];
+  const shop = pickShop(shops, requestedShop);
   if (!shop || !can(actor, "records.view_assigned", shop.id)) return <main className="mx-auto max-w-[1280px] px-4 pt-5 sm:px-6"><h1 className="text-3xl font-semibold tracking-tight">Reports unavailable</h1></main>;
 
   const today = qatarBusinessDate(new Date());
@@ -161,7 +161,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Reports</h1>
       <p className="text-sm text-muted-foreground">Dates are Qatar business dates. Showing {kind === "daily" ? from : kind === "dues" ? "the current position" : `${from} to ${to}`}.</p>
     </header>
-    {shops.length > 1 && <nav className="flex flex-wrap gap-2" aria-label="Choose shop">{shops.map((item) => <Link key={item.id} aria-current={item.id === shop.id ? "page" : undefined} href={`/reports?shop=${item.id}&report=${kind}&${range}`} className={cn(pillLink, item.id === shop.id ? "bg-primary text-primary-foreground" : "border border-input bg-card text-foreground hover:bg-muted")}>{item.name}</Link>)}</nav>}
+    {shops.length > 1 && <nav className="flex flex-wrap gap-2" aria-label="Choose shop">{shops.map((item) => <Link key={item.id} aria-current={item.id === shop.id ? "page" : undefined} href={`/reports?shop=${item.id}&report=${kind}&${range}`} className={cn(pillLink, item.id === shop.id ? "bg-primary text-primary-foreground" : "border border-input bg-card text-foreground hover:bg-muted")}>{item.name}{!item.is_active && " (inactive)"}</Link>)}</nav>}
     <nav className="flex flex-wrap gap-2" aria-label="Choose report">{REPORT_KINDS.map((item) => <Link key={item} aria-current={item === kind ? "page" : undefined} href={kindLinks(item)} className={cn(pillLink, item === kind ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>{REPORT_TITLES[item]}</Link>)}</nav>
 
     <section aria-labelledby="report-heading" className={card}>

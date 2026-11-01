@@ -4,7 +4,7 @@ import { SearchIcon, UsersIcon } from "lucide-react";
 import { CustomerDirectory } from "@/components/customers/customer-directory";
 import { ui } from "@/components/sales/ui";
 import { can, getCurrentActor } from "@/lib/auth/permissions";
-import { getVisibleShops } from "@/lib/shop-switching";
+import { getReadableShops, pickShop } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { CustomerCreateForm } from "../../customer-create-form";
@@ -21,10 +21,10 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
   const offset = Math.max(0, Math.min(10_000, Number.parseInt(rawOffset ?? "0", 10) || 0));
   const term = (rawTerm ?? "").trim().slice(0, 100);
   const supabase = await createServerSupabaseClient();
-  const { data: allShops, error: shopsError } = await supabase.from("shops").select("id,name,is_active").eq("is_active", true).order("name");
+  const { data: allShops, error: shopsError } = await supabase.from("shops").select("id,name,is_active").order("name");
   if (shopsError || !allShops) throw new Error("CUSTOMER_WORKSPACE_UNAVAILABLE");
-  const shops = getVisibleShops(actor, allShops);
-  const shop = shops.find((item) => item.id === rawShop) ?? shops[0];
+  const shops = getReadableShops(actor, allShops);
+  const shop = pickShop(shops, rawShop);
   if (!shop || !can(actor, "records.view_assigned", shop.id)) return <main className="mx-auto max-w-[1280px] px-4 pt-5 sm:px-6"><h1 className="text-3xl font-semibold tracking-tight">Customers unavailable</h1></main>;
   let request = supabase.from("customers").select("id,public_id,name,mobile,created_at", { count: "exact" }).eq("shop_id", shop.id);
   if (term) {
@@ -57,7 +57,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
         <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">{shop.name}</p>
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Customers</h1>
       </div>
-      <CustomerCreateForm shopId={shop.id} className="h-10 min-h-10 px-4 max-sm:min-h-10" />
+      {shop.is_active && <CustomerCreateForm shopId={shop.id} className="h-10 min-h-10 px-4 max-sm:min-h-10" />}
     </header>
 
     <section aria-label="Find customers" className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-card p-4 sm:p-5">
@@ -78,7 +78,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
       <span className="grid size-12 place-items-center rounded-full bg-muted"><UsersIcon aria-hidden className="size-5 text-muted-foreground" /></span>
       <h2 className="text-lg font-semibold">{term ? "No customers match this search" : "No customers yet"}</h2>
       <p className="max-w-sm text-sm text-muted-foreground">{term ? "Search matches part of a name, a mobile number or a customer ID. Check the spelling or try fewer characters." : "Add a customer to keep their invoices, payments and balance in one place."}</p>
-      {term ? <Link href={`/customers?shop=${shop.id}`} className={cn(pillButton, "mt-1 border border-input bg-card text-foreground hover:bg-muted")}>Show all customers</Link> : <CustomerCreateForm shopId={shop.id} className="mt-1" />}
+      {term ? <Link href={`/customers?shop=${shop.id}`} className={cn(pillButton, "mt-1 border border-input bg-card text-foreground hover:bg-muted")}>Show all customers</Link> : shop.is_active && <CustomerCreateForm shopId={shop.id} className="mt-1" />}
     </section> : <CustomerDirectory rows={rows} shopId={shop.id} />}
 
     {(offset > 0 || customers.length > PAGE_SIZE) && <nav aria-label="Pages" className="flex items-center justify-between gap-3">

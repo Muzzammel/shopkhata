@@ -10,7 +10,7 @@ import { addDays } from "@/lib/date-range";
 import { fetchInvoiceList, findInvoiceByNumber, INVOICE_PAGE_SIZE, INVOICE_STATUSES, INVOICE_STATUS_LABELS, parseInvoiceListFilter } from "@/lib/invoice-list";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
 import { longDate } from "@/lib/sales-view";
-import { getVisibleShops } from "@/lib/shop-switching";
+import { getReadableShops, pickShop } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
@@ -24,11 +24,11 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/invoice
   const actor = await getCurrentActor();
   const query = await searchParams;
   const supabase = await createServerSupabaseClient();
-  const { data: allShops, error: shopsError } = await supabase.from("shops").select("id,name,is_active").eq("is_active", true).order("name");
+  const { data: allShops, error: shopsError } = await supabase.from("shops").select("id,name,is_active").order("name");
   if (shopsError || !allShops) throw new Error("INVOICE_LIST_UNAVAILABLE");
-  const shops = getVisibleShops(actor, allShops);
+  const shops = getReadableShops(actor, allShops);
   const requestedShop = first(query.shop);
-  const shop = shops.find((item) => item.id === requestedShop) ?? shops[0];
+  const shop = pickShop(shops, requestedShop);
   if (!shop || !can(actor, "records.view_assigned", shop.id)) return <main className="mx-auto max-w-[1280px] px-4 pt-5 sm:px-6"><h1 className="text-3xl font-semibold tracking-tight">Sales unavailable</h1></main>;
 
   const today = qatarBusinessDate(new Date());
@@ -56,7 +56,7 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/invoice
         <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">{shop.name}</p>
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Sales</h1>
       </div>
-      <Link href={`/?shop=${shop.id}`} data-slot="new-sale" className={cn(pillButton, "bg-primary text-primary-foreground hover:bg-primary/90")}><PlusIcon aria-hidden className="size-4" />New sale</Link>
+      {shop.is_active && <Link href={`/?shop=${shop.id}`} data-slot="new-sale" className={cn(pillButton, "bg-primary text-primary-foreground hover:bg-primary/90")}><PlusIcon aria-hidden className="size-4" />New sale</Link>}
     </header>
 
     <section aria-label="Find and filter" className="grid gap-4 rounded-3xl border border-border bg-card p-4 sm:p-5">
@@ -108,7 +108,7 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/invoice
       <span className="grid size-12 place-items-center rounded-full bg-muted"><ReceiptTextIcon aria-hidden className="size-5 text-muted-foreground" /></span>
       <h2 className="text-lg font-semibold">No invoices in this range</h2>
       <p className="max-w-sm text-sm text-muted-foreground">Try another status or date range, or search an exact invoice number to find older sales.</p>
-      <Link href={`/?shop=${shop.id}`} className={cn(pillButton, "mt-1 bg-primary text-primary-foreground")}><PlusIcon aria-hidden className="size-4" />New sale</Link>
+      {shop.is_active && <Link href={`/?shop=${shop.id}`} className={cn(pillButton, "mt-1 bg-primary text-primary-foreground")}><PlusIcon aria-hidden className="size-4" />New sale</Link>}
     </section> : <SalesTable rows={rows} shopId={shop.id} />}
 
     {(filter.offset > 0 || hasMore) && <nav aria-label="Pages" className="flex items-center justify-between gap-3">

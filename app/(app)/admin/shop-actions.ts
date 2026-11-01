@@ -38,3 +38,4 @@ async function run(rpc: keyof typeof SHOP_ADMIN_RPCS, raw: unknown): Promise<Sho
 
 export async function createShop(raw: unknown) { return run("admin_create_shop", raw); }
 export async function updateShop(raw: unknown) { return run("admin_update_shop", raw); }
+export async function setShopStatus(raw: unknown) { return run("admin_set_shop_status", raw); }

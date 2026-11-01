@@ -120,6 +120,7 @@ const ACTION_LABELS: Record<string, string> = {
   "attach_expense_receipt": "Expense receipt attached", "date.close": "Business date closed", "date.reopen": "Business date reopened",
   "admin_register_account": "Account registered", "admin_update_account": "Account updated", "admin_set_shop_assignment": "Shop assignment changed",
   "shop.create": "Shop created", "shop.update": "Shop renamed", "admin_create_shop": "Shop created", "admin_update_shop": "Shop renamed",
+  "shop.deactivate": "Shop deactivated", "shop.reactivate": "Shop reactivated", "account.deactivate": "Account deactivated", "account.reactivate": "Account reactivated",
 };
 
 function activityHref(entityType: string, entityId: string, shopId: string): string | null {

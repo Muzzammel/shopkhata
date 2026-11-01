@@ -130,6 +130,7 @@ export function classifySaveResult(result: { ok: boolean; uncertain?: boolean; c
   switch (result.code) {
     case "UNAUTHENTICATED": return { kind: "blocked", reason: "reauth" };
     case "UNAUTHORIZED_SHOP":
+    case "SHOP_INACTIVE":
     case "INSUFFICIENT_ROLE": return { kind: "blocked", reason: "authorization" };
     case "UNAVAILABLE": return { kind: "blocked", reason: "unavailable" };
     case "CLOSED_DATE": return { kind: "rejected", conflict: "closed_date" };

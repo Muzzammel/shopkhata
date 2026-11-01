@@ -109,6 +109,8 @@ describe("conflict mapping", () => {
     expect(classify({ uncertain: true })).toEqual({ kind: "uncertain" });
     expect(classify({ code: "UNAUTHENTICATED" })).toEqual({ kind: "blocked", reason: "reauth" });
     expect(classify({ code: "UNAUTHORIZED_SHOP" })).toEqual({ kind: "blocked", reason: "authorization" });
+    // An inactive shop keeps the queued draft on the device: it can be sent after reactivation.
+    expect(classify({ code: "SHOP_INACTIVE" })).toEqual({ kind: "blocked", reason: "authorization" });
     expect(classify({ code: "INSUFFICIENT_ROLE" })).toEqual({ kind: "blocked", reason: "authorization" });
     expect(classify({ code: "UNAVAILABLE" })).toEqual({ kind: "blocked", reason: "unavailable" });
     expect(classify({ code: "CLOSED_DATE" })).toEqual({ kind: "rejected", conflict: "closed_date" });

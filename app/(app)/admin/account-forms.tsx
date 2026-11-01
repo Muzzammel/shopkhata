@@ -1,22 +1,22 @@
 "use client";
 
-import { useState, type ComponentProps, type FormEvent, type ReactNode } from "react";
+import { useState, type ComponentProps, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { CircleAlertIcon, PencilLineIcon, SlidersHorizontalIcon, UserPlusIcon } from "lucide-react";
+import { PencilLineIcon, SlidersHorizontalIcon, UserPlusIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { CustomerAvatar } from "@/components/customers/customer-status";
 import { Drawer } from "@/components/shell/drawer";
 import { ui } from "@/components/sales/ui";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { registerAccountInput } from "@/lib/account-admin";
 import { accessSummary, accountChanges, ROLE_LABEL, ROLE_SUMMARY, type AccountRole } from "@/lib/account-view";
 import { cn } from "@/lib/utils";
 
 import { Comparison } from "../invoice-operations";
-import { registerAccount, setShopAssignment, updateAccount, type AccountAdminResult } from "./actions";
+import { registerAccount, setAccountStatus, setShopAssignment, updateAccount, type AccountAdminResult } from "./actions";
+import { Failure, Field, StatusChange } from "./status-change";
 
-type Shop = { id: string; name: string };
+type Shop = { id: string; name: string; isActive?: boolean };
 export type AccountRow = { id: string; email: string; displayName: string; role: string; isActive: boolean; shopIds: string[] };
 const ROLES: AccountRole[] = ["staff", "manager", "owner"];
 const UNCONFIRMED = "The change was not saved. Refresh to see the current accounts.";
@@ -28,16 +28,12 @@ export function RoleBadge({ role }: { role: string }) {
   return <span data-role={role} className={cn(badge, ROLE_TONE[role] ?? ROLE_TONE.staff)}>{role}</span>;
 }
 
-/** Active, deactivated, and the one state the data shows that needs the owner: active but no shop to work in. */
+/** Active, inactive, and the one state the data shows that needs the owner: active but no shop to work in. */
 export function StatusBadges({ account }: { account: Pick<AccountRow, "role" | "isActive" | "shopIds"> }) {
   return <span className="inline-flex flex-wrap gap-1">
-    <span data-status={account.isActive ? "active" : "deactivated"} className={cn(badge, account.isActive ? "bg-success-soft text-success" : "bg-card text-muted-foreground ring-1 ring-border ring-inset")}>{account.isActive ? "Active" : "Deactivated"}</span>
+    <span data-status={account.isActive ? "active" : "inactive"} className={cn(badge, account.isActive ? "bg-success-soft text-success" : "bg-card text-muted-foreground ring-1 ring-border ring-inset")}>{account.isActive ? "Active" : "Inactive"}</span>
     {account.isActive && account.role !== "owner" && account.shopIds.length === 0 && <span data-status="no-shop" className={cn(badge, "bg-warning-soft text-warning")}>No shop access</span>}
   </span>;
-}
-
-export function Failure({ title, message }: { title: string; message: string }) {
-  return <Alert variant="destructive" className="border-destructive/40 bg-danger-soft"><CircleAlertIcon /><AlertTitle>{title}</AlertTitle><AlertDescription>{message}</AlertDescription></Alert>;
 }
 
 /** Role as three choices, each saying what it allows, so the choice is never made from a bare word. */
@@ -106,16 +102,18 @@ export function AccountDirectory({ accounts, shops, actorId }: { accounts: Accou
   </>;
 }
 
-/** Role, status and shop access for one account, then a review of current against new before anything is saved. */
+/**
+ * Role and shop access for one account, then a review of current against new before anything is saved.
+ * Status is a separate governed action below the form: it needs a reason and is recorded on its own.
+ */
 function ManageAccountDrawer({ account, shops, open, onOpenChange }: { account: AccountRow; shops: Shop[]; open: boolean; onOpenChange: (open: boolean) => void }) {
   const router = useRouter();
   const [role, setRole] = useState(account.role);
-  const [isActive, setIsActive] = useState(account.isActive);
   const [shopIds, setShopIds] = useState(account.shopIds);
   const [review, setReview] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const after = { role, isActive, shopIds };
+  const after = { role, isActive: account.isActive, shopIds };
   const { rows, notes, changed } = accountChanges(account.displayName, account, after, shops);
 
   function toReview(event: FormEvent<HTMLFormElement>) {
@@ -124,13 +122,13 @@ function ManageAccountDrawer({ account, shops, open, onOpenChange }: { account: 
     setMessage(""); setReview(true);
   }
 
-  // The same calls, in the same order, as before the redesign: role and status first, then each shop that differs.
+  // The same calls, in the same order, as before the redesign: role first, then each shop that differs.
   async function save() {
     if (busy) return;
     setBusy(true); setMessage("");
     let result: AccountAdminResult = { ok: true };
     try {
-      result = await updateAccount({ user_id: account.id, role, is_active: isActive });
+      result = await updateAccount({ user_id: account.id, role });
       for (const shop of shops) {
         if (!result.ok) break;
         const assigned = shopIds.includes(shop.id);
@@ -146,27 +144,30 @@ function ManageAccountDrawer({ account, shops, open, onOpenChange }: { account: 
     else setMessage(result.message);
   }
 
+  const statusEffects = account.isActive
+    ? [`${account.displayName} can still sign in but can no longer view or record anything, from their next action, even in a session that is already open.`,
+      "Their sales, payments, expenses and history stay exactly as recorded, under their name. Nothing is deleted.",
+      "Role and shop assignments are kept, so reactivating restores the same access."]
+    : [`${account.displayName} can work again with their current role and shop assignments, from their next action.`];
+
   return <Drawer open={open} onOpenChange={(next) => { if (next || !busy) onOpenChange(next); }} title={`Manage ${account.displayName}`} description={<>{account.email} · Changes apply to this account&apos;s next action and are recorded in the account history.</>}>
-    {!review ? <form noValidate aria-label={`Manage ${account.displayName}`} className="grid gap-5" onSubmit={toReview}>
+    {!review ? <><form noValidate aria-label={`Manage ${account.displayName}`} className="grid gap-5" onSubmit={toReview}>
       <RolePicker name="role" value={role} onChange={(value) => { setRole(value); setMessage(""); }} />
-      <fieldset className="grid gap-2">
-        <legend data-slot="legend" className={cn(ui.label, "mb-1.5")}>Status</legend>
-        <label data-slot="label" className="flex cursor-pointer items-start gap-3 rounded-2xl border border-input bg-card px-4 py-3 text-sm has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/40">
-          <input data-slot="checkbox" type="checkbox" name="is_active" checked={isActive} onChange={(event) => { setIsActive(event.target.checked); setMessage(""); }} className="mt-0.5 size-4 shrink-0 accent-foreground" />
-          <span className="grid gap-0.5"><span className="font-semibold">Account is active</span><span className="text-xs text-muted-foreground">Untick to deactivate. A deactivated account can sign in but can do nothing; its history stays.</span></span>
-        </label>
-      </fieldset>
       <fieldset className="grid gap-2">
         <legend data-slot="legend" className={cn(ui.label, "mb-1.5")}>Shop access</legend>
         {role === "owner" && <p className="text-xs text-muted-foreground">An owner can always use every shop. Ticks are kept for if the role changes later.</p>}
         <div className="flex flex-wrap gap-2">{shops.map((shop) => <label key={shop.id} data-slot="label" className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full border border-input bg-card px-3.5 text-sm font-medium hover:bg-muted has-[:checked]:border-foreground has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/40 max-sm:min-h-11">
           <input data-slot="checkbox" type="checkbox" name={`shop-${shop.id}`} checked={shopIds.includes(shop.id)} onChange={(event) => { const on = event.target.checked; setShopIds((current) => on ? [...current, shop.id] : current.filter((id) => id !== shop.id)); setMessage(""); }} className="size-4 accent-current" />
-          {shop.name}
+          {shop.name}{shop.isActive === false && <span className="text-xs font-normal opacity-80">(inactive)</span>}
         </label>)}</div>
       </fieldset>
       {message && <p role="status" className="text-sm text-muted-foreground">{message}</p>}
       <button data-slot="button" className={ui.primary}>Review changes</button>
-    </form> : <div className="grid gap-5">
+    </form>
+    <StatusChange noun="account" name={account.displayName} isActive={account.isActive} effects={statusEffects}
+      submit={(reason) => setAccountStatus({ user_id: account.id, is_active: !account.isActive, reason })}
+      onDone={(done) => { router.refresh(); toast.success(done); onOpenChange(false); }} />
+    </> : <div className="grid gap-5">
       <section aria-labelledby="account-review-heading" className="grid gap-3">
         <h3 id="account-review-heading" data-slot="heading" className="text-sm font-semibold">Review before saving</h3>
         <Comparison label="Requested account change" rows={rows} />
@@ -180,15 +181,6 @@ function ManageAccountDrawer({ account, shops, open, onOpenChange }: { account: 
       </div>
     </div>}
   </Drawer>;
-}
-
-export function Field({ id, label, error, hint, children }: { id: string; label: string; error?: string; hint?: ReactNode; children: ReactNode }) {
-  return <div className="grid content-start gap-1.5">
-    <label data-slot="label" htmlFor={id} className={ui.label}>{label}</label>
-    {children}
-    {hint && !error && <p id={`${id}-hint`} className="text-xs text-muted-foreground">{hint}</p>}
-    {error && <p id={`${id}-error`} data-slot="field-error" className={ui.fieldError}>{error}</p>}
-  </div>;
 }
 
 /** Gives an existing sign-in a ShopKhata role. The sign-in itself is created in the Supabase dashboard. */

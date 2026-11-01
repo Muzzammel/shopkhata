@@ -44,19 +44,47 @@ test.describe("Accounts", () => {
     await expect(row.locator("[data-status=no-shop]")).toHaveText("No shop access");
     await expect(row).toContainText("No access (no shop assigned)");
 
-    // Deactivate it through the drawer: the review shows current against new values and the impact.
+    // Deactivate it through the drawer: a reason is required, the review shows current against new
+    // status and the impact, and nothing is saved until confirmed.
     await row.getByRole("button", { name: /^Manage / }).click();
     const drawer = page.getByRole("dialog", { name: /^Manage / });
-    await drawer.getByLabel("Account is active").uncheck();
-    await drawer.getByRole("button", { name: "Review changes" }).click();
-    const comparison = drawer.getByRole("table", { name: "Requested account change" });
-    await expect(comparison.getByRole("row", { name: /Status/ })).toContainText("Active");
-    await expect(comparison.getByRole("row", { name: /Status/ })).toContainText("Deactivated");
-    await expect(drawer.getByRole("list", { name: "What this change does" })).toContainText("loses all access");
-    await drawer.getByRole("button", { name: "Save account" }).click();
+    await expect(drawer.getByLabel("Account is active")).toHaveCount(0);
+    const status = drawer.getByRole("region", { name: "Account status" });
+    await status.getByRole("button", { name: "Deactivate account" }).click();
+    await status.getByRole("button", { name: "Review deactivation" }).click();
+    await expect(status.getByText("Enter the reason for deactivating this account.")).toBeVisible();
+    await expect(status.getByLabel("Reason")).toBeFocused();
+    await expect(status.getByLabel("Reason")).toHaveAttribute("aria-invalid", "true");
+    await status.getByLabel("Reason").fill("   ");
+    await status.getByRole("button", { name: "Review deactivation" }).click();
+    await expect(status.getByText("Enter the reason for deactivating this account.")).toBeVisible();
+    await status.getByLabel("Reason").fill("Contract ended");
+    await status.getByRole("button", { name: "Review deactivation" }).click();
+    await expect(status.getByRole("table", { name: "Requested account status change" }).getByRole("row", { name: /Status/ })).toContainText(/Active\s*Inactive/);
+    await expect(status.getByRole("list", { name: "What deactivation does" })).toContainText("can no longer view or record anything");
+    await expect(status.getByRole("list", { name: "What deactivation does" })).toContainText("Nothing is deleted");
+    expect(scalar(`select is_active from public.profiles where id = '${id}'`)).toBe("true");
+    await status.getByRole("button", { name: "Confirm: deactivate account" }).click();
     await expect(drawer).toHaveCount(0);
-    await expect(row.locator("[data-status=deactivated]")).toHaveText("Deactivated");
+    await expect(row.locator("[data-status=inactive]")).toHaveText("Inactive");
     expect(scalar(`select is_active from public.profiles where id = '${id}'`)).toBe("false");
+    expect(scalar(`select reason from public.audit_events where action = 'account.deactivate' and entity_id = '${id}'`)).toBe("Contract ended");
+    const history = page.getByRole("region", { name: "Recent account changes" });
+    await expect(history).toContainText("Deactivated account");
+    await expect(history).toContainText("Reason: Contract ended");
+    expect(await noOverflow(page)).toBe(true);
+
+    // Reactivation is the same governed flow, and is offered only for an inactive account.
+    await row.getByRole("button", { name: /^Manage / }).click();
+    await expect(drawer.getByRole("button", { name: "Deactivate account" })).toHaveCount(0);
+    await drawer.getByRole("button", { name: "Reactivate account" }).click();
+    await drawer.getByLabel("Reason").fill("Contract renewed");
+    await drawer.getByRole("button", { name: "Review reactivation" }).click();
+    await drawer.getByRole("button", { name: "Confirm: reactivate account" }).click();
+    await expect(drawer).toHaveCount(0);
+    await expect(row.locator("[data-status=active]")).toHaveText("Active");
+    expect(scalar(`select is_active from public.profiles where id = '${id}'`)).toBe("true");
+    localDbQuery(`update public.profiles set is_active = false where id = '${id}'`);
   });
 
   test("the Manage drawer saves nothing until confirmed, and Escape returns focus to its button", async ({ page }) => {

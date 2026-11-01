@@ -57,8 +57,8 @@ export function MobileBottomNav({ items, actions, shopId, pathname, onSearch }: 
         <Tab href={navHref(item("dashboard"), shopId)} label="Home" icon={HouseIcon} current={item("dashboard").current(pathname)} />
         <Tab href={navHref(item("sales"), shopId)} label="Sales" icon={ReceiptTextIcon} current={item("sales").current(pathname)} />
         <div className="grid place-items-center">
-          <button type="button" data-slot="add" aria-label="Add" aria-haspopup="dialog" aria-expanded={adding} onClick={() => setAdding(true)}
-            className="-mt-7 grid size-14 cursor-pointer place-items-center rounded-full bg-yellow text-on-yellow shadow-[var(--shadow-lift)] ring-4 ring-background outline-offset-4 sk-press">
+          <button type="button" data-slot="add" aria-label="Add" aria-haspopup="dialog" aria-expanded={adding} disabled={!actions.length} onClick={() => setAdding(true)}
+            className="-mt-7 disabled:cursor-not-allowed disabled:opacity-40 grid size-14 cursor-pointer place-items-center rounded-full bg-yellow text-on-yellow shadow-[var(--shadow-lift)] ring-4 ring-background outline-offset-4 sk-press">
             <PlusIcon aria-hidden className={cn("size-6 transition-transform duration-200", adding && "rotate-45")} />
           </button>
         </div>

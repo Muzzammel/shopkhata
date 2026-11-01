@@ -9,6 +9,7 @@ import { qatarBusinessDate } from "@/lib/invoice-entry";
 import { PAYMENT_METHODS } from "@/lib/payment-method";
 import { logFailure } from "@/lib/server-log";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { SHOP_INACTIVE_MESSAGE } from "@/lib/shop-admin";
 
 const lookupSchema = z.object({ shopId: z.uuid(), invoiceNumber: z.string().trim().min(1).max(120) }).strict();
 const commandSchema = z.object({
@@ -76,6 +77,8 @@ export async function recordInvoicePayment(raw: unknown): Promise<PaymentActionR
       ? "This retry key was already used for a different payment."
       : error.message === "INSUFFICIENT_ROLE"
         ? "Only the owner can record a payment for an earlier business date."
+        : error.message === "SHOP_INACTIVE"
+          ? SHOP_INACTIVE_MESSAGE
         : error.message === "CLOSED_DATE"
           ? "This business date is closed."
           : error.message === "PAYMENT_VALIDATION_FAILED"

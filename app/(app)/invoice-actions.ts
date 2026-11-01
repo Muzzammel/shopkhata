@@ -85,6 +85,7 @@ export async function saveInvoiceBatch(raw: unknown): Promise<SaveResult> {
       IDEMPOTENCY_CONFLICT: "This save key was already used for different invoices.",
       CLOSED_DATE: "This business date is closed. Nothing was saved; the draft is kept on this device until the date is reopened.",
       UNAUTHORIZED_SHOP: "You no longer have access to this shop. Nothing was saved; the draft is kept on this device.",
+      SHOP_INACTIVE: "This shop is inactive. Nothing was saved; the draft is kept on this device until an owner reactivates the shop.",
       INSUFFICIENT_ROLE: "Only an owner can submit a backdated batch.",
       AUTHENTICATION_REQUIRED: REAUTH_MESSAGE,
     };

@@ -138,11 +138,13 @@ describe("production acceptance against real Supabase", () => {
     expect(await code(rpc(staff, "create_expense", expense(SHOP2, 1_00)))).toBe("UNAUTHORIZED_SHOP");
 
     // Deactivation ends access although the session token and the assignment still exist.
-    await must(rpc(owner, "admin_update_account", account(STAFF1, "staff", false)));
+    // Status needs a reason and its own RPC; the role RPC refuses to carry it.
+    expect(await code(rpc(owner, "admin_update_account", account(STAFF1, "staff", false)))).toBe("STATUS_REASON_REQUIRED");
+    await must(rpc(owner, "admin_set_account_status", { user_id: STAFF1, is_active: false, reason: "acceptance: access check" }));
     expect(await visibleInvoices(staff, SHOP1)).toBe(0);
     expect(await code(rpc(staff, "submit_batch", batch([row(number("inactive"), 10_00)])))).toBe("AUTHENTICATION_REQUIRED");
     expect(await code(rpc(staff, "record_customer_payment", { shop_id: SHOP1, customer_id: key(), amount_dirham: 1, business_date: today, idempotency_key: key() }))).toBe("AUTHENTICATION_REQUIRED");
-    await must(rpc(owner, "admin_update_account", account(STAFF1, "staff", true)));
+    await must(rpc(owner, "admin_set_account_status", { user_id: STAFF1, is_active: true, reason: "acceptance: access restored" }));
     expect(await visibleInvoices(staff, SHOP1)).toBeGreaterThan(0);
 
     // A role change is effective immediately in both directions.
@@ -155,7 +157,7 @@ describe("production acceptance against real Supabase", () => {
 
     const audit = await must(owner.from("audit_events").select("action,actor_id,entity_id").eq("entity_type", "profile").order("recorded_at"));
     expect(audit.map((event) => event.action)).toEqual([
-      "assignment.remove", "assignment.add", "assignment.remove", "assignment.add", "account.update", "account.update", "account.update", "account.update",
+      "assignment.remove", "assignment.add", "assignment.remove", "assignment.add", "account.deactivate", "account.reactivate", "account.update", "account.update",
     ]);
     expect(audit.every((event) => event.actor_id === "10000000-0000-4000-8000-000000000101" && event.entity_id === STAFF1)).toBe(true);
     // Account history is not visible to a manager or staff.
@@ -325,6 +327,8 @@ describe("production acceptance against real Supabase", () => {
         ["admin_update_account", { user_id: who === "manager" ? MANAGER : STAFF1, role: "owner", is_active: true }],
         ["admin_set_shop_assignment", { user_id: who === "manager" ? MANAGER : STAFF1, shop_id: SHOP2, assigned: true }],
         ["admin_register_account", { email: "staff2@shopkhata.local", display_name: "Intruder", role: "owner" }],
+        ["admin_set_account_status", { user_id: "10000000-0000-4000-8000-000000000101", is_active: false, reason: "intruder" }],
+        ["admin_set_shop_status", { shop_id: SHOP1, is_active: false, reason: "intruder" }],
       ];
       for (const [name, command] of commands) await denied(`${who} ${name} ${JSON.stringify(command).slice(0, 90)}`, rpc(client, name, command));
 
@@ -362,8 +366,8 @@ describe("production acceptance against real Supabase", () => {
     ] as const) await denied(`Shop 2 staff ${name}`, rpc(staff2, name, command));
 
     expect(failures).toEqual([]);
-    // 97 attempts by each of three attackers, plus five by Shop 2's own staff. A dropped attack fails here.
-    expect(attempts).toBe(296);
+    // 99 attempts by each of three attackers, plus five by Shop 2's own staff. A dropped attack fails here.
+    expect(attempts).toBe(302);
     // Nothing was written anywhere: the first pass against the state before it, the staff pass against its own.
     expect(databaseState()).toEqual(afterSetup);
     expect({ ...afterSetup.tables, correction_requests: before.tables.correction_requests, audit_events: before.tables.audit_events }).toEqual(before.tables);

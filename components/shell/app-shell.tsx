@@ -18,9 +18,12 @@ export function AppShell({ shops, user, isOwner, permissions, children }: { shop
   const params = useSearchParams();
   const [searching, setSearching] = useState(false);
   const requested = pathname.match(/^\/shops\/([^/]+)/)?.[1] ?? params.get("shop");
-  const shop = shops.find((item) => item.id === requested) ?? shops[0] ?? null;
+  // Same pick as pickShop() in lib/shop-switching, so the switcher shows the shop the page opened.
+  const shop = shops.find((item) => item.id === requested) ?? shops.find((item) => item.isActive) ?? shops[0] ?? null;
+  const readOnly = shop?.isActive === false;
   const items = NAV_ITEMS.filter((item) => !item.ownerOnly || isOwner);
-  const actions = quickActions(shop?.id ?? null, permissions);
+  // An inactive shop (owner-only history) offers no New sale / payment / expense shortcuts.
+  const actions = readOnly ? [] : quickActions(shop?.id ?? null, permissions);
   const openSearch = () => setSearching(true);
 
   useEffect(() => {
@@ -39,7 +42,12 @@ export function AppShell({ shops, user, isOwner, permissions, children }: { shop
     <TopNav items={items} shops={shops} shop={shop} switcherLocked={pathname === "/" || pathname.startsWith("/admin")} user={user} pathname={pathname} onSearch={openSearch} />
     <QuickActionRail actions={actions} onSearch={openSearch} />
     </div>
-    <div id="content" tabIndex={-1} className="pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none md:pb-0 md:pl-[76px] lg:pl-[84px] min-[1480px]:pl-0 print:p-0">{children}</div>
+    <div id="content" tabIndex={-1} className="pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none md:pb-0 md:pl-[76px] lg:pl-[84px] min-[1480px]:pl-0 print:p-0">
+      {readOnly && <p role="status" data-slot="read-only-banner" className="mx-auto mt-4 w-[calc(100%-2rem)] max-w-[1280px] rounded-2xl bg-warning-soft px-4 py-3 text-sm text-warning sm:w-[calc(100%-3rem)]">
+        <strong className="font-bold tracking-wide">INACTIVE — READ ONLY</strong> · {shop?.name} is inactive. Its history stays visible; nothing new can be recorded until an owner reactivates it under Shops.
+      </p>}
+      {children}
+    </div>
     <div className="contents print:hidden"><MobileBottomNav items={items} actions={actions} shopId={shop?.id ?? null} pathname={pathname} onSearch={openSearch} /></div>
     <GlobalSearch open={searching} onOpenChange={setSearching} shopId={shop?.id ?? null} items={items} />
   </>;

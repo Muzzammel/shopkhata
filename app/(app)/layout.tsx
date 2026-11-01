@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 
 import { can, getCurrentActor, type Actor } from "@/lib/auth/permissions";
-import { getVisibleShops } from "@/lib/shop-switching";
+import { getReadableShops } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 import { AppShell } from "@/components/shell/app-shell";
@@ -32,11 +32,11 @@ export default async function AppLayout({
   // A failed read leaves the switcher empty rather than breaking every screen.
   const supabase = await createServerSupabaseClient();
   const [{ data: shopRows }, { data: profile }] = await Promise.all([
-    supabase.from("shops").select("id,name,is_active").eq("is_active", true).order("name"),
+    supabase.from("shops").select("id,name,is_active").order("name"),
     supabase.from("profiles").select("display_name").eq("id", actor.id).maybeSingle(),
   ]);
-  const shops = getVisibleShops(actor, shopRows ?? []).map(({ id, name }) => ({ id, name }));
-  const permissions = Object.fromEntries(shops.map((shop) => [shop.id, { payment: can(actor, "payment.record", shop.id), expense: can(actor, "expense.create", shop.id) }]));
+  const shops = getReadableShops(actor, shopRows ?? []).map(({ id, name, is_active }) => ({ id, name, isActive: is_active }));
+  const permissions = Object.fromEntries(shops.filter((shop) => shop.isActive).map((shop) => [shop.id, { payment: can(actor, "payment.record", shop.id), expense: can(actor, "expense.create", shop.id) }]));
 
   return <AppShell shops={shops} user={{ id: actor.id, name: profile?.display_name || "Account", role: actor.role }} isOwner={can(actor, "users.manage")} permissions={permissions}>
     {children}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SHOP_INACTIVE_MESSAGE } from "@/lib/shop-admin";
 
 const base = { shop_id: z.uuid(), invoice_id: z.uuid(), idempotency_key: z.uuid(), reason: z.string().trim().min(1).max(2000) };
 // An invoice-total correction states the corrected total and the total it was made against; the
@@ -40,6 +41,7 @@ export function operationError(code: string): string {
     ALREADY_DECIDED: "This request already has a decision. Refresh to see its status.",
     IDEMPOTENCY_CONFLICT: "This retry key already belongs to a different command.",
     CLOSED_DATE: "This business date is closed.",
+    SHOP_INACTIVE: SHOP_INACTIVE_MESSAGE,
   };
   return Object.hasOwn(messages, code) ? messages[code] : "The operation could not be completed.";
 }

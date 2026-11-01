@@ -14,7 +14,7 @@ import { qatarBusinessDate } from "@/lib/invoice-entry";
 import { readAllPages } from "@/lib/read-all-pages";
 import { mapExpenseTotals } from "@/lib/reports";
 import { longDate } from "@/lib/sales-view";
-import { getVisibleShops } from "@/lib/shop-switching";
+import { getReadableShops, pickShop, shopViewer } from "@/lib/shop-switching";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { AddExpenseDrawer } from "../expense-forms";
@@ -26,10 +26,10 @@ export default async function ExpensesPage({ searchParams }: PageProps<"/expense
   const actor = await getCurrentActor();
   const query = await searchParams;
   const supabase = await createServerSupabaseClient();
-  const { data: allShops, error: shopsError } = await supabase.from("shops").select("id,name,is_active").eq("is_active", true).order("name");
+  const { data: allShops, error: shopsError } = await supabase.from("shops").select("id,name,is_active").order("name");
   if (shopsError || !allShops) throw new Error("EXPENSE_WORKSPACE_UNAVAILABLE");
-  const shops = getVisibleShops(actor, allShops);
-  const shop = shops.find((item) => item.id === first(query.shop)) ?? shops[0];
+  const shops = getReadableShops(actor, allShops);
+  const shop = pickShop(shops, first(query.shop));
   if (!shop || !can(actor, "records.view_assigned", shop.id)) return <main className="mx-auto max-w-[1280px] px-4 pt-5 sm:px-6"><h1 className="text-3xl font-semibold tracking-tight">Expenses unavailable</h1></main>;
 
   const today = qatarBusinessDate(new Date());
@@ -84,7 +84,7 @@ export default async function ExpensesPage({ searchParams }: PageProps<"/expense
   };
   const filtered = category !== "all" || preset?.key !== "30d";
   const scope = `${preset ? (preset.key === "today" ? "Today" : `Last ${preset.label}`) : "Custom range"} · ${range.from === range.to ? longDate(range.from) : `${longDate(range.from)} – ${longDate(range.to)}`} · ${category === "all" ? "all categories" : categoryLabel(category)}`;
-  const canCreate = can(actor, "expense.create", shop.id);
+  const canCreate = can(shopViewer(actor, shop), "expense.create", shop.id);
   const noneRecorded = rows.length === 0 && anyExpense.data.length === 0;
 
   return <main className="mx-auto grid w-full max-w-[1280px] grid-cols-1 content-start gap-4 px-4 pt-5 pb-10 sm:gap-5 sm:px-6">

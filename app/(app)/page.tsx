@@ -2,7 +2,7 @@ import { APP_NAME } from "@/lib/domain/constants";
 import { getCurrentActor } from "@/lib/auth/permissions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
-import { getVisibleShops } from "@/lib/shop-switching";
+import { getReadableShops, pickShop } from "@/lib/shop-switching";
 import { readShopWorkspace } from "@/lib/shop-workspace";
 
 import { Notice } from "@/components/shell/notice";
@@ -12,11 +12,15 @@ import { InvoiceEntry } from "./invoice-entry";
 export default async function Home({ searchParams }: PageProps<"/">) {
   const actor = await getCurrentActor();
   const supabase = await createServerSupabaseClient();
-  const { data: shops, error: shopError } = await supabase.from("shops").select("id, name, is_active").eq("is_active", true).order("name");
+  const { data: shops, error: shopError } = await supabase.from("shops").select("id, name, is_active").order("name");
   if (shopError || !shops) throw new Error("SHOP_VISIBILITY_UNAVAILABLE");
-  const availableShops = getVisibleShops(actor, shops);
+  const readable = getReadableShops(actor, shops);
+  const availableShops = readable.filter((s) => s.is_active);
   const query = await searchParams;
-  const shop = availableShops.find((s) => s.id === query.shop) ?? availableShops[0];
+  const shop = pickShop(readable, query.shop);
+  if (shop && !shop.is_active) return <Notice title="New sale unavailable">
+    <p role="alert">{shop.name} is inactive, so no new sale can be recorded. Its history stays visible under Sales.</p>
+  </Notice>;
   // A newly registered account, or one whose last shop was removed.
   if (!shop) return <Notice title="No shop assigned">
     <p role="alert">This account is not assigned to a shop yet, so there is nothing to show. Ask an owner to assign one under Accounts.</p>

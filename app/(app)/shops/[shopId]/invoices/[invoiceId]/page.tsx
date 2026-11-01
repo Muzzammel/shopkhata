@@ -10,18 +10,22 @@ import { can, getCurrentActor } from "@/lib/auth/permissions";
 import { groupedQar, qar } from "@/lib/dashboard-view";
 import { readInvoiceDetail } from "@/lib/invoice-detail";
 import { paymentMethodLabel } from "@/lib/payment-method";
+import { getReadableShops, shopViewer } from "@/lib/shop-switching";
 import { buildTimeline, invoiceBadges, longDate, personLabel, qatarDateTime } from "@/lib/sales-view";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
 export default async function InvoiceDetailPage({ params }: PageProps<"/shops/[shopId]/invoices/[invoiceId]">) {
   const { shopId, invoiceId } = await params;
-  const actor = await getCurrentActor();
+  const user = await getCurrentActor();
+  const supabase = await createServerSupabaseClient();
+  // An inactive shop opens read-only, and only for an owner; anyone else gets a 404 as for any other unreadable shop.
+  const { data: shopRow } = await supabase.from("shops").select("id,name,is_active").eq("id", shopId).maybeSingle();
+  const shop = shopRow ? getReadableShops(user, [shopRow])[0] : undefined;
+  if (!shop) notFound();
+  const actor = shopViewer(user, shop);
   const detail = await readInvoiceDetail(actor, shopId, invoiceId);
   if (!detail) notFound();
-  const supabase = await createServerSupabaseClient();
-  const { data: shop, error } = await supabase.from("shops").select("id, name").eq("id", shopId).maybeSingle();
-  if (error || !shop) notFound();
 
   const corrected = detail.corrections.length > 0;
   const badges = invoiceBadges({ dueDirham: detail.effectiveDueDirham, delivered: detail.delivered, corrected, revision: detail.revision });

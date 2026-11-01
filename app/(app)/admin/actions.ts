@@ -35,3 +35,4 @@ async function run(rpc: keyof typeof ACCOUNT_ADMIN_RPCS, raw: unknown): Promise<
 export async function registerAccount(raw: unknown) { return run("admin_register_account", raw); }
 export async function updateAccount(raw: unknown) { return run("admin_update_account", raw); }
 export async function setShopAssignment(raw: unknown) { return run("admin_set_shop_assignment", raw); }
+export async function setAccountStatus(raw: unknown) { return run("admin_set_account_status", raw); }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { accountAdminError, effectiveAccess, registerAccountInput, shopAssignmentInput, updateAccountInput } from "@/lib/account-admin";
+import { accountAdminError, effectiveAccess, registerAccountInput, setAccountStatusInput, shopAssignmentInput, updateAccountInput } from "@/lib/account-admin";
 import { safeReturnPath } from "@/lib/auth/return-path";
 import { deploymentConfigProblems, securityHeaders } from "@/lib/deployment-config";
 import { safeFailureLogEntry } from "@/lib/server-log";
@@ -91,14 +91,26 @@ describe("account administration input", () => {
   });
 
   it("rejects client-supplied extras that could smuggle authority", () => {
-    expect(updateAccountInput.safeParse({ user_id: id, role: "owner", is_active: true }).success).toBe(true);
-    expect(updateAccountInput.safeParse({ user_id: id, role: "owner", is_active: true, actor_role: "owner" }).success).toBe(false);
-    expect(updateAccountInput.safeParse({ user_id: id, role: "owner", is_active: "true" }).success).toBe(false);
+    expect(updateAccountInput.safeParse({ user_id: id, role: "owner" }).success).toBe(true);
+    expect(updateAccountInput.safeParse({ user_id: id, role: "owner", actor_role: "owner" }).success).toBe(false);
+    // Status is never carried by a role change: it needs a reason and its own RPC.
+    expect(updateAccountInput.safeParse({ user_id: id, role: "owner", is_active: false }).success).toBe(false);
     expect(shopAssignmentInput.safeParse({ user_id: id, shop_id: "not-a-uuid", assigned: true }).success).toBe(false);
   });
 
+  it("requires a meaningful reason for an account status change", () => {
+    expect(setAccountStatusInput.parse({ user_id: id, is_active: false, reason: "  Left the business  " })).toEqual({ user_id: id, is_active: false, reason: "Left the business" });
+    expect(setAccountStatusInput.safeParse({ user_id: id, is_active: false, reason: "   " }).success).toBe(false);
+    expect(setAccountStatusInput.safeParse({ user_id: id, is_active: false }).success).toBe(false);
+    expect(setAccountStatusInput.safeParse({ user_id: id, is_active: false, reason: "x".repeat(2001) }).success).toBe(false);
+    expect(setAccountStatusInput.safeParse({ user_id: id, is_active: "false", reason: "x" }).success).toBe(false);
+    expect(setAccountStatusInput.safeParse({ user_id: id, is_active: false, reason: "x", role: "owner" }).success).toBe(false);
+    expect(accountAdminError("STATUS_REASON_REQUIRED")).toMatch(/with a reason/);
+    expect(accountAdminError("REASON_REQUIRED")).toMatch(/reason/);
+  });
+
   it("describes effective access and maps errors to operator language", () => {
-    expect(effectiveAccess({ role: "staff", isActive: false, shopNames: ["Shop 1"] })).toBe("No access (deactivated)");
+    expect(effectiveAccess({ role: "staff", isActive: false, shopNames: ["Shop 1"] })).toBe("No access (inactive)");
     expect(effectiveAccess({ role: "owner", isActive: true, shopNames: [] })).toBe("All shops (owner)");
     expect(effectiveAccess({ role: "manager", isActive: true, shopNames: [] })).toBe("No access (no shop assigned)");
     expect(effectiveAccess({ role: "staff", isActive: true, shopNames: ["Shop 1", "Shop 2"] })).toBe("Shop 1, Shop 2");

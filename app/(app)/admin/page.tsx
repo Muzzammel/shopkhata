@@ -48,8 +48,8 @@ async function AccountsWorkspace({ actor }: { actor: Actor }) {
   const [profiles, assignments, shops, audit] = await Promise.all([
     supabase.from("profiles").select("id,email,display_name,role,is_active").order("display_name").limit(500),
     supabase.from("user_shop_assignments").select("user_id,shop_id").limit(2000),
-    supabase.from("shops").select("id,name").order("name"),
-    supabase.from("audit_events").select("id,action,actor_id,entity_id,metadata,recorded_at,shop_id").eq("entity_type", "profile").order("recorded_at", { ascending: false }).limit(50),
+    supabase.from("shops").select("id,name,is_active").order("name"),
+    supabase.from("audit_events").select("id,action,actor_id,entity_id,metadata,reason,recorded_at,shop_id").eq("entity_type", "profile").order("recorded_at", { ascending: false }).limit(50),
   ]);
   if (profiles.error || !profiles.data || assignments.error || !assignments.data || shops.error || !shops.data || audit.error || !audit.data) throw new Error("ADMIN_WORKSPACE_UNAVAILABLE");
 
@@ -64,7 +64,7 @@ async function AccountsWorkspace({ actor }: { actor: Actor }) {
     { label: "Accounts", value: accounts.length },
     { label: "Active", value: active.length },
     ...([["owner", "Owners"], ["manager", "Managers"], ["staff", "Staff"]] as const).map(([role, label]) => ({ label, value: active.filter((account) => account.role === role).length })),
-    { label: "Deactivated", value: accounts.length - active.length },
+    { label: "Inactive", value: accounts.length - active.length },
     { label: "No shop access", value: active.filter((account) => account.role !== "owner" && account.shopIds.length === 0).length, warn: true },
   ];
 
@@ -75,7 +75,7 @@ async function AccountsWorkspace({ actor }: { actor: Actor }) {
 
     {accounts.length === 0
       ? <section className="grid justify-items-center gap-2 rounded-3xl border border-dashed border-input bg-card px-6 py-14 text-center"><h2 className="text-lg font-semibold">No accounts registered</h2><p className="max-w-sm text-sm text-muted-foreground">Register a sign-in to give it a role.</p></section>
-      : <AccountDirectory accounts={accounts} shops={shops.data} actorId={actor.id} />}
+      : <AccountDirectory accounts={accounts} shops={shops.data.map((shop) => ({ id: shop.id, name: shop.name, isActive: shop.is_active }))} actorId={actor.id} />}
 
     <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">
       <section aria-labelledby="account-history-heading" className={card}>
@@ -93,7 +93,7 @@ async function AccountsWorkspace({ actor }: { actor: Actor }) {
       <aside aria-labelledby="access-rules-heading" className={cn(card, "content-start")}>
         <div className="flex items-center gap-2"><KeyRoundIcon aria-hidden className="size-4 text-muted-foreground" /><h2 id="access-rules-heading" className="text-lg font-semibold tracking-tight">How access works</h2></div>
         <dl className="grid gap-3 text-sm">{(["owner", "manager", "staff"] as const).map((role) => <div key={role} className="grid gap-0.5"><dt className="font-semibold">{ROLE_LABEL[role]}</dt><dd className="text-muted-foreground">{ROLE_SUMMARY[role]}</dd></div>)}</dl>
-        <p className="border-t border-border pt-3 text-[13px] text-muted-foreground">Sign-in emails and passwords are managed in the Supabase dashboard (Authentication), not here. ShopKhata never shows or stores a password. You cannot change your own role or status, so the shops always keep an owner.</p>
+        <p className="border-t border-border pt-3 text-[13px] text-muted-foreground">Sign-in emails and passwords are managed in the Supabase dashboard (Authentication), not here. ShopKhata never shows or stores a password. You cannot change your own role or status, so ShopKhata always keeps an active owner. Deactivating needs a reason and never deletes an account or its history.</p>
       </aside>
     </div>
   </>;
