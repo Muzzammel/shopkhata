@@ -256,7 +256,7 @@ export function InvoiceOperations({ detail, permissions }: {
           {blockedVoid && <p className={ui.warn} data-slot="void-blocked">{operationError(blockedVoid)}</p>}
           <div className="grid gap-1.5">
             <label data-slot="label" htmlFor="void-reason" className={ui.label}>Reason for voiding (required, at least {VOID_REASON_MIN} characters)</label>
-            <textarea data-slot="textarea" id="void-reason" rows={3} required className={cn(ui.field, "h-auto min-h-24 py-2.5")} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={2000} aria-invalid={Boolean(fieldErrors.reason)} aria-describedby={fieldErrors.reason ? "void-reason-error" : undefined} />
+            <textarea data-slot="textarea" id="void-reason" rows={3} required className={cn(ui.field, "h-auto min-h-24 py-2.5")} value={reason} onChange={(e) => setReason(e.target.value)} aria-invalid={Boolean(fieldErrors.reason)} aria-describedby={fieldErrors.reason ? "void-reason-error" : undefined} />
             <FieldError id="void-reason-error" message={fieldErrors.reason} />
           </div>
           <div className="flex flex-wrap gap-2">

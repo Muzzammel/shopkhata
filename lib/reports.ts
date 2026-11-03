@@ -2,8 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import {
-  INVOICE_EXPORT_HEADERS, fetchExpenseExport, fetchInvoiceExport, invoiceExportSheet, qar, recordedAt, sheet,
-  type Cell, type ExpenseExportRow, type ExportSheet, type InvoiceExportRow,
+  fetchExpenseExport, qar, recordedAt, sheet, type Cell, type ExpenseExportRow, type ExportSheet,
 } from "@/lib/excel/exports";
 import { readAllPages } from "@/lib/read-all-pages";
 import type { Database } from "@/lib/supabase/database.types";
@@ -18,7 +17,7 @@ type Functions = Database["public"]["Functions"];
 export const REPORT_KINDS = ["daily", "sales", "dues", "expenses", "payments"] as const;
 export type ReportKind = (typeof REPORT_KINDS)[number];
 export const REPORT_TITLES: Record<ReportKind, string> = {
-  daily: "Daily summary", sales: "Sales by invoice date", dues: "Customer dues", expenses: "Expenses", payments: "Payments",
+  daily: "Daily summary", sales: "Sales by business date", dues: "Customer dues", expenses: "Expenses", payments: "Payments",
 };
 export const MAX_REPORT_RANGE_DAYS = 366;
 /** Rows shown on screen; exports carry every row. */
@@ -116,7 +115,24 @@ export async function fetchDailySummary(supabase: Client, shopId: string, from: 
 
 // Row reports ---------------------------------------------------------------
 
-export type SalesTotals = { invoiceCount: number; totalDirham: number; paidDirham: number; creditAppliedDirham: number; dueDirham: number; deliveredCount: number; undeliveredCount: number };
+/**
+ * Sales are BUSINESS-DATE MOVEMENTS: an invoice's original total on its own date, an approved invoice-total correction
+ * (a void included) on the correction's date. gross + corrections = net, and they reconcile with Daily Close's
+ * grossInvoiceDirham + invoiceCorrectionsDirham. paid/credit/due/delivery are the CURRENT state of the invoices whose
+ * business date is in the range.
+ */
+export type SalesTotals = {
+  invoiceCount: number; grossSalesDirham: number; salesCorrectionsDirham: number; netSalesDirham: number;
+  paidDirham: number; creditAppliedDirham: number; dueDirham: number; deliveredCount: number; undeliveredCount: number;
+};
+export const SALES_MOVEMENTS = { sale: "Sale", invoice_correction: "Invoice correction", invoice_void: "Invoice void" } as const;
+export type SalesMovement = keyof typeof SALES_MOVEMENTS;
+/** One movement on its business date. `current` is the invoice's current state, carried on its sale row only. */
+export type SalesReportRow = {
+  movementId: string; movement: SalesMovement; businessDate: string; recordedAt: string | null; amountDirham: number;
+  invoiceId: string; invoiceNumber: string; customerName: string;
+  current: { totalDirham: number; paidDirham: number; creditAppliedDirham: number; dueDirham: number; delivered: boolean; isVoid: boolean } | null;
+};
 export type CustomerDueRow = { customerId: string; publicId: string; name: string; mobile: string; outstandingDueDirham: number; availableCreditDirham: number; invoiceCount: number; lastActivity: string };
 export type CustomerDueTotals = { customersWithDue: number; outstandingDueDirham: number; availableCreditDirham: number; unassignedDueDirham: number };
 export type ExpenseReportRow = ExpenseExportRow;
@@ -139,19 +155,45 @@ function chunks<T>(items: readonly T[], size = 200): T[][] {
   return Array.from({ length: Math.ceil(items.length / size) }, (_, index) => items.slice(index * size, (index + 1) * size));
 }
 
-export async function fetchSalesReport(supabase: Client, shopId: string, from: string, to: string, limit?: number): Promise<{ rows: InvoiceExportRow[]; totals: SalesTotals }> {
-  const [rows, totals] = await Promise.all([
-    fetchInvoiceExport(supabase, shopId, from, to, limit),
+export async function fetchSalesReport(supabase: Client, shopId: string, from: string, to: string, limit?: number): Promise<{ rows: SalesReportRow[]; totals: SalesTotals }> {
+  const [movements, totals] = await Promise.all([
+    readRows((offset, end) => supabase.from("sales_movements").select("movement_id,movement_type,business_date,recorded_at,invoice_id,amount_dirham")
+      .eq("shop_id", shopId).gte("business_date", from).lte("business_date", to)
+      .order("business_date").order("recorded_at").order("movement_id").range(offset, end), limit),
     supabase.rpc("report_sales_totals", { p_shop_id: shopId, p_from: from, p_to: to }),
   ]);
   const total = totals.data?.[0];
-  if (totals.error || !total) throw new Error("REPORT_UNAVAILABLE");
+  if (movements.error || !movements.data || totals.error || !total) throw new Error("REPORT_UNAVAILABLE");
+  const invoices = new Map<string, Database["public"]["Views"]["effective_invoices"]["Row"]>();
+  for (const ids of chunks([...new Set(movements.data.map((row) => row.invoice_id!))])) {
+    const result = await supabase.from("effective_invoices").select("*").eq("shop_id", shopId).in("canonical_invoice_id", ids);
+    if (result.error || !result.data) throw new Error("REPORT_UNAVAILABLE");
+    for (const invoice of result.data) invoices.set(invoice.canonical_invoice_id!, invoice);
+  }
+  const names = new Map<string, string>();
+  for (const ids of chunks([...new Set([...invoices.values()].flatMap((invoice) => invoice.effective_customer_id ? [invoice.effective_customer_id] : []))])) {
+    const result = await supabase.from("customers").select("id,name,public_id").eq("shop_id", shopId).in("id", ids);
+    if (result.error || !result.data) throw new Error("REPORT_UNAVAILABLE");
+    for (const customer of result.data) names.set(customer.id, customer.name || customer.public_id);
+  }
   return {
-    rows,
+    rows: movements.data.map((row) => {
+      const invoice = invoices.get(row.invoice_id!);
+      if (!invoice) throw new Error("REPORT_UNAVAILABLE");
+      const movement = row.movement_type as SalesMovement;
+      return {
+        movementId: row.movement_id!, movement, businessDate: row.business_date!, recordedAt: row.recorded_at, amountDirham: amount(row.amount_dirham!),
+        invoiceId: row.invoice_id!, invoiceNumber: invoice.effective_invoice_number!, customerName: invoice.effective_customer_id ? names.get(invoice.effective_customer_id) ?? "" : "",
+        current: movement !== "sale" ? null : {
+          totalDirham: amount(invoice.effective_total_dirham!), paidDirham: amount(invoice.effective_paid_dirham!), creditAppliedDirham: amount(invoice.effective_credit_applied_dirham ?? 0),
+          dueDirham: amount(invoice.effective_due_dirham!), delivered: invoice.effective_delivered === true, isVoid: invoice.is_void === true,
+        },
+      };
+    }),
     totals: {
-      invoiceCount: amount(total.invoice_count), totalDirham: amount(total.effective_total_dirham), paidDirham: amount(total.effective_paid_dirham),
-      creditAppliedDirham: amount(total.credit_applied_dirham), dueDirham: amount(total.effective_due_dirham),
-      deliveredCount: amount(total.delivered_count), undeliveredCount: amount(total.undelivered_count),
+      invoiceCount: amount(total.invoice_count), grossSalesDirham: amount(total.gross_sales_dirham), salesCorrectionsDirham: amount(total.sales_corrections_dirham),
+      netSalesDirham: amount(total.net_sales_dirham), paidDirham: amount(total.effective_paid_dirham), creditAppliedDirham: amount(total.credit_applied_dirham),
+      dueDirham: amount(total.effective_due_dirham), deliveredCount: amount(total.delivered_count), undeliveredCount: amount(total.undelivered_count),
     },
   };
 }
@@ -271,14 +313,23 @@ export function dailySummarySheet(days: readonly DailySummary[]): ExportSheet {
   ]));
 }
 
-export function salesReportSheet(rows: readonly InvoiceExportRow[], totals: SalesTotals): ExportSheet {
-  const result = invoiceExportSheet(rows);
-  result.sheet = "Sales";
-  result.data.push([
-    bold("Total"), `${totals.invoiceCount} invoices`, qar(totals.totalDirham), qar(totals.paidDirham), qar(totals.creditAppliedDirham), qar(totals.dueDirham),
-    `${totals.deliveredCount} delivered, ${totals.undeliveredCount} not delivered`, ...INVOICE_EXPORT_HEADERS.slice(7).map(() => null),
+export const SALES_REPORT_HEADERS = ["Business Date", "Movement", "Invoice Number", "Amount QAR", "Customer", "Recorded At (Qatar)", "Current Total QAR", "Current Paid QAR", "Current Credit Applied QAR", "Current Due QAR", "Delivered", "Status", "Invoice Reference"];
+/** One row per movement on its business date; the Current columns are filled on sale rows only. */
+export function salesReportSheet(rows: readonly SalesReportRow[], totals: SalesTotals): ExportSheet {
+  const blank = (n: number): Cell[] => Array.from({ length: n }, () => null);
+  return sheet("Sales", SALES_REPORT_HEADERS, [
+    ...rows.map((row): Cell[] => [
+      row.businessDate, SALES_MOVEMENTS[row.movement], row.invoiceNumber, qar(row.amountDirham), row.customerName, recordedAt(row.recordedAt),
+      ...(row.current ? [qar(row.current.totalDirham), qar(row.current.paidDirham), qar(row.current.creditAppliedDirham), qar(row.current.dueDirham),
+        row.current.delivered ? "Yes" : "No", row.current.isVoid ? "VOID" : "ACTIVE"] : blank(6)),
+      row.invoiceId,
+    ]),
+    [bold("Gross sales"), `${totals.invoiceCount} invoices`, null, qar(totals.grossSalesDirham), ...blank(9)],
+    [bold("Invoice corrections"), null, null, qar(totals.salesCorrectionsDirham), ...blank(9)],
+    [bold("Net sales"), null, null, qar(totals.netSalesDirham), ...blank(9)],
+    [bold("Current state of these invoices"), null, null, null, null, null, null, qar(totals.paidDirham), qar(totals.creditAppliedDirham), qar(totals.dueDirham),
+      `${totals.deliveredCount} delivered, ${totals.undeliveredCount} not delivered`, null, null],
   ]);
-  return result;
 }
 
 export const CUSTOMER_DUE_HEADERS = ["Customer ID", "Customer", "Mobile", "Outstanding Due QAR", "Available Credit QAR", "Invoices", "Last Activity"];

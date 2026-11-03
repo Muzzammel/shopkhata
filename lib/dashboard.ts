@@ -16,6 +16,12 @@ type Client = SupabaseClient<Database>;
 // Nothing is aggregated by re-reading full invoice/payment history into
 // React — each query is either a database aggregate or a bounded, limited
 // select.
+//
+// Two read concepts, never mixed in one figure (docs/daily-close-reports.md):
+// - Sales (KPI, trend, top customers, shop comparison) are BUSINESS-DATE
+//   MOVEMENTS: original invoice totals on their date, corrections and voids on
+//   theirs, so a later void never rewrites an earlier period.
+// - Invoice health, unpaid invoices, dues and credit are CURRENT STATE.
 
 export const DASHBOARD_PERIODS = ["today", "7d", "30d", "year", "custom"] as const;
 export type DashboardPeriod = (typeof DASHBOARD_PERIODS)[number];
@@ -40,7 +46,7 @@ type Rpc<Name extends keyof Database["public"]["Functions"]> = Database["public"
 function shopTotals(shop: { id: string; name: string }, sales: Rpc<"report_sales_totals">[number], payments: Rpc<"report_payment_totals">, expenses: Rpc<"report_expense_totals">, due: Rpc<"report_customer_due_totals">[number]): ShopTotals {
   const expenseTotal = expenses.find((row) => row.category === null)?.amount_dirham ?? 0;
   return {
-    shopId: shop.id, shopName: shop.name, salesDirham: sales.effective_total_dirham, invoiceCount: sales.invoice_count,
+    shopId: shop.id, shopName: shop.name, salesDirham: sales.net_sales_dirham, invoiceCount: sales.invoice_count,
     paymentsReceivedDirham: mapPaymentTotals(payments).receivedDirham, expensesDirham: expenseTotal, outstandingDueDirham: due.outstanding_due_dirham,
   };
 }
@@ -208,8 +214,8 @@ export async function loadDashboard(supabase: Client, shops: readonly { id: stri
   return {
     range,
     kpi: {
-      invoiceCount: salesRow.invoice_count, salesDirham: salesRow.effective_total_dirham,
-      averageInvoiceDirham: salesRow.invoice_count > 0 ? Math.round(salesRow.effective_total_dirham / salesRow.invoice_count) : 0,
+      invoiceCount: salesRow.invoice_count, salesDirham: salesRow.net_sales_dirham,
+      averageInvoiceDirham: salesRow.invoice_count > 0 ? Math.round(salesRow.gross_sales_dirham / salesRow.invoice_count) : 0,
       paymentsReceivedDirham: paymentTotals.cashDirham, bankReceivedDirham: paymentTotals.bankDirham, totalReceivedDirham: paymentTotals.receivedDirham,
       expensesDirham: expenseTotals.totalDirham, netCashMovementDirham,
       outstandingDueDirham: dueRow.outstanding_due_dirham, availableCreditDirham: dueRow.available_credit_dirham, customersWithDue: dueRow.customers_with_due,
@@ -224,7 +230,7 @@ export async function loadDashboard(supabase: Client, shops: readonly { id: stri
       paymentsReceivedDirham: paymentTotals.cashDirham, bankReceivedDirham: paymentTotals.bankDirham, largestDues: dueRows, creditCustomers,
     },
     trend: {
-      days: days.map((day) => ({ businessDate: day.businessDate, salesDirham: day.grossInvoiceDirham, paymentsDirham: day.cashReceivedDirham, receivedDirham: day.totalReceivedDirham, expensesDirham: day.expensesDirham })),
+      days: days.map((day) => ({ businessDate: day.businessDate, salesDirham: day.grossInvoiceDirham + day.invoiceCorrectionsDirham, paymentsDirham: day.cashReceivedDirham, receivedDirham: day.totalReceivedDirham, expensesDirham: day.expensesDirham })),
       today: todaySummary,
     },
     expenses: {

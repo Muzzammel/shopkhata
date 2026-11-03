@@ -285,7 +285,7 @@ async function verifyRestore(from) {
   const rows = Object.values(restored.tables).reduce((sum, value) => sum + Number(value.split(":")[0]), 0);
   pass("table reconciliation", `${Object.keys(restored.tables).length} tables, ${rows} rows: every count and row hash identical`);
   for (const [shopId, shop] of Object.entries(restored.shops)) {
-    pass(`financial reconciliation ${shopId}`, `invoices ${shop.sales_totals.invoice_count}, total ${shop.sales_totals.effective_total_dirham}, paid ${shop.sales_totals.effective_paid_dirham}, due ${shop.sales_totals.effective_due_dirham}, customer due ${shop.customer_due_totals.outstanding_due_dirham}, available credit ${shop.customer_due_totals.available_credit_dirham} (dirham); ledger, balances, expenses and closed dates identical`);
+    pass(`financial reconciliation ${shopId}`, `invoices ${shop.sales_totals.invoice_count}, net sales ${shop.sales_totals.net_sales_dirham ?? shop.sales_totals.effective_total_dirham}, paid ${shop.sales_totals.effective_paid_dirham}, due ${shop.sales_totals.effective_due_dirham}, customer due ${shop.customer_due_totals.outstanding_due_dirham}, available credit ${shop.customer_due_totals.available_credit_dirham} (dirham); ledger, balances, expenses and closed dates identical`);
   }
 
   psql(["-c", ISOLATION_SQL]);

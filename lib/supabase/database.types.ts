@@ -1332,6 +1332,10 @@ export type Database = {
         Row: { shop_id: string | null; entry_id: string | null; business_date: string | null; recorded_at: string | null; source: string | null; method: string | null; amount_dirham: number | null; invoice_id: string | null; created_by: string | null; reference: string | null }
         Relationships: []
       }
+      sales_movements: {
+        Row: { shop_id: string | null; business_date: string | null; recorded_at: string | null; movement_id: string | null; invoice_id: string | null; movement_type: string | null; amount_dirham: number | null }
+        Relationships: []
+      }
       effective_expenses: {
         Row: { id: string | null; shop_id: string | null; business_date: string | null; recorded_at: string | null; created_by: string | null; description: string | null; amount_dirham: number | null; category: string | null; correction_request_id: string | null; backdated_reason: string | null }
         Relationships: []
@@ -1365,12 +1369,11 @@ export type Database = {
       report_daily_summary: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { business_date: string; invoice_count: number; gross_invoice_dirham: number; initial_received_dirham: number; due_created_dirham: number; followup_payments_dirham: number; customer_payments_dirham: number; payment_corrections_dirham: number; invoice_corrections_dirham: number; credit_created_dirham: number; credit_applied_dirham: number; expense_count: number; expenses_dirham: number; cash_received_dirham: number; bank_received_dirham: number; total_received_dirham: number; net_cash_movement_dirham: number; net_due_movement_dirham: number }[] }
       report_day_pending_requests: { Args: { p_shop_id: string; p_date: string }; Returns: { pending_invoice_corrections: number; pending_invoice_replacements: number; pending_expense_corrections: number }[] }
       report_payment_totals: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { source: string | null; method: string | null; entry_count: number; amount_dirham: number }[] }
-      report_sales_totals: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { invoice_count: number; effective_total_dirham: number; effective_paid_dirham: number; credit_applied_dirham: number; effective_due_dirham: number; delivered_count: number; undelivered_count: number }[] }
+      report_sales_totals: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { invoice_count: number; gross_sales_dirham: number; sales_corrections_dirham: number; net_sales_dirham: number; effective_paid_dirham: number; credit_applied_dirham: number; effective_due_dirham: number; delivered_count: number; undelivered_count: number }[] }
       report_customer_due_totals: { Args: { p_shop_id: string }; Returns: { customers_with_due: number; outstanding_due_dirham: number; available_credit_dirham: number; unassigned_due_dirham: number }[] }
       report_expense_totals: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { category: string | null; expense_count: number; amount_dirham: number }[] }
       report_top_customers_by_sales: { Args: { p_shop_id: string; p_from: string; p_to: string; p_limit?: number }; Returns: { customer_id: string; name: string; amount_dirham: number }[] }
       report_top_customers_by_payments: { Args: { p_shop_id: string; p_from: string; p_to: string; p_limit?: number }; Returns: { customer_id: string; name: string; amount_dirham: number }[] }
-      report_dashboard_snapshot: { Args: { p_shop_id: string; p_from: string; p_to: string; p_comparison_shop_ids?: string[] }; Returns: Json }
     }
     Enums: {
       [_ in never]: never

@@ -272,14 +272,18 @@ describe("daily close, backdating and reports against real Supabase", () => {
       bankReceivedDirham: 0, totalReceivedDirham: 1540, netCashMovementDirham: 1310, netDueMovementDirham: 230,
     });
 
-    // Sales: equal to the effective invoice projection; the replaced invoice is one row under its new number.
+    // Sales: business-date movements reconcile with Daily Close (gross + invoice corrections); the current-state columns
+    // equal the effective projection; the replaced invoice is one sale row under its new number.
     const sales = await fetchSalesReport(staff2, SHOP2, today, today);
     const effective = await must(staff2.from("effective_invoices").select("effective_total_dirham,effective_paid_dirham,effective_credit_applied_dirham,effective_due_dirham").eq("shop_id", SHOP2).eq("business_date", today));
     const sum = (field: keyof (typeof effective)[number]) => effective.reduce((total, item) => total + (item[field] as number), 0);
-    expect(sales.totals).toEqual({ invoiceCount: 3, totalDirham: sum("effective_total_dirham"), paidDirham: sum("effective_paid_dirham"), creditAppliedDirham: sum("effective_credit_applied_dirham"), dueDirham: sum("effective_due_dirham"), deliveredCount: 2, undeliveredCount: 1 });
-    expect(sales.totals).toMatchObject({ totalDirham: 1770, paidDirham: 1490, creditAppliedDirham: 50, dueDirham: 230 });
-    expect(sales.rows.map((item) => item.invoiceNumber).sort()).toEqual([a, renamed, c].sort());
-    expect(sales.rows.find((item) => item.invoiceNumber === renamed)?.originalNumber).toBe(b);
+    expect(sales.totals).toEqual({ invoiceCount: 3, grossSalesDirham: day.grossInvoiceDirham, salesCorrectionsDirham: day.invoiceCorrectionsDirham,
+      netSalesDirham: day.grossInvoiceDirham + day.invoiceCorrectionsDirham, paidDirham: sum("effective_paid_dirham"), creditAppliedDirham: sum("effective_credit_applied_dirham"),
+      dueDirham: sum("effective_due_dirham"), deliveredCount: 2, undeliveredCount: 1 });
+    // Every correction here is dated today, so today's net sales equal the effective totals of today's invoices.
+    expect(sales.totals).toMatchObject({ grossSalesDirham: 1800, salesCorrectionsDirham: -30, netSalesDirham: sum("effective_total_dirham"), paidDirham: 1490, creditAppliedDirham: 50, dueDirham: 230 });
+    expect(sales.rows.filter((item) => item.movement === "sale").map((item) => item.invoiceNumber).sort()).toEqual([a, renamed, c].sort());
+    expect(sales.rows.filter((item) => item.movement !== "sale").map((item) => [item.movement, item.amountDirham])).toEqual([["invoice_correction", -30]]);
     // The day's net change in due is the due still open on its invoices.
     expect(day.netDueMovementDirham).toBe(sales.totals.dueDirham);
 
@@ -316,8 +320,9 @@ describe("daily close, backdating and reports against real Supabase", () => {
     // Exports carry the same authoritative values as the fetches above.
     expect((await sheetData(dailySummarySheet([day])))[1]).toEqual([today, 3, 18, 9, 9, 4, 2, -0.1, -0.3, 0.5, 0.5, 2, 2.3, 15.4, 0, 15.4, 13.1, 2.3]);
     const salesSheet = await sheetData(salesReportSheet(sales.rows, sales.totals));
-    expect(salesSheet).toHaveLength(5);
-    expect(salesSheet[4].slice(0, 7)).toEqual(["Total", "3 invoices", 17.7, 14.9, 0.5, 2.3, "2 delivered, 1 not delivered"]);
+    expect(salesSheet).toHaveLength(9);
+    expect(salesSheet.slice(-4).map((item) => [item[0], item[3]])).toEqual([["Gross sales", 18], ["Invoice corrections", -0.3], ["Net sales", 17.7], ["Current state of these invoices", null]]);
+    expect(salesSheet.at(-1)?.slice(7, 11)).toEqual([14.9, 0.5, 2.3, "2 delivered, 1 not delivered"]);
     expect((await sheetData(customerDueSheet(dues.rows, dues.totals))).slice(-2).map((item) => item[3])).toEqual([2.3, 0]);
     expect((await sheetData(expenseReportSheet(expenses.rows, expenses.totals))).at(-1)?.slice(0, 4)).toEqual(["Total", null, "2 expenses", 2.3]);
     expect((await sheetData(paymentReportSheet(payments.rows, payments.totals))).slice(-4).map((item) => [item[0], item[4]])).toEqual([["Total cash received", 15.4], ["Total bank received", 0], ["Total received (cash + bank)", 15.4], ["Total customer credit applied", 0.5]]);
@@ -360,7 +365,7 @@ describe("daily close, backdating and reports against real Supabase", () => {
     expect((await fetchSalesReport(owner, SHOP2, "2001-01-01", "2001-01-01")).totals.invoiceCount).toBe(0);
     // The export shows the business date and the Qatar-local recorded time side by side.
     const exported = (await sheetData(salesReportSheet(sales.rows, sales.totals)))[1];
-    expect([exported[0], exported[1], exported[9]]).toEqual([midnightNumber, "2001-01-02", "2001-01-02 01:30:00"]);
+    expect([exported[0], exported[1], exported[2], exported[5]]).toEqual(["2001-01-02", "Sale", midnightNumber, "2001-01-02 01:30:00"]);
 
     // Closing that business date blocks it; the day before, which shares its UTC date, stays open.
     await must(close(owner, "2001-01-02", SHOP2));

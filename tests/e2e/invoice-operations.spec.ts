@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { test, expect, type Page } from "@playwright/test";
 import readXlsxFile from "read-excel-file/universal";
+import { openSaleTools } from "./offline-helpers";
 
 const SHOP1 = "10000000-0000-4000-8000-000000000001";
 const SHOP2 = "10000000-0000-4000-8000-000000000002";
@@ -279,13 +280,21 @@ test("OPS-01B: a manager voids an unpaid invoice; staff cannot; the original sta
   await expect(listed.locator("[data-badge=void]")).toHaveText("Void");
   await expect(listed).toContainText("QAR 0.00");
 
-  // Export keeps the row, marked VOID in the final Status column.
+  // Export keeps the row: Current Total 0, Status VOID, and the Original Total still 100.00 (never silently 0).
   const response = await manager.request.get(`/exports/invoices?shop=${SHOP1}`);
   expect(response.status()).toBe(200);
   const [sheet] = await readXlsxFile(new Blob([new Uint8Array(await response.body())]));
-  expect(sheet.data[0].at(-1)).toBe("Status");
+  expect(sheet.data[0].slice(-2)).toEqual(["Status", "Original Total QAR"]);
+  expect(sheet.data[0][2]).toBe("Current Total QAR");
   const exported = sheet.data.find((cells) => cells[0] === number);
-  expect(exported?.at(-1)).toBe("VOID");
+  expect(exported?.slice(-2)).toEqual(["VOID", 100]);
   expect(exported?.[2]).toBe(0);
+
+  // m1: New Sale's recent-invoice preview shows VOID, never Paid, for the voided invoice (due 0).
+  await page.goto("/");
+  await openSaleTools(page);
+  const preview = page.locator("#recent-invoices li").filter({ has: page.getByRole("link", { name: `View invoice ${number}`, exact: true }) });
+  await expect(preview.locator("[data-badge=void]")).toHaveText("Void");
+  await expect(preview.locator("[data-badge=paid]")).toHaveCount(0);
   await context.close();
 });

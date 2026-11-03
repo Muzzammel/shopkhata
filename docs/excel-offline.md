@@ -53,7 +53,7 @@ Money is exported as QAR numbers with a two-decimal format, converted from integ
 
 | Export | Where | Columns |
 | --- | --- | --- |
-| Invoices | Workspace → Recent invoices, date range | Invoice Number, Business Date, Total QAR, Paid QAR, Credit Applied QAR, Due QAR, Delivered, Customer, Customer Mobile, Recorded At (Qatar), Original Number, Invoice Reference |
+| Invoices | Workspace → Recent invoices, date range | Invoice Number, Business Date, Current Total QAR, Paid QAR, Credit Applied QAR, Due QAR, Delivered, Customer, Customer Mobile, Recorded At (Qatar), Original Number, Invoice Reference, Status (ACTIVE / VOID), Original Total QAR. A current-state register of the invoices dated in the range: a voided invoice shows Current Total 0 and Status VOID, and its Original Total keeps the amount recorded on its date. For what happened on each date (sales, corrections and voids as movements) export the Sales report. |
 | Customer ledger | Customer page | Business Date, Type, Reference, Invoice Number, Debit QAR, Credit QAR, Balance QAR, Recorded At (Qatar) |
 | Expenses | Expenses page, date range | Business Date, Category, Description, Amount QAR, Created By, Recorded At (Qatar), Expense Reference |
 

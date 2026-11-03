@@ -146,7 +146,8 @@ select is((select sum(debit_dirham - credit_dirham) from public.customer_ledger 
 select is((select invoice_corrections_dirham from public.report_daily_summary(pg_temp.s1(), current_date, current_date)), -19000::bigint, 'daily summary books the three voids as today''s invoice corrections');
 select is((select (r.outstanding_due_dirham + r.unassigned_due_dirham) from public.report_customer_due_totals(pg_temp.s1()) r),
   (select sum(effective_due_dirham)::bigint from public.effective_invoices where shop_id = pg_temp.s1()), 'due totals equal the sum of effective due');
-select is((select effective_total_dirham from public.report_sales_totals(pg_temp.s1(), current_date - 3, current_date - 3)), 0::bigint, 'sales report for the original date shows the voided invoice at 0');
+select is((select array[gross_sales_dirham, sales_corrections_dirham, net_sales_dirham] from public.report_sales_totals(pg_temp.s1(), current_date - 3, current_date - 3)), array[10000, 0, 10000]::bigint[], 'sales report for the original date keeps the voided invoice at its original amount (history is immutable)');
+select is((select sales_corrections_dirham from public.report_sales_totals(pg_temp.s1(), current_date, current_date)), -19000::bigint, 'the three voids are corrections on today''s sales report');
 select is((select count(*)::int from public.effective_invoices where shop_id = pg_temp.s1() and is_void), 3, 'voided invoices stay visible');
 
 -- 8. Audit ---------------------------------------------------------------------------------------------------------

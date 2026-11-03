@@ -76,6 +76,7 @@ const STAFF2 = { email: "staff2@shopkhata.local", password: "ShopKhata-Local-Sho
 const SHOP_1 = "10000000-0000-4000-8000-000000000001";
 const MANAGER_ID = "10000000-0000-4000-8000-000000000104";
 const STAFF1_ID = "10000000-0000-4000-8000-000000000102";
+const OWNER_ID = "10000000-0000-4000-8000-000000000101";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const today = () => qatarBusinessDate(new Date());
@@ -107,6 +108,12 @@ const voidSql = (invoiceId: string, key: string, reason = "Customer cancelled th
   `select 'void:' || (public.void_invoice('${JSON.stringify({ shop_id: SHOP_1, invoice_id: invoiceId, reason, idempotency_key: key })}') ->> 'void_id');\n`;
 const paySql = (invoiceId: string, key: string, amount: number) =>
   `select 'pay:' || (public.record_payment('${JSON.stringify({ shop_id: SHOP_1, invoice_id: invoiceId, amount_dirham: amount, payment_method: "cash", business_date: today(), idempotency_key: key })}') ->> 'ok');\n`;
+const decideSql = (requestId: string, key: string) =>
+  `select 'dec:' || (public.decide_invoice_correction('${JSON.stringify({ shop_id: SHOP_1, request_id: requestId, expected_revision: 0, decision: "approved", reason: null, idempotency_key: key })}') ->> 'ok');\n`;
+const creditSql = (customerId: string, key: string, amount: number) =>
+  `select 'credit:' || (public.apply_customer_credit('${JSON.stringify({ shop_id: SHOP_1, customer_id: customerId, amount_dirham: amount, business_date: today(), idempotency_key: key })}') ->> 'ok');\n`;
+const closeSql = () => `select 'close:' || (public.close_business_date('${JSON.stringify({ shop_id: SHOP_1, business_date: today() })}') is not null);\n`;
+const reopenSql = () => `select public.reopen_business_date('${JSON.stringify({ shop_id: SHOP_1, business_date: today(), reason: "integration test reopens today" })}');\n`;
 const psqlScalar = async (sql: string) => { const result = await session(`${sql}\n`).done; expect(result.code, result.err).toBe(0); return result.out.trim(); };
 const balances = (invoiceId: string) => psqlScalar(`select concat_ws('|', effective_total_dirham, effective_paid_dirham, effective_due_dirham, is_void) from public.effective_invoices where canonical_invoice_id = '${invoiceId}'`);
 
@@ -227,5 +234,116 @@ describe("OPS-01B invoice void (real network, real sessions, concurrent sessions
     expect(p.err).toMatch(/PAYMENT_VALIDATION_FAILED|INVOICE_VOID/);
     expect(await psqlScalar(`select count(*) from public.payments where invoice_id = '${invoiceId}'`)).toBe("0");
     expect(await balances(invoiceId)).toBe("0|0|0|t");
+  });
+
+  // --- Review gap: races against correction approval, credit application and Daily Close -------------------------------
+
+  /** A pending +20.00 total correction on a fresh 100.00 invoice. */
+  async function pendingCorrection(invoiceId: string): Promise<string> {
+    const staff = await signIn(STAFF1);
+    const { data, error } = await staff.rpc("request_invoice_correction", { command: { shop_id: SHOP_1, invoice_id: invoiceId, payment_id: null, amount_delta_dirham: 2000, reason: "Price was higher", idempotency_key: crypto.randomUUID() } });
+    expect(error).toBeNull();
+    return data.request_id as string;
+  }
+
+  it("race: void in flight, then a correction approval waits and is refused with INVOICE_VOID", async () => {
+    const invoiceId = await sell();
+    const requestId = await pendingCorrection(invoiceId);
+    const voider = session(`begin;\n${as(MANAGER_ID)}${voidSql(invoiceId, `race-cv-${uid()}`)}select pg_sleep(1.5);\ncommit;\n`);
+    await voider.until("void:");
+    const approver = session(`begin;\n${as(OWNER_ID)}${decideSql(requestId, `race-cv-dec-${uid()}`)}commit;\n`);
+    const [v, a] = await Promise.all([voider.done, approver.done]);
+    expect(v.code, v.err).toBe(0);
+    expect(a.code).not.toBe(0);
+    expect(a.err).toContain("INVOICE_VOID");
+    expect(await balances(invoiceId)).toBe("0|0|0|t");
+    expect(await psqlScalar(`select coalesce(sum(amount_delta_dirham), 0) from public.corrections where invoice_id = '${invoiceId}'`)).toBe("-10000");
+  });
+
+  it("race: correction approval in flight, then the void waits and reverses the corrected total", async () => {
+    const invoiceId = await sell();
+    const requestId = await pendingCorrection(invoiceId);
+    const approver = session(`begin;\n${as(OWNER_ID)}${decideSql(requestId, `race-vc-dec-${uid()}`)}select pg_sleep(1.5);\ncommit;\n`);
+    await approver.until("dec:");
+    const voider = session(`begin;\n${as(MANAGER_ID)}${voidSql(invoiceId, `race-vc-${uid()}`)}commit;\n`);
+    const [a, v] = await Promise.all([approver.done, voider.done]);
+    expect(a.code, a.err).toBe(0);
+    expect(v.code, v.err).toBe(0);
+    expect(await balances(invoiceId)).toBe("0|0|0|t");
+    expect(await psqlScalar(`select c.amount_delta_dirham from public.corrections c join public.invoice_voids v on v.correction_id = c.id where v.invoice_id = '${invoiceId}'`)).toBe("-12000");
+    // History: the sale stays +100 on its date; +20 and -120 are their own movements; they net to 0.
+    expect(await psqlScalar(`select string_agg(movement_type || ':' || amount_dirham, ',' order by recorded_at) from public.sales_movements where invoice_id = '${invoiceId}'`)).toBe("sale:10000,invoice_correction:2000,invoice_void:-12000");
+  });
+
+  /** A customer with 50.00 of approved credit and one unpaid 100.00 invoice. */
+  async function customerWithCredit(): Promise<{ customerId: string; invoiceId: string }> {
+    const customerId = crypto.randomUUID(); const invoiceId = crypto.randomUUID(); const number = `IT-VCR-${uid()}`;
+    await psqlScalar(`set timezone = 'Asia/Qatar';
+insert into public.customers(id, shop_id, public_id, name) values ('${customerId}', '${SHOP_1}', 'CUS-${uid()}', 'Credit race customer');
+insert into public.invoices(id, shop_id, customer_id, invoice_id, total_amount_dirham, business_date, delivered, created_by) values ('${invoiceId}', '${SHOP_1}', '${customerId}', '${number}', 10000, current_date, true, '${STAFF1_ID}');
+insert into public.invoice_number_registry(shop_id, invoice_number, canonical_invoice_id) values ('${SHOP_1}', '${number}', '${invoiceId}');
+insert into public.customer_credits(shop_id, customer_id, amount_dirham, business_date, reason, created_by, approved_by) values ('${SHOP_1}', '${customerId}', 5000, current_date, 'race fixture credit', '${OWNER_ID}', '${OWNER_ID}');`);
+    return { customerId, invoiceId };
+  }
+
+  it("race: void in flight, then a credit application waits and applies nothing to the voided invoice", async () => {
+    const { customerId, invoiceId } = await customerWithCredit();
+    const voider = session(`begin;\n${as(MANAGER_ID)}${voidSql(invoiceId, `race-vcr-${uid()}`)}select pg_sleep(1.5);\ncommit;\n`);
+    await voider.until("void:");
+    const creditor = session(`begin;\n${as(STAFF1_ID)}${creditSql(customerId, `race-vcr-c-${uid()}`, 5000)}commit;\n`);
+    const [v, c] = await Promise.all([voider.done, creditor.done]);
+    expect(v.code, v.err).toBe(0);
+    expect(c.code).not.toBe(0);
+    expect(c.err).toMatch(/CREDIT_OR_DUE_INSUFFICIENT|INVOICE_VOID/);
+    expect(await psqlScalar(`select count(*) from public.credit_applications where invoice_id = '${invoiceId}'`)).toBe("0");
+    expect(await psqlScalar(`select available_credit_dirham from public.customer_financial_balances where customer_id = '${customerId}'`)).toBe("5000");
+    expect(await balances(invoiceId)).toBe("0|0|0|t");
+  });
+
+  it("race: credit application in flight, then the void waits and refuses with CREDIT_APPLIED", async () => {
+    const { customerId, invoiceId } = await customerWithCredit();
+    const creditor = session(`begin;\n${as(STAFF1_ID)}${creditSql(customerId, `race-crv-c-${uid()}`, 5000)}select pg_sleep(1.5);\ncommit;\n`);
+    await creditor.until("credit:");
+    const voider = session(`begin;\n${as(MANAGER_ID)}${voidSql(invoiceId, `race-crv-${uid()}`)}commit;\n`);
+    const [c, v] = await Promise.all([creditor.done, voider.done]);
+    expect(c.code, c.err).toBe(0);
+    expect(v.code).not.toBe(0);
+    expect(v.err).toContain("CREDIT_APPLIED");
+    expect(await psqlScalar(`select count(*) from public.invoice_voids where invoice_id = '${invoiceId}'`)).toBe("0");
+    expect(await psqlScalar(`select concat_ws('|', effective_total_dirham, effective_credit_applied_dirham, effective_due_dirham, is_void) from public.effective_invoices where canonical_invoice_id = '${invoiceId}'`)).toBe("10000|5000|5000|f");
+  });
+
+  it("race: void in flight, then closing today waits and the closed day includes the void", async () => {
+    const invoiceId = await sell();
+    const voider = session(`begin;\n${as(MANAGER_ID)}${voidSql(invoiceId, `race-vcl-${uid()}`)}select pg_sleep(1.5);\ncommit;\n`);
+    await voider.until("void:");
+    const closer = session(`begin;\n${as(OWNER_ID)}${closeSql()}commit;\n`);
+    const [v, c] = await Promise.all([voider.done, closer.done]);
+    try {
+      expect(v.code, v.err).toBe(0);
+      expect(c.code, c.err).toBe(0);
+      expect(await balances(invoiceId)).toBe("0|0|0|t");
+      // The correction is dated the day that is now closed, and was committed before the close took effect.
+      expect(await psqlScalar(`select c.business_date = (now() at time zone 'Asia/Qatar')::date and c.recorded_at < (select max(d.recorded_at) from public.daily_closes d where d.shop_id = c.shop_id and d.business_date = c.business_date and d.event_type = 'closed') from public.corrections c join public.invoice_voids v on v.correction_id = c.id where v.invoice_id = '${invoiceId}'`)).toBe("t");
+    } finally {
+      await psqlScalar(`begin;\n${as(OWNER_ID)}${reopenSql()}commit;`);
+    }
+  });
+
+  it("race: closing today in flight, then the void waits and refuses with CLOSED_DATE", async () => {
+    const invoiceId = await sell();
+    const closer = session(`begin;\n${as(OWNER_ID)}${closeSql()}select pg_sleep(1.5);\ncommit;\n`);
+    await closer.until("close:");
+    const voider = session(`begin;\n${as(MANAGER_ID)}${voidSql(invoiceId, `race-clv-${uid()}`)}commit;\n`);
+    const [c, v] = await Promise.all([closer.done, voider.done]);
+    try {
+      expect(c.code, c.err).toBe(0);
+      expect(v.code).not.toBe(0);
+      expect(v.err).toContain("CLOSED_DATE");
+      expect(await psqlScalar(`select count(*) from public.invoice_voids where invoice_id = '${invoiceId}'`)).toBe("0");
+      expect(await balances(invoiceId)).toBe("10000|0|10000|f");
+    } finally {
+      await psqlScalar(`begin;\n${as(OWNER_ID)}${reopenSql()}commit;`);
+    }
   });
 });

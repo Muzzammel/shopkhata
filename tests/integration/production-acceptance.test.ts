@@ -195,8 +195,8 @@ describe("production acceptance against real Supabase", () => {
     expect((await staff.from("customer_financial_balances").select("customer_id").eq("customer_id", customer2)).data).toEqual([]);
     const after1 = await fetchSalesReport(owner, SHOP1, today, today);
     const after2 = await fetchSalesReport(owner, SHOP2, today, today);
-    expect(after1.totals.totalDirham - before1.totals.totalDirham).toBe(700_00);
-    expect(after2.totals.totalDirham - before2.totals.totalDirham).toBe(30_00);
+    expect(after1.totals.netSalesDirham - before1.totals.netSalesDirham).toBe(700_00);
+    expect(after2.totals.netSalesDirham - before2.totals.netSalesDirham).toBe(30_00);
     expect(after1.totals.dueDirham - before1.totals.dueDirham).toBe(550_00);
     expect(after2.totals.dueDirham - before2.totals.dueDirham).toBe(25_00);
     expect((await fetchSalesReport(staff, SHOP2, today, today)).totals.invoiceCount).toBe(0);

@@ -20,14 +20,16 @@ export function previewTotalCorrection(current: { totalDirham: number; paidDirha
 }
 export const replacementInput = z.object({ ...base, expected_revision: z.number().int().min(0).max(2147483646), invoice_number: z.string().trim().min(1).max(120), customer_id: z.uuid().nullable(), delivered: z.boolean() }).strict();
 export const decisionInput = z.object({ shop_id: z.uuid(), request_id: z.uuid(), expected_revision: z.number().int().min(0).max(2147483646), decision: z.enum(["approved", "rejected"]), reason: z.string().trim().max(2000).nullable(), idempotency_key: z.uuid() }).strict();
-// A void needs a real explanation: trimmed, 10 to 2000 characters. The database applies the same rule.
+// A void needs a real explanation: trimmed, 10 to 2000 Unicode characters (code points, as PostgreSQL length()
+// counts them; String.length would count an emoji as 2). UI, server action and database apply this one rule.
 export const VOID_REASON_MIN = 10;
-export const voidInput = z.object({ shop_id: z.uuid(), invoice_id: z.uuid(), idempotency_key: z.uuid(), reason: z.string().trim().min(VOID_REASON_MIN).max(2000) }).strict();
+export const VOID_REASON_MAX = 2000;
 /** The reason rule as a code, checked before sending; null when the reason is acceptable. */
 export function voidReasonError(reason: string): "REASON_REQUIRED" | "REASON_TOO_SHORT" | "INVALID_REQUEST" | null {
-  const trimmed = reason.trim();
-  return trimmed === "" ? "REASON_REQUIRED" : trimmed.length < VOID_REASON_MIN ? "REASON_TOO_SHORT" : trimmed.length > 2000 ? "INVALID_REQUEST" : null;
+  const length = [...reason.trim()].length;
+  return length === 0 ? "REASON_REQUIRED" : length < VOID_REASON_MIN ? "REASON_TOO_SHORT" : length > VOID_REASON_MAX ? "INVALID_REQUEST" : null;
 }
+export const voidInput = z.object({ shop_id: z.uuid(), invoice_id: z.uuid(), idempotency_key: z.uuid(), reason: z.string().trim().refine((reason) => voidReasonError(reason) === null) }).strict();
 export type InvoiceOperation = "request_invoice_correction" | "request_invoice_replacement" | "decide_invoice_correction" | "decide_invoice_replacement";
 export function normalizeInvoiceNumber(value: string): string { return value.trim().toLowerCase(); }
 export function operationError(code: string): string {

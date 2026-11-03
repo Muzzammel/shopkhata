@@ -74,14 +74,39 @@ describe("invoice.void permission", () => {
   });
 });
 
-describe("invoice export Status column", () => {
-  it("adds Status last, keeps every earlier column, and keeps void rows marked VOID", async () => {
+describe("invoice export Status and Original Total columns", () => {
+  it("labels the current-state total, keeps Status, and never exports a voided invoice's original amount as 0", async () => {
     const { INVOICE_EXPORT_HEADERS, invoiceExportSheet } = await import("@/lib/excel/exports");
-    expect(INVOICE_EXPORT_HEADERS).toEqual(["Invoice Number", "Business Date", "Total QAR", "Paid QAR", "Credit Applied QAR", "Due QAR", "Delivered", "Customer", "Customer Mobile", "Recorded At (Qatar)", "Original Number", "Invoice Reference", "Status"]);
-    const row = { invoiceNumber: "V-1", businessDate: "2026-10-03", totalDirham: 0, paidDirham: 0, creditAppliedDirham: 0, dueDirham: 0, delivered: false, customerName: "", customerMobile: "", recordedAt: null, originalNumber: "V-1", invoiceId: INVOICE };
+    expect(INVOICE_EXPORT_HEADERS).toEqual(["Invoice Number", "Business Date", "Current Total QAR", "Paid QAR", "Credit Applied QAR", "Due QAR", "Delivered", "Customer", "Customer Mobile", "Recorded At (Qatar)", "Original Number", "Invoice Reference", "Status", "Original Total QAR"]);
+    const row = { invoiceNumber: "V-1", businessDate: "2026-10-03", totalDirham: 0, paidDirham: 0, creditAppliedDirham: 0, dueDirham: 0, delivered: false, customerName: "", customerMobile: "", recordedAt: null, originalNumber: "V-1", invoiceId: INVOICE, originalTotalDirham: 10000 };
     const sheet = invoiceExportSheet([{ ...row, isVoid: true }, { ...row, invoiceNumber: "A-1", isVoid: false }]);
-    expect(sheet.data.map((cells) => cells.at(-1))).toEqual([{ value: "Status", fontWeight: "bold" }, "VOID", "ACTIVE"]);
-    expect(sheet.data[1]).toHaveLength(13);
+    expect(sheet.data.map((cells) => cells.at(-2))).toEqual([{ value: "Status", fontWeight: "bold" }, "VOID", "ACTIVE"]);
+    expect(sheet.data[1].at(-1)).toEqual({ value: 100, type: Number, format: "0.00" });
+    expect(sheet.data[1]).toHaveLength(14);
+  });
+});
+
+describe("void reason counts Unicode characters, as PostgreSQL length() does", () => {
+  it("accepts 2000 emoji (4000 UTF-16 units) and refuses 2001; 10 emoji meet the minimum", () => {
+    expect(voidReasonError("😀".repeat(2000))).toBeNull();
+    expect(voidReasonError("😀".repeat(2001))).toBe("INVALID_REQUEST");
+    expect(voidReasonError("😀".repeat(9))).toBe("REASON_TOO_SHORT");
+    expect(voidReasonError("😀".repeat(10))).toBeNull();
+    expect(voidInput.safeParse({ ...command, reason: "😀".repeat(2000) }).success).toBe(true);
+    expect(voidInput.safeParse({ ...command, reason: "😀".repeat(2001) }).success).toBe(false);
+  });
+});
+
+describe("New Sale recent-invoice preview (m1)", () => {
+  it("keeps is_void, so a voided invoice (due 0) shows VOID and never Paid", async () => {
+    const { workspaceInvoice } = await import("@/lib/shop-workspace");
+    const row = { canonical_invoice_id: INVOICE, effective_invoice_number: "V-1", business_date: "2026-11-01", effective_total_dirham: 0, effective_due_dirham: 0, effective_delivered: false, effective_customer_id: null };
+    const voided = workspaceInvoice({ ...row, is_void: true });
+    expect(voided.is_void).toBe(true);
+    const badges = invoiceBadges({ dueDirham: voided.effective_due_dirham, delivered: voided.delivered, corrected: false, revision: 0, isVoid: voided.is_void });
+    expect(badges).toContain("void");
+    expect(badges).not.toContain("paid");
+    expect(workspaceInvoice({ ...row, is_void: false }).is_void).toBe(false);
   });
 });
 
