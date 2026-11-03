@@ -30,17 +30,19 @@ export function sheet(name: string, headers: string[], rows: Cell[][]): ExportSh
   };
 }
 
-export const INVOICE_EXPORT_HEADERS = ["Invoice Number", "Business Date", "Total QAR", "Paid QAR", "Credit Applied QAR", "Due QAR", "Delivered", "Customer", "Customer Mobile", "Recorded At (Qatar)", "Original Number", "Invoice Reference"];
+export const INVOICE_EXPORT_HEADERS = ["Invoice Number", "Business Date", "Total QAR", "Paid QAR", "Credit Applied QAR", "Due QAR", "Delivered", "Customer", "Customer Mobile", "Recorded At (Qatar)", "Original Number", "Invoice Reference", "Status"];
 export type InvoiceExportRow = {
   invoiceNumber: string; businessDate: string; totalDirham: number; paidDirham: number; creditAppliedDirham: number;
   dueDirham: number; delivered: boolean; customerName: string; customerMobile: string; recordedAt: string | null;
   originalNumber: string; invoiceId: string;
+  /** Voided invoices stay in the export at their effective (zero) amounts, marked VOID. */
+  isVoid?: boolean;
 };
 export function invoiceExportSheet(rows: readonly InvoiceExportRow[]): ExportSheet {
   return sheet("Invoices", INVOICE_EXPORT_HEADERS, rows.map((row) => [
     row.invoiceNumber, row.businessDate, qar(row.totalDirham), qar(row.paidDirham), qar(row.creditAppliedDirham),
     qar(row.dueDirham), row.delivered ? "Yes" : "No", row.customerName, row.customerMobile, recordedAt(row.recordedAt),
-    row.originalNumber, row.invoiceId,
+    row.originalNumber, row.invoiceId, row.isVoid ? "VOID" : "ACTIVE",
   ]));
 }
 
@@ -74,7 +76,7 @@ function chunks<T>(items: readonly T[], size = 200): T[][] {
 
 export async function fetchInvoiceExport(supabase: Client, shopId: string, from: string, to: string, limit?: number): Promise<InvoiceExportRow[]> {
   const { data, error } = await readRows((offset, end) => supabase.from("effective_invoices")
-    .select("canonical_invoice_id,effective_invoice_number,original_invoice_number,business_date,recorded_at,effective_total_dirham,effective_paid_dirham,effective_credit_applied_dirham,effective_due_dirham,effective_delivered,effective_customer_id")
+    .select("canonical_invoice_id,effective_invoice_number,original_invoice_number,business_date,recorded_at,effective_total_dirham,effective_paid_dirham,effective_credit_applied_dirham,effective_due_dirham,effective_delivered,effective_customer_id,is_void")
     .eq("shop_id", shopId).gte("business_date", from).lte("business_date", to)
     .order("business_date").order("recorded_at").order("canonical_invoice_id").range(offset, end), limit);
   if (error || !data) throw new Error("EXPORT_UNAVAILABLE");
@@ -91,7 +93,7 @@ export async function fetchInvoiceExport(supabase: Client, shopId: string, from:
       paidDirham: row.effective_paid_dirham!, creditAppliedDirham: row.effective_credit_applied_dirham ?? 0,
       dueDirham: row.effective_due_dirham!, delivered: row.effective_delivered!, customerName: customer?.name ?? "",
       customerMobile: customer?.mobile ?? "", recordedAt: row.recorded_at, originalNumber: row.original_invoice_number!,
-      invoiceId: row.canonical_invoice_id!,
+      invoiceId: row.canonical_invoice_id!, isVoid: row.is_void === true,
     };
   });
 }

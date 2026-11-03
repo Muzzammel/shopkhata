@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { Tabs as TabsPrimitive } from "radix-ui";
-import { ArrowRightIcon, BadgeCheckIcon, FilePlusIcon, HandCoinsIcon, PencilLineIcon, ReceiptTextIcon, UserPlusIcon, WalletIcon, type LucideIcon } from "lucide-react";
+import { ArrowRightIcon, BadgeCheckIcon, BanIcon, FilePlusIcon, HandCoinsIcon, PencilLineIcon, ReceiptTextIcon, UserPlusIcon, WalletIcon, type LucideIcon } from "lucide-react";
 
 import { SalesTable } from "@/components/sales/sales-table";
 import { ui } from "@/components/sales/ui";
@@ -166,7 +166,7 @@ function Credits({ shopId, credits, creditUses, creditDirham, invoiceNumbers, pe
   </section>;
 }
 
-const ICON: Record<ActivityKind, LucideIcon> = { customer: UserPlusIcon, invoice: FilePlusIcon, payment: HandCoinsIcon, invoice_correction: PencilLineIcon, payment_correction: PencilLineIcon, credit_issued: BadgeCheckIcon, credit_application: WalletIcon };
+const ICON: Record<ActivityKind, LucideIcon> = { customer: UserPlusIcon, invoice: FilePlusIcon, payment: HandCoinsIcon, invoice_correction: PencilLineIcon, invoice_void: BanIcon, payment_correction: PencilLineIcon, credit_issued: BadgeCheckIcon, credit_application: WalletIcon };
 
 export function ActivityTimeline({ events, people, shopId, compact = false }: { events: ActivityEvent[]; people: Record<string, string>; shopId: string; compact?: boolean }) {
   if (events.length === 0) return <Empty>No activity recorded.</Empty>;

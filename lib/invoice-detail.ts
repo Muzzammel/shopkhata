@@ -46,6 +46,8 @@ export type InvoiceDetail = {
     creatorName: string | null;
   }>;
   corrections: InvoiceDetailCorrection[];
+  /** The void, when the invoice was voided. The invoice row itself is never changed. */
+  voided?: { id: string; reason: string; businessDate: string; actorId: string; createdAt: string; correctionId: string | null } | null;
   /** Display names for every person in the history, read under the viewer's own profile access; a missing id stays unresolved. */
   people: Record<string, string>;
   /** Names of customers the history refers to (original and requested), from this shop only. */
@@ -64,7 +66,7 @@ export async function readInvoiceDetail(actor: Actor, shopId: string, canonicalI
     .eq("shop_id", shopId).eq("canonical_invoice_id", canonicalInvoiceId).maybeSingle();
   if (effectiveError || !effective) return null;
   const changes = await readInvoiceChanges(shopId, canonicalInvoiceId);
-  const [customerResult, paymentResult, invoiceCorrectionsResult] = await Promise.all([
+  const [customerResult, paymentResult, invoiceCorrectionsResult, voidResult] = await Promise.all([
     effective.effective_customer_id
       ? supabase.from("customers").select("id, shop_id, name, mobile, public_id").eq("shop_id", shopId).eq("id", effective.effective_customer_id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
@@ -75,9 +77,13 @@ export async function readInvoiceDetail(actor: Actor, shopId: string, canonicalI
       .select("id, shop_id, amount_delta_dirham, reason, business_date, recorded_at, created_by, approved_by, payment_id, request_id")
       .eq("shop_id", shopId).eq("invoice_id", canonicalInvoiceId).not("approved_by", "is", null)
       .order("recorded_at", { ascending: true }).order("id", { ascending: true }).range(o,e)),
+    effective.is_void
+      ? supabase.from("invoice_voids").select("id, reason, business_date, actor_user_id, created_at, correction_id").eq("shop_id", shopId).eq("invoice_id", canonicalInvoiceId).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
   ]);
   const payments = paymentResult.data;
   const invoiceCorrections = invoiceCorrectionsResult.data;
+  if (voidResult.error || (effective.is_void && !voidResult.data)) return null;
   if (customerResult.error || paymentResult.error || !payments || invoiceCorrectionsResult.error || !invoiceCorrections) return null;
   if (effective.effective_customer_id && (!customerResult.data || customerResult.data.shop_id !== shopId)) return null;
 
@@ -95,7 +101,7 @@ export async function readInvoiceDetail(actor: Actor, shopId: string, canonicalI
   const corrections = [...invoiceCorrections, ...paymentCorrections];
   const actorIds = [...new Set([
     invoice.created_by, ...payments.map((p) => p.created_by), ...corrections.flatMap((c) => [c.created_by, c.approved_by]),
-    ...changes.flatMap((c) => [c.requestedBy, c.decision?.actor]),
+    ...changes.flatMap((c) => [c.requestedBy, c.decision?.actor]), voidResult.data?.actor_user_id,
   ].filter((id): id is string => Boolean(id)))];
   // One read each for people and customers. Customer names only label the history, so a failed read leaves them unresolved instead of hiding the invoice.
   const customerIds = [...new Set([invoice.customer_id, ...changes.map((c) => c.customerId)].filter((id): id is string => Boolean(id)))];
@@ -151,6 +157,10 @@ export async function readInvoiceDetail(actor: Actor, shopId: string, canonicalI
       paymentId: correction.payment_id,
       requestId: correction.request_id,
     })),
+    voided: voidResult.data ? {
+      id: voidResult.data.id, reason: voidResult.data.reason, businessDate: voidResult.data.business_date,
+      actorId: voidResult.data.actor_user_id, createdAt: voidResult.data.created_at, correctionId: voidResult.data.correction_id,
+    } : null,
     people: Object.fromEntries(names),
     customerNames: Object.fromEntries((historyCustomers ?? []).map((c) => [c.id, `${c.name || "Unnamed customer"} · ${c.public_id}`])),
   };

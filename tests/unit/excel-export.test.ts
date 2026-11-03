@@ -25,7 +25,7 @@ describe("Excel exports", () => {
     expect(read.sheet).toBe("Invoices");
     expect(read.data[0]).toEqual(INVOICE_EXPORT_HEADERS);
     // Recorded time is Qatar local time (UTC+3), not the browser's or server's zone.
-    expect(read.data[1]).toEqual(["NEW-7", "2026-10-03", 105, 28, 0, 77, "Yes", "Mary", "55512345", "2026-10-03 12:15:30", "OLD-7", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"]);
+    expect(read.data[1]).toEqual(["NEW-7", "2026-10-03", 105, 28, 0, 77, "Yes", "Mary", "55512345", "2026-10-03 12:15:30", "OLD-7", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "ACTIVE"]);
     expect(read.data[2].slice(0, 7)).toEqual(["A-2", "2026-10-03", 19.99, 19.99, 0, 0, "No"]);
   });
 

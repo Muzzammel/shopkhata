@@ -143,7 +143,7 @@ export async function loadDashboard(supabase: Client, shops: readonly { id: stri
     supabase.rpc("report_expense_totals", { p_shop_id: shop.id, p_from: from, p_to: to }),
     supabase.rpc("report_customer_due_totals", { p_shop_id: shop.id }),
     fetchDailySummary(supabase, shop.id, from, to),
-    supabase.from("effective_invoices").select("*", { count: "exact", head: true }).eq("shop_id", shop.id).gte("business_date", from).lte("business_date", to).lte("effective_due_dirham", 0),
+    supabase.from("effective_invoices").select("*", { count: "exact", head: true }).eq("shop_id", shop.id).gte("business_date", from).lte("business_date", to).lte("effective_due_dirham", 0).eq("is_void", false),
     supabase.from("effective_invoices").select("*", { count: "exact", head: true }).eq("shop_id", shop.id).gte("business_date", from).lte("business_date", to).gt("effective_due_dirham", 0),
     supabase.from("effective_invoices").select("*", { count: "exact", head: true }).eq("shop_id", shop.id).gte("business_date", from).lte("business_date", to).is("effective_customer_id", null),
     fetchCustomerDueRows(supabase, shop.id, 5),

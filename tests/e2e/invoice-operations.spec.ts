@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { test, expect, type Page } from "@playwright/test";
+import readXlsxFile from "read-excel-file/universal";
 
 const SHOP1 = "10000000-0000-4000-8000-000000000001";
 const SHOP2 = "10000000-0000-4000-8000-000000000002";
@@ -11,7 +12,7 @@ function sql(query: string) {
 async function login(page: Page, role = "staff1") {
   await page.goto("/login");
   await page.getByLabel(/email/i).fill(`${role}@shopkhata.local`);
-  await page.getByLabel(/password/i).fill(role === "owner" ? "ShopKhata-Local-Owner-E2E-Only-2026!" : "ShopKhata-Local-E2E-Only-2026!");
+  await page.getByLabel(/password/i).fill(role === "owner" ? "ShopKhata-Local-Owner-E2E-Only-2026!" : role === "manager" ? "ShopKhata-Local-Manager-E2E-Only-2026!" : "ShopKhata-Local-E2E-Only-2026!");
   await page.getByRole("button", { name: /sign in/i }).click();
   await expect(page.getByRole("heading", { name: "Shop 1", exact: true })).toBeVisible();
 }
@@ -223,4 +224,68 @@ test("fully paid duplicates offer canonical View invoice and block new creation"
   await row.getByRole("link", { name: "View invoice", exact: true }).click();
   await expect(totals(page).getByRole("heading", { name: number, exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Record payment" })).toHaveCount(0);
+});
+
+test("OPS-01B: a manager voids an unpaid invoice; staff cannot; the original stays visible as VOID at 0 in detail, list and export", async ({ page, browser }) => {
+  test.setTimeout(180000);
+  const number = `VOID-E2E-${crypto.randomUUID()}`;
+  await login(page);
+  await create(page, number);
+  await page.getByRole("link", { name: `View invoice ${number}`, exact: true }).click();
+  await expect(page).toHaveURL(/\/shops\/[^/]+\/invoices\/[0-9a-f-]+$/);
+  const canonicalUrl = page.url();
+  // Staff: no void action.
+  await page.getByRole("button", { name: "More actions" }).click();
+  await expect(page.getByRole("menuitem", { name: "Print" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Void invoice" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+
+  const context = await browser.newContext(); const manager = await context.newPage();
+  await login(manager, "manager"); await manager.goto(canonicalUrl);
+  await manager.getByRole("button", { name: "More actions" }).click();
+  await manager.getByRole("menuitem", { name: "Void invoice" }).click();
+  const dialog = manager.getByRole("dialog", { name: `Void invoice ${number}` });
+  const facts = dialog.getByLabel("Invoice to void");
+  await expect(facts).toContainText(number);
+  await expect(facts).toContainText("Original total");
+  await expect(facts).toContainText("QAR 100.00");
+  await expect(facts).toContainText("Effective total after void");
+  await expect(dialog).toContainText("The original invoice is preserved unchanged");
+  await dialog.getByRole("button", { name: "Confirm Void" }).click();
+  await expect(dialog.getByText("Enter the reason for voiding this invoice.")).toBeVisible();
+  await dialog.getByLabel(/Reason for voiding/).fill("too short");
+  await dialog.getByRole("button", { name: "Confirm Void" }).click();
+  await expect(dialog.getByText(/at least 10 characters/).last()).toBeVisible();
+  await dialog.getByLabel(/Reason for voiding/).fill("Customer cancelled before delivery");
+  await dialog.getByRole("button", { name: "Confirm Void" }).click();
+  await expect(dialog).toHaveCount(0);
+
+  // Detail: same invoice, VOID badge and banner, effective total 0, original kept.
+  const doc = totals(manager);
+  await expect(doc.getByRole("heading", { name: number, exact: true })).toBeVisible();
+  await expect(doc.locator("[data-badge=void]")).toHaveText("Void");
+  await expect(doc.locator("[data-slot=void-banner]")).toContainText("Customer cancelled before delivery");
+  await expect(doc.getByRole("group", { name: "Financial summary" })).toContainText("Recorded as QAR 100.00");
+  await expect(doc.getByRole("group", { name: "Financial summary" }).locator("strong").first()).toHaveText("QAR 0.00");
+  await manager.reload();
+  await manager.getByRole("button", { name: "More actions" }).click();
+  await expect(manager.getByRole("menuitem", { name: "Print" })).toBeVisible();
+  await expect(manager.getByRole("menuitem", { name: "Void invoice" })).toHaveCount(0);
+  await manager.keyboard.press("Escape");
+
+  // Staff sees it too, still visible in the Sales list with the VOID badge.
+  await page.goto(`/invoices?shop=${SHOP1}`);
+  const listed = page.locator("tr", { has: page.getByRole("link", { name: `View invoice ${number}`, exact: true }) });
+  await expect(listed.locator("[data-badge=void]")).toHaveText("Void");
+  await expect(listed).toContainText("QAR 0.00");
+
+  // Export keeps the row, marked VOID in the final Status column.
+  const response = await manager.request.get(`/exports/invoices?shop=${SHOP1}`);
+  expect(response.status()).toBe(200);
+  const [sheet] = await readXlsxFile(new Blob([new Uint8Array(await response.body())]));
+  expect(sheet.data[0].at(-1)).toBe("Status");
+  const exported = sheet.data.find((cells) => cells[0] === number);
+  expect(exported?.at(-1)).toBe("VOID");
+  expect(exported?.[2]).toBe(0);
+  await context.close();
 });

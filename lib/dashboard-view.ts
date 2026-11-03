@@ -85,7 +85,7 @@ export type ActivityKind = "payment" | "invoice" | "correction" | "expense" | "c
 export function activityKind(action: string): ActivityKind {
   if (action === "batch.submit" || action === "submit_batch") return "invoice";
   if (action.includes("payment") || action.includes("credit") || action.includes("overpayment")) return "payment";
-  if (action.startsWith("correction") || action.startsWith("replacement")) return "correction";
+  if (action.startsWith("correction") || action.startsWith("replacement") || action === "invoice.void") return "correction";
   if (action.includes("expense")) return "expense";
   if (action.startsWith("date.")) return "close";
   if (action === "create_customer") return "customer";

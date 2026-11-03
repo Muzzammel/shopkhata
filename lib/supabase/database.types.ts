@@ -150,6 +150,10 @@ export type Database = {
         id: string; shop_id: string; expense_id: string; amount_dirham: number; expected_correction_request_id: string | null; category: string; description: string;
         reason: string; requested_by: string; requested_at: string; idempotency_key: string; fingerprint: string;
       }>
+      invoice_voids: TableShape<{
+        id: string; shop_id: string; invoice_id: string; correction_id: string | null; reason: string; actor_user_id: string;
+        business_date: string; created_at: string; idempotency_key: string; fingerprint: string;
+      }>
       expense_correction_decisions: TableShape<{
         id: string; shop_id: string; request_id: string; expense_id: string; decision: string; reason: string | null;
         decided_by: string; decided_at: string; idempotency_key: string; fingerprint: string;
@@ -1260,6 +1264,7 @@ export type Database = {
           effective_paid_dirham: number | null
           effective_credit_applied_dirham: number | null
           effective_total_dirham: number | null
+          is_void: boolean | null
           original_invoice_number: string | null
           original_total_dirham: number | null
           recorded_at: string | null
@@ -1338,6 +1343,7 @@ export type Database = {
       decide_invoice_replacement: { Args: { command: Json }; Returns: Json }
       record_payment: { Args: { command: Json }; Returns: Json }
       request_invoice_correction: { Args: { command: Json }; Returns: Json }
+      void_invoice: { Args: { command: Json }; Returns: Json }
       request_invoice_replacement: { Args: { command: Json }; Returns: Json }
       submit_batch: { Args: { command: Json }; Returns: Json }
       create_customer: { Args: { command: Json }; Returns: Json }

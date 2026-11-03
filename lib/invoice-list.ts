@@ -35,13 +35,14 @@ export type InvoiceListRow = {
   revision: number;
   /** The effective total differs from the recorded one, which only an approved correction can cause. */
   corrected: boolean;
+  isVoid?: boolean;
 };
 
 function mapRow(row: {
   canonical_invoice_id: string | null; effective_invoice_number: string | null; business_date: string | null; recorded_at: string | null;
   effective_total_dirham: number | null; effective_paid_dirham: number | null; effective_credit_applied_dirham: number | null;
   effective_due_dirham: number | null; effective_delivered: boolean | null; effective_customer_id: string | null;
-  revision: number | null; original_total_dirham: number | null;
+  revision: number | null; original_total_dirham: number | null; is_void: boolean | null;
 }, customerName: string): InvoiceListRow {
   return {
     invoiceId: row.canonical_invoice_id!, invoiceNumber: row.effective_invoice_number!, businessDate: row.business_date!, recordedAt: row.recorded_at,
@@ -49,10 +50,11 @@ function mapRow(row: {
     creditAppliedDirham: row.effective_credit_applied_dirham ?? 0, dueDirham: row.effective_due_dirham!, delivered: row.effective_delivered!,
     // ponytail: misses a correction chain that lands back on the recorded total; a per-page correction_decisions read would catch it.
     revision: row.revision ?? 0, corrected: row.effective_total_dirham !== row.original_total_dirham,
+    isVoid: row.is_void === true,
   };
 }
 
-const INVOICE_COLUMNS = "canonical_invoice_id,effective_invoice_number,business_date,recorded_at,effective_total_dirham,effective_paid_dirham,effective_credit_applied_dirham,effective_due_dirham,effective_delivered,effective_customer_id,revision,original_total_dirham";
+const INVOICE_COLUMNS = "canonical_invoice_id,effective_invoice_number,business_date,recorded_at,effective_total_dirham,effective_paid_dirham,effective_credit_applied_dirham,effective_due_dirham,effective_delivered,effective_customer_id,revision,original_total_dirham,is_void";
 
 async function customerNames(supabase: Client, shopId: string, ids: readonly string[]): Promise<Map<string, string>> {
   const names = new Map<string, string>();
@@ -76,7 +78,8 @@ export async function fetchInvoiceList(supabase: Client, shopId: string, filter:
   if (filter.status === "delivered") request = request.eq("effective_delivered", true);
   else if (filter.status === "advance") request = request.eq("effective_delivered", false);
   else if (filter.status === "with_due") request = request.gt("effective_due_dirham", 0);
-  else if (filter.status === "fully_paid") request = request.lte("effective_due_dirham", 0);
+  // A void invoice has no due, but it was not paid either.
+  else if (filter.status === "fully_paid") request = request.lte("effective_due_dirham", 0).eq("is_void", false);
   const { data, error } = await request
     .order("business_date", { ascending: false }).order("recorded_at", { ascending: false }).order("canonical_invoice_id", { ascending: false })
     .range(filter.offset, filter.offset + INVOICE_PAGE_SIZE);

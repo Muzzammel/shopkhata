@@ -42,7 +42,7 @@ insert into public.audit_events(shop_id, action, entity_type) values (null, 'rea
 
 select ok(not has_function_privilege('anon', 'private.accessible_shop_ids()', 'EXECUTE'), 'anon cannot read the accessible shop list');
 select is((select count(*)::int from pg_policies where schemaname = 'public' and qual like '%has_shop_access(%'), 0, 'no table policy evaluates shop access once per row');
-select is((select count(*)::int from pg_policies where schemaname = 'public' and qual like '%accessible_shop_ids()%'), 21, 'every shop-scoped table reads through the once-per-statement rule');
+select is((select count(*)::int from pg_policies where schemaname = 'public' and qual like '%accessible_shop_ids()%'), 22, 'every shop-scoped table reads through the once-per-statement rule');
 select is((select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity), 0, 'every table still has row-level security enabled');
 
 set local role authenticated;

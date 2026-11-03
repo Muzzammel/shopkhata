@@ -22,7 +22,7 @@ export function balanceStatuses(balance: { dueDirham: number; creditDirham: numb
 export type CustomerInvoice = {
   invoiceId: string; invoiceNumber: string; businessDate: string;
   totalDirham: number; paidDirham: number; creditAppliedDirham: number; dueDirham: number;
-  delivered: boolean; revision: number; corrected: boolean;
+  delivered: boolean; revision: number; corrected: boolean; isVoid?: boolean;
 };
 
 /** Sums of this customer's effective invoices, all dates. Due equals the balance view's own sum of the same rows. */
@@ -100,7 +100,7 @@ export type CustomerCredit = {
   reason: string | null; sourceInvoiceId: string | null; approvedBy: string | null;
 };
 
-export type ActivityKind = "customer" | "invoice" | "payment" | "invoice_correction" | "payment_correction" | "credit_issued" | "credit_application";
+export type ActivityKind = "customer" | "invoice" | "payment" | "invoice_correction" | "invoice_void" | "payment_correction" | "credit_issued" | "credit_application";
 export type ActivityEvent = {
   id: string; kind: ActivityKind; title: string; businessDate: string; recordedAt: string; actorId: string | null;
   /** Effect on the amount owed: positive raises due, negative lowers it. Absent when the event does not move the balance. */
@@ -113,7 +113,7 @@ export type ActivityEvent = {
 };
 
 const TITLE: Record<Exclude<LedgerEntry["type"], "payment">, string> = {
-  invoice: "Invoice recorded", invoice_correction: "Invoice correction approved", payment_correction: "Payment correction approved", credit_application: "Credit applied",
+  invoice: "Invoice recorded", invoice_correction: "Invoice correction approved", invoice_void: "Invoice voided", payment_correction: "Payment correction approved", credit_application: "Credit applied",
 };
 
 /**

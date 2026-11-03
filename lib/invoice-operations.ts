@@ -20,6 +20,14 @@ export function previewTotalCorrection(current: { totalDirham: number; paidDirha
 }
 export const replacementInput = z.object({ ...base, expected_revision: z.number().int().min(0).max(2147483646), invoice_number: z.string().trim().min(1).max(120), customer_id: z.uuid().nullable(), delivered: z.boolean() }).strict();
 export const decisionInput = z.object({ shop_id: z.uuid(), request_id: z.uuid(), expected_revision: z.number().int().min(0).max(2147483646), decision: z.enum(["approved", "rejected"]), reason: z.string().trim().max(2000).nullable(), idempotency_key: z.uuid() }).strict();
+// A void needs a real explanation: trimmed, 10 to 2000 characters. The database applies the same rule.
+export const VOID_REASON_MIN = 10;
+export const voidInput = z.object({ shop_id: z.uuid(), invoice_id: z.uuid(), idempotency_key: z.uuid(), reason: z.string().trim().min(VOID_REASON_MIN).max(2000) }).strict();
+/** The reason rule as a code, checked before sending; null when the reason is acceptable. */
+export function voidReasonError(reason: string): "REASON_REQUIRED" | "REASON_TOO_SHORT" | "INVALID_REQUEST" | null {
+  const trimmed = reason.trim();
+  return trimmed === "" ? "REASON_REQUIRED" : trimmed.length < VOID_REASON_MIN ? "REASON_TOO_SHORT" : trimmed.length > 2000 ? "INVALID_REQUEST" : null;
+}
 export type InvoiceOperation = "request_invoice_correction" | "request_invoice_replacement" | "decide_invoice_correction" | "decide_invoice_replacement";
 export function normalizeInvoiceNumber(value: string): string { return value.trim().toLowerCase(); }
 export function operationError(code: string): string {
@@ -42,6 +50,12 @@ export function operationError(code: string): string {
     IDEMPOTENCY_CONFLICT: "This retry key already belongs to a different command.",
     CLOSED_DATE: "This business date is closed.",
     SHOP_INACTIVE: SHOP_INACTIVE_MESSAGE,
+    REASON_REQUIRED: "Enter the reason for voiding this invoice.",
+    REASON_TOO_SHORT: `Explain the void in at least ${VOID_REASON_MIN} characters.`,
+    PAYMENTS_OUTSTANDING: "This invoice has payments. Reverse the payments before voiding it.",
+    CREDIT_APPLIED: "Customer credit is applied to this invoice, so it cannot be voided.",
+    ALREADY_VOID: "This invoice is already void.",
+    INVOICE_VOID: "This invoice is void. It cannot be changed.",
   };
   return Object.hasOwn(messages, code) ? messages[code] : "The operation could not be completed.";
 }

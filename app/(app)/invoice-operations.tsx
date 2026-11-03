@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { CircleAlertIcon, EllipsisIcon, HandCoinsIcon, PencilLineIcon, PrinterIcon, RepeatIcon, TruckIcon } from "lucide-react";
+import { BanIcon, CircleAlertIcon, EllipsisIcon, HandCoinsIcon, PencilLineIcon, PrinterIcon, RepeatIcon, TruckIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -12,17 +12,20 @@ import { ui } from "@/components/sales/ui";
 import { qar } from "@/lib/dashboard-view";
 import type { InvoiceDetail } from "@/lib/invoice-detail";
 import { parseQar, formatQar } from "@/lib/domain/money";
-import { previewTotalCorrection, type InvoiceOperation } from "@/lib/invoice-operations";
+import { previewTotalCorrection, voidReasonError, operationError, VOID_REASON_MIN, type InvoiceOperation } from "@/lib/invoice-operations";
 import { customerLabel, personLabel, qatarDateTime, signedQar } from "@/lib/sales-view";
 import { cn } from "@/lib/utils";
-import { runInvoiceOperation } from "./invoice-operation-actions";
+import { runInvoiceOperation, voidInvoice } from "./invoice-operation-actions";
 import { CustomerSearch } from "./customer-search";
 import { InvoicePayment } from "./invoice-payment";
 
 type FieldErrors = { total?: string; amount?: string; reason?: string };
 type RequestKind = "correction" | "replacement" | "delivery";
 // Server refusals that are about one field are shown on that field as well as in the alert.
-const FIELD_OF_CODE: Record<string, keyof FieldErrors> = { INVALID_FINANCIAL_RESULT: "total", CORRECTION_NO_CHANGE: "total" };
+const FIELD_OF_CODE: Record<string, keyof FieldErrors> = { INVALID_FINANCIAL_RESULT: "total", CORRECTION_NO_CHANGE: "total", REASON_REQUIRED: "reason", REASON_TOO_SHORT: "reason" };
+// The invoice changed under the screen (paid, credited or voided elsewhere): reload the truth.
+const REFRESH_CODES = new Set(["STALE_TOTAL", "STALE_REVISION", "PAYMENTS_OUTSTANDING", "CREDIT_APPLIED", "ALREADY_VOID", "INVOICE_VOID"]);
+type Operation = InvoiceOperation | "void_invoice";
 const TITLE: Record<RequestKind, string> = { correction: "Request correction", replacement: "Request replacement", delivery: "Request delivery change" };
 const FORM_NAME: Record<RequestKind, string> = { correction: "Correction request", replacement: "Replacement request", delivery: "Delivery change request" };
 const deliveryText = (delivered: boolean) => delivered ? "Delivered" : "Not delivered";
@@ -42,8 +45,15 @@ export function Comparison({ rows, label }: { rows: { label: string; current: st
 
 export function InvoiceOperations({ detail, permissions }: {
   detail: InvoiceDetail;
-  permissions: { payment: boolean; requestCorrection: boolean; requestReplacement: boolean; approveCorrection: boolean; approveReplacement: boolean };
+  permissions: { payment: boolean; requestCorrection: boolean; requestReplacement: boolean; approveCorrection: boolean; approveReplacement: boolean; voidInvoice?: boolean };
 }) {
+  // A void invoice takes no new requests; the database refuses them too (INVOICE_VOID).
+  const isVoid = detail.voided != null;
+  const mayCorrect = permissions.requestCorrection && !isVoid;
+  const mayReplace = permissions.requestReplacement && !isVoid;
+  const mayVoid = Boolean(permissions.voidInvoice) && !isVoid;
+  const [voiding, setVoiding] = useState(false);
+  const blockedVoid = detail.effectivePaidDirham !== 0 ? "PAYMENTS_OUTSTANDING" : detail.effectiveCreditAppliedDirham !== 0 ? "CREDIT_APPLIED" : null;
   const router = useRouter();
   const [tab, setTab] = useState<RequestKind | null>(null);
   const [paying, setPaying] = useState(false);
@@ -60,7 +70,7 @@ export function InvoiceOperations({ detail, permissions }: {
   const [uncertain, setUncertain] = useState(false);
   const [message, setMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [pending, setPending] = useState<{ operation: InvoiceOperation; command: Record<string, unknown> } | null>(null);
+  const [pending, setPending] = useState<{ operation: Operation; command: Record<string, unknown> } | null>(null);
   const [paymentGuard, setPaymentGuard] = useState({ hasDraft: false, uncertain: false });
   // Until hydrated a click would do nothing, so the controls start disabled instead of silently dead.
   const hydrated = useSyncExternalStore(noSubscription, () => true, () => false);
@@ -82,22 +92,22 @@ export function InvoiceOperations({ detail, permissions }: {
     return () => { cancelAnimationFrame(frame); window.removeEventListener("hashchange", sync); };
   }, [canPay]);
 
-  async function execute(operation: InvoiceOperation, command: Record<string, unknown>) {
+  async function execute(operation: Operation, command: Record<string, unknown>) {
     if (active.current || (uncertain && pending?.command !== command)) return;
     active.current = true;
     setBusy(true); setMessage(""); setFieldErrors({}); setPending({ operation, command });
     try {
-      const result = await runInvoiceOperation(operation, command, detail.id);
+      const result = operation === "void_invoice" ? await voidInvoice(command) : await runInvoiceOperation(operation, command, detail.id);
       if (result.ok) {
         setUncertain(false); setPending(null);
-        toast.success("Operation confirmed and saved.");
-        setTab(null); setReason(""); setCorrected(""); setDelta(""); router.refresh();
+        toast.success(operation === "void_invoice" ? "Invoice voided." : "Operation confirmed and saved.");
+        setVoiding(false); setTab(null); setReason(""); setCorrected(""); setDelta(""); router.refresh();
       } else {
         setUncertain(uncertain || result.uncertain); setMessage(result.message);
         const field = result.code ? FIELD_OF_CODE[result.code] : undefined;
         if (field) setFieldErrors({ [field]: result.message });
         // The figures on screen are out of date: reload them so the next request starts from the truth.
-        if (result.code === "STALE_TOTAL" || result.code === "STALE_REVISION") router.refresh();
+        if (result.code && REFRESH_CODES.has(result.code)) router.refresh();
         toast.error(result.uncertain ? "Saving could not be confirmed." : "The request was not saved.");
         if (!uncertain && !result.uncertain) setPending(null);
       }
@@ -129,6 +139,14 @@ export function InvoiceOperations({ detail, permissions }: {
     }
   }
 
+  function confirmVoid() {
+    const code = voidReasonError(reason);
+    if (code) return invalid({ reason: operationError(code) });
+    void execute("void_invoice", { shop_id: detail.shopId, invoice_id: detail.id, reason: reason.trim(), idempotency_key: crypto.randomUUID() });
+  }
+  function openVoid() { setReason(""); setMessage(""); setFieldErrors({}); setVoiding(true); }
+  const closeVoid = (next: boolean) => { if (!next && !busy && !uncertain) { setVoiding(false); setFieldErrors({}); } };
+
   function open(next: RequestKind) {
     setTab(next); setReason(""); setMessage(""); setFieldErrors({}); setCorrected(""); setDelta(""); setPaymentId("");
     setNumber(detail.invoiceNumber); setCustomer(detail.customer);
@@ -156,20 +174,21 @@ export function InvoiceOperations({ detail, permissions }: {
   return <>
     <nav aria-label="Invoice actions" data-print="hide" className="sticky top-[57px] z-20 -mx-4 flex flex-wrap items-center gap-2 bg-background/92 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6 md:top-[65px]">
       {canPay && <button data-slot="button" type="button" className={cn(ui.primary, "min-h-10 px-4 max-sm:min-h-11 max-md:flex-1")} disabled={busy || uncertain || !hydrated} onClick={() => setPaying(true)}><HandCoinsIcon aria-hidden />Record payment</button>}
-      {permissions.requestCorrection && <button data-slot="button" type="button" className={cn(actionClass, "max-md:hidden")} disabled={requestsBlocked} onClick={() => open("correction")}><PencilLineIcon aria-hidden />Request correction</button>}
-      {permissions.requestReplacement && <button data-slot="button" type="button" className={cn(actionClass, "max-md:hidden")} disabled={requestsBlocked} onClick={() => open("delivery")}><TruckIcon aria-hidden />Request delivery change</button>}
+      {mayCorrect && <button data-slot="button" type="button" className={cn(actionClass, "max-md:hidden")} disabled={requestsBlocked} onClick={() => open("correction")}><PencilLineIcon aria-hidden />Request correction</button>}
+      {mayReplace && <button data-slot="button" type="button" className={cn(actionClass, "max-md:hidden")} disabled={requestsBlocked} onClick={() => open("delivery")}><TruckIcon aria-hidden />Request delivery change</button>}
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild><button ref={moreButton} data-slot="button" type="button" className={cn(ui.ghost, "min-h-10 px-4 max-sm:min-h-11")} disabled={!hydrated}><EllipsisIcon aria-hidden />More actions</button></DropdownMenuTrigger>
         <DropdownMenuContent align="end" data-print="hide" className="w-auto min-w-56 rounded-2xl p-1.5">
-          {permissions.requestCorrection && <DropdownMenuItem className={cn(menuItem, "md:hidden")} disabled={requestsBlocked} onSelect={() => open("correction")}><PencilLineIcon aria-hidden />Request correction</DropdownMenuItem>}
-          {permissions.requestReplacement && <DropdownMenuItem className={menuItem} disabled={requestsBlocked} onSelect={() => open("replacement")}><RepeatIcon aria-hidden />Request replacement</DropdownMenuItem>}
-          {permissions.requestReplacement && <DropdownMenuItem className={cn(menuItem, "md:hidden")} disabled={requestsBlocked} onSelect={() => open("delivery")}><TruckIcon aria-hidden />Request delivery change</DropdownMenuItem>}
+          {mayCorrect && <DropdownMenuItem className={cn(menuItem, "md:hidden")} disabled={requestsBlocked} onSelect={() => open("correction")}><PencilLineIcon aria-hidden />Request correction</DropdownMenuItem>}
+          {mayReplace && <DropdownMenuItem className={menuItem} disabled={requestsBlocked} onSelect={() => open("replacement")}><RepeatIcon aria-hidden />Request replacement</DropdownMenuItem>}
+          {mayReplace && <DropdownMenuItem className={cn(menuItem, "md:hidden")} disabled={requestsBlocked} onSelect={() => open("delivery")}><TruckIcon aria-hidden />Request delivery change</DropdownMenuItem>}
           <DropdownMenuItem className={menuItem} onSelect={() => window.print()}><PrinterIcon aria-hidden />Print</DropdownMenuItem>
+          {mayVoid && <DropdownMenuItem variant="destructive" className={menuItem} disabled={requestsBlocked} onSelect={openVoid}><BanIcon aria-hidden />Void invoice</DropdownMenuItem>}
         </DropdownMenuContent>
       </DropdownMenu>
     </nav>
 
-    {!tab && (failure || retry) && <div className="grid justify-items-start gap-3" data-print="hide">{failure}{retry}</div>}
+    {!tab && !voiding && (failure || retry) && <div className="grid justify-items-start gap-3" data-print="hide">{failure}{retry}</div>}
 
     {awaiting.length > 0 && <section aria-labelledby="awaiting-heading" data-print="hide" className="grid gap-2.5 rounded-3xl border border-warning/30 bg-card p-4 sm:px-5">
       <div className="grid gap-0.5">
@@ -215,6 +234,38 @@ export function InvoiceOperations({ detail, permissions }: {
     {permissions.payment && <Drawer open={paying} onOpenChange={closePayment} fallbackFocus={moreButton} title="Record payment" description={<>Cash or bank payment against invoice {detail.invoiceNumber}. Saved only after ShopKhata confirms it.</>}>
       <InvoicePayment variant="sheet" shopId={detail.shopId} disabled={busy || uncertain} initialInvoice={{ id: detail.id, invoiceNumber: detail.invoiceNumber, effectiveTotal: detail.effectiveTotalDirham, effectivePaid: detail.effectivePaidDirham, effectiveDue: detail.effectiveDueDirham }}
         onSaved={() => router.refresh()} onActivityChange={setBusy} onStateChange={setPaymentGuard} />
+    </Drawer>}
+
+    {permissions.voidInvoice && <Drawer open={voiding} onOpenChange={closeVoid} fallbackFocus={moreButton} title={`Void invoice ${detail.invoiceNumber}`} description={<>Voiding is permanent. It cannot be undone.</>}>
+      <form noValidate aria-label="Void invoice" className="grid gap-5" onSubmit={(event) => { event.preventDefault(); confirmVoid(); }}>
+        <fieldset disabled={locked} className="grid gap-5">
+          <legend className="sr-only">Void invoice</legend>
+          <dl aria-label="Invoice to void" className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-2xl bg-muted p-4 tabular-nums">
+            {[
+              ["Invoice number", detail.invoiceNumber],
+              ["Business date", detail.businessDate],
+              ["Original total", qar(detail.originalTotalDirham)],
+              ["Effective total", qar(detail.effectiveTotalDirham)],
+              ["Effective total after void", qar(0)],
+            ].map(([label, value]) => <div key={label} className="grid gap-0.5 last:col-span-2 last:border-t last:border-border last:pt-3">
+              <dt className="text-xs text-muted-foreground">{label}</dt>
+              <dd className="text-base font-semibold [overflow-wrap:anywhere]">{value}</dd>
+            </div>)}
+          </dl>
+          <p className={ui.danger}>The original invoice is preserved unchanged and stays visible, marked <strong>VOID</strong>. A correction on today&apos;s business date brings its effective total to {qar(0)}. Today must be open; the invoice&apos;s own date is not reopened.</p>
+          {blockedVoid && <p className={ui.warn} data-slot="void-blocked">{operationError(blockedVoid)}</p>}
+          <div className="grid gap-1.5">
+            <label data-slot="label" htmlFor="void-reason" className={ui.label}>Reason for voiding (required, at least {VOID_REASON_MIN} characters)</label>
+            <textarea data-slot="textarea" id="void-reason" rows={3} required className={cn(ui.field, "h-auto min-h-24 py-2.5")} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={2000} aria-invalid={Boolean(fieldErrors.reason)} aria-describedby={fieldErrors.reason ? "void-reason-error" : undefined} />
+            <FieldError id="void-reason-error" message={fieldErrors.reason} />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button data-slot="button" type="submit" className={cn(ui.primary, "flex-1 bg-destructive text-white hover:bg-destructive/90")} disabled={blockedVoid !== null}><BanIcon aria-hidden />{busy ? "Voiding…" : "Confirm Void"}</button>
+            <button data-slot="button" type="button" className={ui.secondary} onClick={() => closeVoid(false)}>Cancel</button>
+          </div>
+        </fieldset>
+        {(failure || retry) && <div className="grid gap-3">{failure}{retry}</div>}
+      </form>
     </Drawer>}
 
     <Drawer open={tab !== null} onOpenChange={closeRequest} fallbackFocus={moreButton} title={tab ? TITLE[tab] : ""} description={<>This is a request. Nothing changes until a manager or owner approves it.</>}>

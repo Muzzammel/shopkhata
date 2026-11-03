@@ -35,15 +35,15 @@ insert into priv_rpc values
   ('report_expense_totals(uuid,date,date)'), ('report_payment_totals(uuid,date,date)'), ('report_sales_totals(uuid,date,date)'),
   ('report_top_customers_by_payments(uuid,date,date,integer)'), ('report_top_customers_by_sales(uuid,date,date,integer)'),
   ('request_expense_correction(jsonb)'), ('request_invoice_correction(jsonb)'), ('request_invoice_replacement(jsonb)'),
-  ('submit_batch(jsonb)');
+  ('submit_batch(jsonb)'), ('void_invoice(jsonb)');
 grant select on priv_rel, priv_all, priv_seq, priv_fn, priv_rpc to public;
 
 select ok((select count(*) from priv_rel) >= 30 and (select count(*) from priv_seq) >= 2 and (select count(*) from priv_fn) >= 27,
   'the catalog scan sees the real public tables, views, sequences and functions');
-select is((select count(*) from priv_rpc), 32::bigint, 'the approved RPC list holds 32 distinct signatures');
+select is((select count(*) from priv_rpc), 33::bigint, 'the approved RPC list holds 33 distinct signatures');
 select is((select array_agg(sig order by sig) from priv_fn),
   (select array_agg(sig order by sig) from (select sig from priv_rpc union all select 'reject_append_only_mutation()') u),
-  'the public functions are exactly the 32 approved RPCs plus the append-only trigger function (a new or overloaded function must be classified here)');
+  'the public functions are exactly the 33 approved RPCs plus the append-only trigger function (a new or overloaded function must be classified here)');
 
 -- 1. anon: nothing.
 select is((select count(*) from priv_rel r cross join priv_all a where has_table_privilege('anon', r.oid, a.p)), 0::bigint,

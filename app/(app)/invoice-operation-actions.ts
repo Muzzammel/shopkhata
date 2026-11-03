@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { can, getCurrentActor } from "@/lib/auth/permissions";
-import { correctionInput, replacementInput, decisionInput, operationError, type InvoiceOperation } from "@/lib/invoice-operations";
+import { correctionInput, replacementInput, decisionInput, voidInput, voidReasonError, operationError, type InvoiceOperation } from "@/lib/invoice-operations";
 import { logFailure } from "@/lib/server-log";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -28,6 +28,35 @@ export async function runInvoiceOperation(operation: InvoiceOperation, raw: unkn
     return { ok: true };
   } catch {
     logFailure(operation, null, { shopId: parsed.data.shop_id });
+    return { ok: false, uncertain: true, message: "Status is uncertain. Retry the exact saved command after signing in again." };
+  }
+}
+
+/** Void an invoice: owner or manager only. The database re-checks role, shop, reason, payments, credit and today's date. */
+export async function voidInvoice(raw: unknown): Promise<OperationResult> {
+  const parsed = voidInput.safeParse(raw);
+  if (!parsed.success) {
+    const reason = typeof raw === "object" && raw !== null ? (raw as { reason?: unknown }).reason : undefined;
+    const code = (typeof reason === "string" && voidReasonError(reason)) || "INVALID_REQUEST";
+    return { ok: false, uncertain: false, message: operationError(code), code };
+  }
+  const { shop_id: shopId, invoice_id: invoiceId } = parsed.data;
+  try {
+    const actor = await getCurrentActor();
+    if (!can(actor, "invoice.void", shopId)) return { ok: false, uncertain: false, message: "Only a manager or owner can void an invoice.", code: "INSUFFICIENT_ROLE" };
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase.rpc("void_invoice", { command: parsed.data });
+    if (error) {
+      logFailure("void_invoice", error, { shopId, actorId: actor.id });
+      // Only the database's own domain codes reach the screen; anything else is a fixed generic message.
+      return error.code ? { ok: false, uncertain: false, message: operationError(error.message), code: /^[A-Z_]+$/.test(error.message) ? error.message : undefined } : { ok: false, uncertain: true, message: "Status is uncertain. Retry the exact saved command." };
+    }
+    if (typeof data !== "object" || data === null || Array.isArray(data) || data.ok !== true || data.invoice_id !== invoiceId || typeof data.void_id !== "string") return { ok: false, uncertain: true, message: "Status is uncertain. Retry the exact saved command." };
+    revalidatePath(`/shops/${shopId}/invoices/${invoiceId}`);
+    revalidatePath("/");
+    return { ok: true };
+  } catch {
+    logFailure("void_invoice", null, { shopId });
     return { ok: false, uncertain: true, message: "Status is uncertain. Retry the exact saved command after signing in again." };
   }
 }
