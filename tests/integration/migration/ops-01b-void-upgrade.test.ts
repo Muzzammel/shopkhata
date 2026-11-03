@@ -3,7 +3,7 @@ import { delimiter, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 // OPS-01B slice 1 + remediation on a POPULATED database:
-//   35 (20261031165915) -> 36 invoice void (20261103150000) -> 37 remediation (20261103190000).
+//   35 (20261031165915) -> 36 invoice void (20261103150000) -> 37 remediation (20261103190000) -> 38 release compat (20261103203806).
 // Existing financial history, reports and balances must be unchanged by the upgrade, and a void made on 36 must satisfy
 // 37's composite correction FK and report as a movement on its own date.
 
@@ -12,6 +12,9 @@ const PNPM = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const DB_CONTAINER = "supabase_db_shopkhata";
 const V35 = "20261031165915";
 const V36 = "20261103150000";
+// The e4f4cfe application's report_sales_totals contract (that app stays in production while 36-38 are applied).
+const LEGACY = ["invoice_count", "effective_total_dirham", "effective_paid_dirham", "credit_applied_dirham", "effective_due_dirham", "delivered_count", "undelivered_count"];
+const legacy = (from: string, to: string) => `select concat_ws('|', ${LEGACY.map((k) => `s.${k}`).join(", ")}) from public.report_sales_totals('${SHOP}', ${from}, ${to}) s;`;
 const SHOP = "10000000-0000-4000-8000-000000000001";
 const OWNER = "10000000-0000-4000-8000-000000000101";
 
@@ -54,17 +57,24 @@ const STATE = `select jsonb_build_object(
   'counts', (select jsonb_build_object('inv', (select count(*) from public.invoices), 'pay', (select count(*) from public.payments), 'cor', (select count(*) from public.corrections), 'audit', (select count(*) from public.audit_events)))
 )::text;`;
 
-describe("OPS-01B void migrations on a populated database (35 -> 36 -> 37)", () => {
+describe("OPS-01B void migrations on a populated database (35 -> 38)", () => {
   beforeAll(() => { supabase(["migration", "list", "--local"]); }, 60_000);
   afterAll(() => { supabase(["db", "reset", "--local"]); }, RESET_TIMEOUT);
 
-  it("35 -> 37 keeps every existing figure, then a void preserves history and nets to zero", () => {
+  it("35 -> 38 keeps every existing figure, then a void preserves history and nets to zero", () => {
     supabase(["db", "reset", "--local", "--version", V35]);
     sql(POPULATE);
     const before = sql(STATE);
+    const legacyRange = sql(legacy("current_date - 3", "current_date"));
+    const legacyToday = sql(legacy("current_date", "current_date"));
     supabase(["migration", "up", "--local"]);
-    expect(sql(`select count(*) from supabase_migrations.schema_migrations where version in ('${V36}', '20261103190000')`)).toBe("2");
+    expect(sql(`select count(*) from supabase_migrations.schema_migrations where version in ('${V36}', '20261103190000', '20261103203806')`)).toBe("3");
     expect(sql(STATE)).toBe(before);
+    // The old app's contract is intact: same fields, same values wherever no correction crosses the window edge.
+    expect(sql(legacy("current_date - 3", "current_date"))).toBe(legacyRange);
+    expect(sql(legacy("current_date", "current_date"))).toBe(legacyToday);
+    // The -15 discount dated D-2 no longer restates D-3 for the old app either (business-date sales, no historical rewrite).
+    expect(sql(`select effective_total_dirham || '|' || net_sales_dirham from public.report_sales_totals('${SHOP}', current_date - 3, current_date - 3);`)).toBe("17000|17000");
     // Sales totals now reconcile with Daily Close for the populated range.
     expect(sql(`select array[s.gross_sales_dirham, s.sales_corrections_dirham] = (select array[sum(gross_invoice_dirham)::bigint, sum(invoice_corrections_dirham)::bigint] from public.report_daily_summary('${SHOP}', current_date - 3, current_date)) from public.report_sales_totals('${SHOP}', current_date - 3, current_date) s;`)).toBe("t");
 

@@ -111,7 +111,7 @@ select is((select outstanding_due_dirham from public.report_customer_due_totals(
 select is((select outstanding_due_dirham + unassigned_due_dirham from public.report_customer_due_totals(pg_temp.s1())), (select coalesce(sum(effective_due_dirham), 0)::bigint from public.effective_invoices where shop_id = pg_temp.s1()), 'customer due plus unassigned due equals all effective invoice due');
 -- Sales are business-date movements (gross + invoice corrections, as the daily summary); paid/credit/due/delivery are the
 -- current state of the invoices dated in the range (the effective projection).
-select is((select to_jsonb(t) - array['gross_sales_dirham', 'sales_corrections_dirham', 'net_sales_dirham'] from public.report_sales_totals(pg_temp.s1(), current_date, current_date) t),
+select is((select to_jsonb(t) - array['gross_sales_dirham', 'sales_corrections_dirham', 'net_sales_dirham', 'effective_total_dirham'] from public.report_sales_totals(pg_temp.s1(), current_date, current_date) t),
   (select jsonb_build_object('invoice_count', count(*), 'effective_paid_dirham', coalesce(sum(effective_paid_dirham), 0),
     'credit_applied_dirham', coalesce(sum(effective_credit_applied_dirham), 0), 'effective_due_dirham', coalesce(sum(effective_due_dirham), 0),
     'delivered_count', count(*) filter (where effective_delivered), 'undelivered_count', count(*) filter (where not effective_delivered))
