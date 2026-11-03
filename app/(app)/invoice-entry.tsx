@@ -538,7 +538,15 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
   };
   const errorText = (row: EntryRow, index: number, field: string) => {
     const errors = fieldErrors(row.rowId, field);
-    return errors.length ? <p id={`${fid(index, field)}-error`} className={ui.fieldError}>{errors.join(" ")}</p> : null;
+    // The slot is sized to the field's pending error while it is still being typed, so the blur that reveals it
+    // moves nothing below: a mouse-down on "Add another invoice" blurs this field, and a button that moves before
+    // mouse-up loses the click. The reserving copy is a pseudo-element, so it is not in the text or the a11y tree.
+    const pending = [...new Set(preview.errors.filter((error) => error.rowId === row.rowId && error.field === field).map((error) => error.message))].join(" ");
+    if (!errors.length && !pending) return null;
+    return <div data-error-slot className="grid">
+      <span aria-hidden data-reserve={pending} className={cn(ui.fieldError, "invisible [grid-area:1/1] before:content-[attr(data-reserve)]")} />
+      {errors.length > 0 && <p id={`${fid(index, field)}-error`} className={cn(ui.fieldError, "[grid-area:1/1]")}>{errors.join(" ")}</p>}
+    </div>;
   };
   const section = "grid min-w-0 grid-cols-1 content-start gap-3";
   const sectionTitle = "text-[11px] font-semibold tracking-widest text-muted-foreground uppercase";

@@ -154,6 +154,23 @@ test.describe("Excel import", () => {
 });
 
 test.describe("durable local drafts", () => {
+  test("adding a row while an earlier row is invalid keeps the click and the error", async ({ page }) => {
+    const prefix = `ADD-${Date.now()}`;
+    await login(page);
+    await fillRow(page, 0, `${prefix}-1`, "10.00");
+    const add = page.getByRole("button", { name: "Add another invoice" });
+    await add.click();
+    await fillRow(page, 1, `${prefix}-2`, "not-money");
+    // The mouse-down blurs the invalid Total and reveals its error; the button must not move away before mouse-up,
+    // wherever on it the press lands.
+    await add.click({ position: { x: 24, y: 4 } });
+    await expect(entryRows(page)).toHaveCount(3);
+    await expect(entryRows(page).nth(1)).toContainText("Enter a positive amount in QAR with at most two decimals.");
+    await editRow(page, 1);
+    await expect(entryRows(page).nth(1).getByLabel("Total QAR")).toHaveValue("not-money");
+    await expect(entryRows(page).nth(1).getByText("Enter a positive amount in QAR with at most two decimals.")).toBeVisible();
+  });
+
   test("a draft survives reload with the same row identities and error mapping", async ({ page }) => {
     const prefix = `DRAFT-${Date.now()}`;
     const customer = { id: crypto.randomUUID(), name: `Draft customer ${prefix}`, publicId: `CUS-${prefix}` };
