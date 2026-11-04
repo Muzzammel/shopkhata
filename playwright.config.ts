@@ -14,9 +14,12 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      testIgnore: /pwa\.spec\.ts/,
+      testIgnore: /pwa\.spec\.ts|maintenance\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
+    // Maintenance mode is global: it would refuse the writes of any test running beside it, so it runs alone, after
+    // the Chromium suite (`--project=maintenance --no-deps` to run it by itself).
+    { name: "maintenance", testMatch: /maintenance\.spec\.ts/, dependencies: ["chromium"], use: { ...devices["Desktop Chrome"] } },
     // The other engines run the critical-workflow smoke only; the full
     // financial suite stays on Chromium as the deterministic gate.
     { name: "firefox", testMatch: /cross-browser\.spec\.ts/, use: { ...devices["Desktop Firefox"] } },

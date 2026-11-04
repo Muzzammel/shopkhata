@@ -129,6 +129,8 @@ declare
   old public.invoice_voids; inv public.invoices; eff public.effective_invoices;
   today date := (now() at time zone 'Asia/Qatar')::date; cid uuid; vid uuid;
 begin
+  -- Maintenance guard (20261103140000) first, so void_invoice is never reachable unguarded during a release.
+  perform private.assert_not_in_maintenance();
   sid := private.invoice_operation_actor(command, array['shop_id', 'invoice_id', 'reason', 'idempotency_key'], true);
   if not private.is_valid_uuid_text(command ->> 'invoice_id') or jsonb_typeof(command -> 'reason') is distinct from 'string' then
     raise exception 'INVALID_REQUEST' using errcode = 'P0001'; end if;

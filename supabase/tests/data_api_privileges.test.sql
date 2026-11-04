@@ -35,23 +35,24 @@ insert into priv_rpc values
   ('report_expense_totals(uuid,date,date)'), ('report_payment_totals(uuid,date,date)'), ('report_sales_totals(uuid,date,date)'),
   ('report_top_customers_by_payments(uuid,date,date,integer)'), ('report_top_customers_by_sales(uuid,date,date,integer)'),
   ('request_expense_correction(jsonb)'), ('request_invoice_correction(jsonb)'), ('request_invoice_replacement(jsonb)'),
+  ('set_maintenance(jsonb)'), ('set_maintenance_bypass(jsonb)'),
   ('submit_batch(jsonb)'), ('void_invoice(jsonb)');
 grant select on priv_rel, priv_all, priv_seq, priv_fn, priv_rpc to public;
 
 select ok((select count(*) from priv_rel) >= 30 and (select count(*) from priv_seq) >= 2 and (select count(*) from priv_fn) >= 27,
   'the catalog scan sees the real public tables, views, sequences and functions');
-select is((select count(*) from priv_rpc), 32::bigint, 'the approved RPC list holds 32 distinct signatures');
-select is((select array_agg(sig order by sig) from priv_fn),
-  (select array_agg(sig order by sig) from (select sig from priv_rpc union all select 'reject_append_only_mutation()') u),
-  'the public functions are exactly the 32 approved RPCs plus the append-only trigger function (a new or overloaded function must be classified here)');
+select is((select count(*) from priv_rpc), 34::bigint, 'the approved RPC list holds 34 distinct signatures');
+select is((select array_agg(sig order by sig collate "C") from priv_fn),
+  (select array_agg(sig order by sig collate "C") from (select sig from priv_rpc union all select 'reject_append_only_mutation()') u),
+  'the public functions are exactly the 34 approved RPCs plus the append-only trigger function (a new or overloaded function must be classified here)');
 
 -- 1. anon: nothing.
 select is((select count(*) from priv_rel r cross join priv_all a where has_table_privilege('anon', r.oid, a.p)), 0::bigint,
   'anon holds no privilege (SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN) on any public table or view');
 select is((select count(*) from priv_seq s where has_sequence_privilege('anon', s.oid, 'USAGE') or has_sequence_privilege('anon', s.oid, 'SELECT')
   or has_sequence_privilege('anon', s.oid, 'UPDATE')), 0::bigint, 'anon has no sequence privilege');
-select is((select coalesce(array_agg(sig order by sig), '{}') from priv_fn where anon_x), '{}'::text[], 'anon can execute no public function');
-select is((select coalesce(array_agg(sig order by sig), '{}') from priv_fn where public_x), '{}'::text[], 'PUBLIC can execute no public function');
+select is((select coalesce(array_agg(sig order by sig collate "C"), '{}') from priv_fn where anon_x), '{}'::text[], 'anon can execute no public function');
+select is((select coalesce(array_agg(sig order by sig collate "C"), '{}') from priv_fn where public_x), '{}'::text[], 'PUBLIC can execute no public function');
 
 -- 2. authenticated: SELECT only.
 select is((select count(*) from priv_rel r cross join priv_all a where a.p <> 'SELECT' and has_table_privilege('authenticated', r.oid, a.p)), 0::bigint,
@@ -60,8 +61,8 @@ select is((select count(*) from priv_rel r where not has_table_privilege('authen
   'authenticated can SELECT every public table and view (RLS decides the rows)');
 select is((select count(*) from priv_seq s where has_sequence_privilege('authenticated', s.oid, 'USAGE') or has_sequence_privilege('authenticated', s.oid, 'SELECT')
   or has_sequence_privilege('authenticated', s.oid, 'UPDATE')), 0::bigint, 'authenticated has no sequence privilege');
-select is((select array_agg(sig order by sig) from priv_fn where auth_x), (select array_agg(sig order by sig) from priv_rpc),
-  'authenticated can execute exactly the 30 approved application RPC signatures and nothing else');
+select is((select array_agg(sig order by sig collate "C") from priv_fn where auth_x), (select array_agg(sig order by sig collate "C") from priv_rpc),
+  'authenticated can execute exactly the 34 approved application RPC signatures and nothing else');
 select ok(not has_function_privilege('authenticated', 'public.reject_append_only_mutation()', 'EXECUTE')
   and not has_function_privilege('service_role', 'public.reject_append_only_mutation()', 'EXECUTE'),
   'the append-only trigger function is not callable through the API');
@@ -78,7 +79,7 @@ select ok(has_table_privilege('service_role', 'public.backup_records', 'SELECT')
   'service_role: backup_records SELECT yes, INSERT yes, UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER/MAINTAIN no');
 select is((select count(*) from priv_seq s where has_sequence_privilege('service_role', s.oid, 'USAGE') or has_sequence_privilege('service_role', s.oid, 'SELECT')
   or has_sequence_privilege('service_role', s.oid, 'UPDATE')), 0::bigint, 'service_role has no sequence privilege');
-select is((select coalesce(array_agg(sig order by sig), '{}') from priv_fn where svc_x), '{}'::text[], 'service_role can execute no public function');
+select is((select coalesce(array_agg(sig order by sig collate "C"), '{}') from priv_fn where svc_x), '{}'::text[], 'service_role can execute no public function');
 select is((select coalesce(array_agg(a.p order by a.p), '{}') from priv_all a where has_table_privilege('authenticated', 'public.backup_records', a.p)),
   array['SELECT'], 'authenticated holds exactly SELECT on backup_records');
 select is((select coalesce(array_agg(a.p order by a.p), '{}') from priv_all a where has_table_privilege('anon', 'public.backup_records', a.p)),

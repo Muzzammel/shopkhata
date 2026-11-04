@@ -113,6 +113,7 @@ describe("conflict mapping", () => {
     expect(classify({ code: "SHOP_INACTIVE" })).toEqual({ kind: "blocked", reason: "authorization" });
     expect(classify({ code: "INSUFFICIENT_ROLE" })).toEqual({ kind: "blocked", reason: "authorization" });
     expect(classify({ code: "UNAVAILABLE" })).toEqual({ kind: "blocked", reason: "unavailable" });
+    expect(classify({ code: "MAINTENANCE_ACTIVE" })).toEqual({ kind: "blocked", reason: "unavailable" });
     expect(classify({ code: "CLOSED_DATE" })).toEqual({ kind: "rejected", conflict: "closed_date" });
     expect(classify({ code: "STALE_DATE" })).toEqual({ kind: "rejected", conflict: "date_changed" });
     expect(classify({ code: "IDEMPOTENCY_CONFLICT" })).toEqual({ kind: "rejected", conflict: "idempotency" });

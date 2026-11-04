@@ -88,6 +88,7 @@ export async function saveInvoiceBatch(raw: unknown): Promise<SaveResult> {
       SHOP_INACTIVE: "This shop is inactive. Nothing was saved; the draft is kept on this device until an owner reactivates the shop.",
       INSUFFICIENT_ROLE: "Only an owner can submit a backdated batch.",
       AUTHENTICATION_REQUIRED: REAUTH_MESSAGE,
+      MAINTENANCE_ACTIVE: "ShopKhata is being updated. Nothing was saved; the draft is kept on this device. Try again after the update.",
     };
     return {
       ok: false,
