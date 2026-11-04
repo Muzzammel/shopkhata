@@ -9,8 +9,8 @@ import { OWNER, SHOP_1, SHOP_2, STAFF, invoiceCount, localDbQuery, login, openAd
 test.describe.configure({ mode: "serial" });
 
 const setMaintenance = (enabled: boolean) => localDbQuery(enabled
-  ? "update private.system_maintenance set enabled = true, enabled_at = now(), reason = 'e2e already-open tabs', release_ref = 'e2e'"
-  : "update private.system_maintenance set enabled = false, enabled_at = null, reason = null, release_ref = null, bypass_user_id = null, bypass_expires_at = null");
+  ? "update private.system_maintenance set enabled = true, enabled_at = now(), enabled_by = '10000000-0000-4000-8000-000000000101', reason = 'e2e already-open tabs', release_ref = 'e2e'"
+  : "update private.system_maintenance set enabled = false, enabled_at = null, enabled_by = null, reason = null, release_ref = null, bypass_user_id = null, bypass_expires_at = null, bypass_enabled_by = null, bypass_reason = null");
 const oldDate = () => new Date(Date.parse(`${qatarBusinessDate(new Date())}T12:00:00.000Z`) - (9000 + Math.floor(Math.random() * 1000)) * 86_400_000).toISOString().slice(0, 10);
 
 async function signedIn(browser: Browser, user: typeof STAFF): Promise<Page> {

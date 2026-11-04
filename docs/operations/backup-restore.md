@@ -139,6 +139,7 @@ Do this only when the production data is lost or damaged beyond repair. Stop, br
    docker run --rm -i public.ecr.aws/supabase/postgres:17.6.1.159 psql "<new database URL>" -c "analyze"
    ```
 
+   **Backups taken at migration 36 or later** (OPS-01B) also hold the maintenance state, and migration 36 inserts the single `private.system_maintenance` row itself, so the load would stop on a duplicate key. Clear that row in the same first command: `... delete from storage.buckets; delete from private.system_maintenance;`. The restored database then comes up **with the maintenance state of the backup**: a backup taken inside a release window restores LOCKED (`enabled = true`), which is intended. Check `select enabled, bypass_user_id is null from private.system_maintenance` before pointing anything at it, and do not turn maintenance off until the release runbook says so (rehearsed 2026-11-04: without the extra `delete` the load fails with `system_maintenance_pkey`; with it the restored row reads `enabled = true`).
    The load is one transaction: it either completes or changes nothing. **Do not skip `analyze`** — without it the invoice screens are slow enough to time out until the database gathers statistics on its own (found in the restore rehearsal).
 7. **Restore the receipt files**:
 

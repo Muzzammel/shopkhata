@@ -125,12 +125,14 @@ from public.credit_applications ca join public.effective_invoices e on e.shop_id
 create function public.void_invoice(command jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
-  actor uuid := auth.uid(); sid uuid; iid uuid; why text; cmd jsonb; fp text;
+  actor uuid; sid uuid; iid uuid; why text; cmd jsonb; fp text;
   old public.invoice_voids; inv public.invoices; eff public.effective_invoices;
-  today date := (now() at time zone 'Asia/Qatar')::date; cid uuid; vid uuid;
+  today date; cid uuid; vid uuid;
 begin
-  -- Maintenance guard (20261103140000) first, so void_invoice is never reachable unguarded during a release.
+  -- Maintenance guard (20261103140000) first, so void_invoice is never reachable unguarded during a release. No
+  -- declaration initializers: nothing may run before the guard (the maintenance pgTAP test enforces both).
   perform private.assert_not_in_maintenance();
+  actor := auth.uid(); today := (now() at time zone 'Asia/Qatar')::date;
   sid := private.invoice_operation_actor(command, array['shop_id', 'invoice_id', 'reason', 'idempotency_key'], true);
   if not private.is_valid_uuid_text(command ->> 'invoice_id') or jsonb_typeof(command -> 'reason') is distinct from 'string' then
     raise exception 'INVALID_REQUEST' using errcode = 'P0001'; end if;

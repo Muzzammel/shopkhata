@@ -5,49 +5,102 @@
 -- MAINTENANCE_ACTIVE, except for one owner given a short-lived operator bypass for release smoke. Reads stay governed
 -- by RLS only (a user's own shop data is not new exposure); the firewall keeps app pages closed.
 --
--- This migration sorts BEFORE the invoice-void migrations, so production can enable maintenance at 35 + this and keep
--- it on through the rest of the release. void_invoice (next migration) calls the guard itself.
+-- This is release migration 36 of the OPS-01B sequence (35 = last migration in production, 36 = this one, 37 = invoice
+-- void, 38 = historical-sales remediation, 39 = release compatibility). It sorts BEFORE the void migrations, so
+-- production can enable maintenance at 36 and keep it on through 37-39. void_invoice (37) calls the guard itself.
+--
+-- LOCK CONTRACT. One global order, never the reverse. A path that needs several of these takes them in this order:
+--   L1  the single private.system_maintenance row
+--         FOR SHARE  : every business write RPC (first statement) and every expense-receipts Storage insert
+--                      (BEFORE INSERT trigger on storage.objects), held until that transaction ends.
+--         FOR UPDATE : set_maintenance and set_maintenance_bypass (enable, disable, grant/renew, revoke), as their
+--                      first lock.
+--   L2  advisory lock 'account-administration' (private.assert_account_admin): admin RPCs and the two control RPCs.
+--   L3  everything else: per-shop and idempotency advisory locks, invoice/ledger row locks.
+-- Consequences: (a) a control transition waits for every write admitted before it and reports success only after they
+-- committed or rolled back; (b) a write that starts after the transition commits re-reads the row and refuses;
+-- (c) L1 is never requested while L2 or L3 is held, so the control and admin paths cannot deadlock.
+--
+-- WHY STORAGE IS GUARDED BY A TRIGGER, NOT A POLICY. The Storage service checks the INSERT policy in a throw-away
+-- transaction that it always rolls back, then uploads the bytes, then writes the real storage.objects row in a second
+-- transaction as a service-role connection with no RLS. A lock taken inside the policy is therefore released long before
+-- the object commits and serializes nothing. A BEFORE INSERT trigger fires in BOTH transactions, in particular the one
+-- that really commits the row, so its L1 share lock is held through that commit. The uploader identity there is
+-- NEW.owner_id (set by Storage from the verified JWT subject); the connection claims are only {"role":"service_role"}.
+-- The existing INSERT policy is left untouched: a BEFORE trigger runs ahead of the WITH CHECK, so a refused upload fails
+-- in the permission-test transaction already, before any bytes are sent.
 
--- 1. State: one row, written only by the owner RPCs below (security definer). No API role can touch it.
+-- 1. State: one row, written only by the owner RPCs below (security definer). No API role can touch it. The CHECKs make
+-- an inconsistent combination unrepresentable: enabled state carries its full metadata, disabled state carries none, and
+-- the bypass is all-or-nothing.
 create table private.system_maintenance (
   id boolean primary key default true check (id),
   enabled boolean not null default false,
   enabled_at timestamptz,
   enabled_by uuid,
   reason text,
+  -- Optional (the runbook always sets it); when present it is trimmed and 1-200 characters.
   release_ref text,
   bypass_user_id uuid,
   bypass_expires_at timestamptz,
   bypass_enabled_by uuid,
   bypass_reason text,
   updated_at timestamptz not null default now(),
-  constraint system_maintenance_bypass_needs_maintenance check (enabled or bypass_user_id is null),
-  constraint system_maintenance_bypass_complete check ((bypass_user_id is null) = (bypass_expires_at is null))
+  constraint system_maintenance_enabled_group check (
+    (enabled and enabled_at is not null and enabled_by is not null and btrim(coalesce(reason, '')) <> '' and coalesce(length(reason), 0) <= 2000)
+    or (not enabled and enabled_at is null and enabled_by is null and reason is null and release_ref is null)),
+  constraint system_maintenance_release_ref check (release_ref is null or (release_ref = btrim(release_ref) and length(release_ref) between 1 and 200)),
+  constraint system_maintenance_bypass_group check (
+    (bypass_user_id is null and bypass_expires_at is null and bypass_enabled_by is null and bypass_reason is null)
+    or (bypass_user_id is not null and bypass_expires_at is not null and bypass_enabled_by is not null
+        and btrim(coalesce(bypass_reason, '')) <> '' and coalesce(length(bypass_reason), 0) <= 2000)),
+  constraint system_maintenance_bypass_needs_maintenance check (enabled or bypass_user_id is null)
 );
 insert into private.system_maintenance(id) values (true);
 alter table private.system_maintenance enable row level security;
-revoke all on table private.system_maintenance from public, anon, authenticated, service_role;
+revoke all on table private.system_maintenance from public, anon, service_role, authenticated;
 
--- 2. Guards. Fail closed: a missing row counts as maintenance.
--- ponytail: one bypass row, i.e. one operator at a time; a table of grants if two operators ever smoke in parallel.
-create function private.maintenance_write_allowed() returns boolean
-language sql stable security definer set search_path = '' as $$
-  select coalesce((select not m.enabled or (m.bypass_user_id = auth.uid() and m.bypass_expires_at > now())
-                   from private.system_maintenance m where m.id), false);
+-- 2. Guards. Fail closed: a missing row refuses every write.
+-- Pure decision, wall clock (clock_timestamp, not the transaction start): an operator bypass is valid only if it has not
+-- expired at the moment of the decision. Callers evaluate it AFTER acquiring L1, so a transaction that waited for the lock
+-- is judged at the time it got the lock. Expiry is an admission boundary, not a commit boundary: a write admitted a
+-- moment before expiry may commit after it (it holds L1 SHARE, so only an explicit revoke or disable waits for it).
+create function private.maintenance_allows(m private.system_maintenance, p_user uuid) returns boolean
+language sql volatile set search_path = '' as $$
+  select not m.enabled or coalesce(p_user is not null and m.bypass_user_id = p_user and m.bypass_expires_at > clock_timestamp(), false);
 $$;
-revoke all on function private.maintenance_write_allowed() from public, anon, service_role;
--- The Storage INSERT policy runs as authenticated.
-grant execute on function private.maintenance_write_allowed() to authenticated;
+revoke all on function private.maintenance_allows(private.system_maintenance, uuid) from public, anon, authenticated, service_role;
 
--- FOR SHARE conflicts with the control RPCs' FOR UPDATE: enabling waits for in-flight writes to finish, and every
--- write that starts after the enable commits re-reads the row and refuses. Called before any other work.
+-- L1 FOR SHARE, then decide. FOR SHARE conflicts with the control RPCs' FOR UPDATE: a transition waits for every holder,
+-- and a later requester queues behind a waiting transition and then sees the committed row.
+create function private.maintenance_admit(p_user uuid) returns boolean
+language plpgsql security definer set search_path = '' as $$
+declare m private.system_maintenance;
+begin
+  select * into m from private.system_maintenance where id for share;
+  if not found then return false; end if;
+  return coalesce(private.maintenance_allows(m, p_user), false);
+end $$;
+revoke all on function private.maintenance_admit(uuid) from public, anon, authenticated, service_role;
+
+-- First statement of every business write RPC.
 create function private.assert_not_in_maintenance() returns void
 language plpgsql security definer set search_path = '' as $$
 begin
-  perform 1 from private.system_maintenance where id for share;
-  if not private.maintenance_write_allowed() then raise exception 'MAINTENANCE_ACTIVE' using errcode = 'P0001'; end if;
+  if not private.maintenance_admit(auth.uid()) then raise exception 'MAINTENANCE_ACTIVE' using errcode = 'P0001'; end if;
 end $$;
 revoke all on function private.assert_not_in_maintenance() from public, anon, authenticated, service_role;
+
+-- L1 FOR UPDATE for the control RPCs. A missing singleton is an invariant violation: refuse, never improvise.
+create function private.maintenance_lock_exclusive() returns private.system_maintenance
+language plpgsql security definer set search_path = '' as $$
+declare m private.system_maintenance;
+begin
+  select * into m from private.system_maintenance where id for update;
+  if not found then raise exception 'MAINTENANCE_STATE_MISSING' using errcode = 'P0001'; end if;
+  return m;
+end $$;
+revoke all on function private.maintenance_lock_exclusive() from public, anon, authenticated, service_role;
 
 -- 3. Every existing write RPC becomes guard + unchanged body. The body moves to private under the same name (same
 -- owner, security definer and search_path; no API grant), so financial semantics are untouched.
@@ -78,20 +131,25 @@ end $body$$sql$, f);
   end loop;
 end $do$;
 
--- 4. Receipt uploads go browser -> Storage directly, so the INSERT policy carries the same check.
-alter policy expense_receipts_shop_insert on storage.objects with check (
-  bucket_id = 'expense-receipts'
-  and private.maintenance_write_allowed()
-  and private.is_valid_uuid_text((storage.foldername(name))[1])
-  and private.has_shop_access(((storage.foldername(name))[1])::uuid)
-  and private.is_valid_uuid_text((storage.foldername(name))[2])
-  and coalesce(array_length(storage.foldername(name), 1), 0) = 2
-  and exists (select 1 from public.expenses e where e.shop_id = ((storage.foldername(name))[1])::uuid and e.id = ((storage.foldername(name))[2])::uuid)
-  and split_part(name, '/', 3) ~ '^[0-9a-f-]{36}\.(jpg|png|webp|pdf)$'
-);
+-- 4. Receipt uploads go browser -> Storage directly, so the guard is a trigger on the row that Storage commits (see the
+-- header).
+-- Update and delete stay denied to every API role by the existing policies, so insert is the only user-reachable Storage mutation.
+-- Trigger functions are not EXECUTE-checked when they fire, so the function needs no grant.
+create function private.storage_receipt_maintenance_guard() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare uploader uuid;
+begin
+  if private.is_valid_uuid_text(new.owner_id) then uploader := new.owner_id::uuid; end if;
+  if not private.maintenance_admit(uploader) then raise exception 'MAINTENANCE_ACTIVE' using errcode = 'P0001'; end if;
+  return new;
+end $$;
+revoke all on function private.storage_receipt_maintenance_guard() from public, anon, authenticated, service_role;
+create trigger expense_receipts_maintenance_guard before insert on storage.objects
+  for each row when (new.bucket_id = 'expense-receipts') execute function private.storage_receipt_maintenance_guard();
 
--- 5. Control RPCs: active owner only, reason required, audited in audit_events, idempotent (a repeat returns
--- changed=false and writes no audit row). Not maintenance-guarded, or maintenance could never be turned off.
+-- 5. Control RPCs: active owner only, reason required, audited in audit_events, idempotent (a repeat of an enable, a
+-- disable or a revoke returns changed=false and writes no audit row). A bypass GRANT is a renewal, not idempotent: it
+-- always sets a fresh expiry and always audits. Not maintenance-guarded, or maintenance could never be turned off.
 create function private.maintenance_reason(command jsonb) returns text
 language plpgsql immutable set search_path = '' as $$
 declare why text;
@@ -111,12 +169,23 @@ language sql immutable set search_path = '' as $$
 $$;
 revoke all on function private.maintenance_state(private.system_maintenance) from public, anon, authenticated, service_role;
 
--- command: {enabled: boolean, reason: text, release_ref?: text}. Disabling also revokes any operator bypass.
+-- Pre-lock authorization. Only an active owner may queue for the exclusive L1 lock, so nobody else can stall writes by
+-- calling a control RPC. The authoritative owner check repeats under L2 (assert_account_admin), after L1.
+create function private.assert_maintenance_controller() returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if auth.uid() is null then raise exception 'AUTHENTICATION_REQUIRED' using errcode = '28000'; end if;
+  if not private.is_owner() then raise exception 'INSUFFICIENT_ROLE' using errcode = '42501'; end if;
+end $$;
+revoke all on function private.assert_maintenance_controller() from public, anon, authenticated, service_role;
+
+-- command: {enabled: boolean, reason: text, release_ref?: text}. Disabling also clears any operator bypass.
+-- Lock order: L1 (FOR UPDATE) then L2.
 create function public.set_maintenance(command jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare actor uuid; want boolean; why text; ref text; m private.system_maintenance;
+declare actor uuid; want boolean; why text; ref text; m private.system_maintenance; prior private.system_maintenance; at_ts timestamptz;
 begin
-  actor := private.assert_account_admin();
+  perform private.assert_maintenance_controller();
   if jsonb_typeof(command) is distinct from 'object' or not private.jsonb_object_keys_subset(command, array['enabled', 'reason', 'release_ref'])
     or jsonb_typeof(command -> 'enabled') is distinct from 'boolean'
     or (command ? 'release_ref' and jsonb_typeof(command -> 'release_ref') not in ('string', 'null'))
@@ -126,42 +195,49 @@ begin
   why := private.maintenance_reason(command);
   ref := private.normalize_optional_text(command ->> 'release_ref');
 
-  select * into m from private.system_maintenance where id for update;
-  if m.enabled = want then return jsonb_build_object('ok', true, 'changed', false) || private.maintenance_state(m); end if;
+  prior := private.maintenance_lock_exclusive();            -- L1
+  actor := private.assert_account_admin();                  -- L2, authoritative owner check
+  if prior.enabled = want then return jsonb_build_object('ok', true, 'changed', false) || private.maintenance_state(prior); end if;
+  at_ts := clock_timestamp();
 
   if want then
-    update private.system_maintenance set enabled = true, enabled_at = now(), enabled_by = actor, reason = why,
-      release_ref = ref, updated_at = now() where id returning * into m;
+    update private.system_maintenance set enabled = true, enabled_at = at_ts, enabled_by = actor, reason = why,
+      release_ref = ref, updated_at = at_ts where id returning * into m;
+    if not found then raise exception 'MAINTENANCE_STATE_MISSING' using errcode = 'P0001'; end if;
     insert into public.audit_events(shop_id, actor_id, action, entity_type, entity_id, reason, metadata)
     values (null, actor, 'maintenance.enabled', 'system_maintenance', 'global', why,
-      jsonb_build_object('actor', actor, 'at', now(), 'reason', why, 'release_ref', ref));
+      jsonb_build_object('actor', actor, 'at', at_ts, 'reason', why, 'release_ref', ref));
   else
-    if m.bypass_user_id is not null then
+    update private.system_maintenance set enabled = false, enabled_at = null, enabled_by = null, reason = null,
+      release_ref = null, bypass_user_id = null, bypass_expires_at = null, bypass_enabled_by = null, bypass_reason = null,
+      updated_at = at_ts where id returning * into m;
+    if not found then raise exception 'MAINTENANCE_STATE_MISSING' using errcode = 'P0001'; end if;
+    if prior.bypass_user_id is not null then
       insert into public.audit_events(shop_id, actor_id, action, entity_type, entity_id, reason, metadata)
       values (null, actor, 'maintenance.operator_bypass_disabled', 'system_maintenance', 'global', why,
-        jsonb_build_object('actor', actor, 'at', now(), 'reason', why, 'user_id', m.bypass_user_id,
-          'expires_at', m.bypass_expires_at, 'cause', 'maintenance_disabled'));
+        jsonb_build_object('actor', actor, 'at', at_ts, 'reason', why, 'user_id', prior.bypass_user_id,
+          'expires_at', prior.bypass_expires_at, 'release_ref', prior.release_ref, 'cause', 'maintenance_disabled'));
     end if;
     insert into public.audit_events(shop_id, actor_id, action, entity_type, entity_id, reason, metadata)
     values (null, actor, 'maintenance.disabled', 'system_maintenance', 'global', why,
-      jsonb_build_object('actor', actor, 'at', now(), 'reason', why, 'release_ref', coalesce(ref, m.release_ref),
-        'enabled_at', m.enabled_at, 'enabled_by', m.enabled_by));
-    update private.system_maintenance set enabled = false, enabled_at = null, enabled_by = null, reason = null,
-      release_ref = null, bypass_user_id = null, bypass_expires_at = null, bypass_enabled_by = null, bypass_reason = null,
-      updated_at = now() where id returning * into m;
+      jsonb_build_object('actor', actor, 'at', at_ts, 'reason', why, 'release_ref', coalesce(ref, prior.release_ref),
+        'enabled_at', prior.enabled_at, 'enabled_by', prior.enabled_by));
   end if;
   return jsonb_build_object('ok', true, 'changed', true) || private.maintenance_state(m);
 end $$;
 revoke all on function public.set_maintenance(jsonb) from public, anon, service_role;
 grant execute on function public.set_maintenance(jsonb) to authenticated;
 
--- command: {user_id: uuid | null, minutes?: 1..120, reason: text}. user_id null revokes. Only while maintenance is on;
+-- command: {user_id: uuid | null, minutes?: 1..120, reason: text}. user_id null revokes (idempotent). A uuid GRANTS or
+-- RENEWS: there is one operator slot, so granting again (same or another owner) replaces it with a fresh expiry measured
+-- from the moment the lock was acquired, and is audited as a new grant with renewal=true. Only while maintenance is on;
 -- the target must be an active owner, so the bypass never grants a role or shop the user lacks.
+-- Lock order: L1 (FOR UPDATE) then L2.
 create function public.set_maintenance_bypass(command jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare actor uuid; target uuid; mins int; why text; m private.system_maintenance;
+declare actor uuid; target uuid; mins int; why text; m private.system_maintenance; prior private.system_maintenance; at_ts timestamptz;
 begin
-  actor := private.assert_account_admin();
+  perform private.assert_maintenance_controller();
   if jsonb_typeof(command) is distinct from 'object' or not private.jsonb_object_keys_subset(command, array['user_id', 'minutes', 'reason'])
     or not (command ? 'user_id') or (jsonb_typeof(command -> 'user_id') <> 'null' and not private.is_valid_uuid_text(command ->> 'user_id'))
   then raise exception 'INVALID_REQUEST' using errcode = 'P0001'; end if;
@@ -172,29 +248,34 @@ begin
   mins := (command ->> 'minutes')::int;
   why := private.maintenance_reason(command);
 
-  select * into m from private.system_maintenance where id for update;
+  prior := private.maintenance_lock_exclusive();            -- L1
+  actor := private.assert_account_admin();                  -- L2, authoritative owner check
+  at_ts := clock_timestamp();
   if target is null then
-    if m.bypass_user_id is null then return jsonb_build_object('ok', true, 'changed', false) || private.maintenance_state(m); end if;
+    if prior.bypass_user_id is null then return jsonb_build_object('ok', true, 'changed', false) || private.maintenance_state(prior); end if;
+    update private.system_maintenance set bypass_user_id = null, bypass_expires_at = null, bypass_enabled_by = null,
+      bypass_reason = null, updated_at = at_ts where id returning * into m;
+    if not found then raise exception 'MAINTENANCE_STATE_MISSING' using errcode = 'P0001'; end if;
     insert into public.audit_events(shop_id, actor_id, action, entity_type, entity_id, reason, metadata)
     values (null, actor, 'maintenance.operator_bypass_disabled', 'system_maintenance', 'global', why,
-      jsonb_build_object('actor', actor, 'at', now(), 'reason', why, 'user_id', m.bypass_user_id, 'expires_at', m.bypass_expires_at,
-        'release_ref', m.release_ref, 'cause', 'revoked'));
-    update private.system_maintenance set bypass_user_id = null, bypass_expires_at = null, bypass_enabled_by = null,
-      bypass_reason = null, updated_at = now() where id returning * into m;
+      jsonb_build_object('actor', actor, 'at', at_ts, 'reason', why, 'user_id', prior.bypass_user_id, 'expires_at', prior.bypass_expires_at,
+        'release_ref', prior.release_ref, 'cause', 'revoked'));
     return jsonb_build_object('ok', true, 'changed', true) || private.maintenance_state(m);
   end if;
 
-  if not m.enabled then raise exception 'MAINTENANCE_NOT_ACTIVE' using errcode = 'P0001'; end if;
+  if not prior.enabled then raise exception 'MAINTENANCE_NOT_ACTIVE' using errcode = 'P0001'; end if;
   if not exists (select 1 from public.profiles p where p.id = target and p.role = 'owner' and p.is_active) then
     raise exception 'BYPASS_USER_NOT_ACTIVE_OWNER' using errcode = 'P0001';
   end if;
-  update private.system_maintenance set bypass_user_id = target, bypass_expires_at = now() + make_interval(mins => mins),
-    bypass_enabled_by = actor, bypass_reason = why, updated_at = now() where id returning * into m;
+  update private.system_maintenance set bypass_user_id = target, bypass_expires_at = at_ts + make_interval(mins => mins),
+    bypass_enabled_by = actor, bypass_reason = why, updated_at = at_ts where id returning * into m;
+  if not found then raise exception 'MAINTENANCE_STATE_MISSING' using errcode = 'P0001'; end if;
   insert into public.audit_events(shop_id, actor_id, action, entity_type, entity_id, reason, metadata)
   values (null, actor, 'maintenance.operator_bypass_enabled', 'system_maintenance', 'global', why,
-    jsonb_build_object('actor', actor, 'at', now(), 'reason', why, 'user_id', target, 'expires_at', m.bypass_expires_at,
-      'minutes', mins, 'release_ref', m.release_ref));
-  return jsonb_build_object('ok', true, 'changed', true) || private.maintenance_state(m);
+    jsonb_build_object('actor', actor, 'at', at_ts, 'reason', why, 'user_id', target, 'expires_at', m.bypass_expires_at,
+      'minutes', mins, 'release_ref', m.release_ref, 'renewal', prior.bypass_user_id is not null,
+      'previous_user_id', prior.bypass_user_id, 'previous_expires_at', prior.bypass_expires_at));
+  return jsonb_build_object('ok', true, 'changed', true, 'renewal', prior.bypass_user_id is not null) || private.maintenance_state(m);
 end $$;
 revoke all on function public.set_maintenance_bypass(jsonb) from public, anon, service_role;
 grant execute on function public.set_maintenance_bypass(jsonb) to authenticated;
