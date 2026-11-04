@@ -135,13 +135,78 @@ end $do$;
 -- header).
 -- Update and delete stay denied to every API role by the existing policies, so insert is the only user-reachable Storage mutation.
 -- Trigger functions are not EXECUTE-checked when they fire, so the function needs no grant.
+--
+-- RECEIPT RESTORE CONTEXT. A disaster restore loads the database (which may come up LOCKED, by design) and then puts the
+-- receipt bytes back through the Storage API with the service key. Those uploads carry no uploader (owner_id NULL), so the
+-- guard would refuse them. The restore context admits exactly the object names it lists, only uploads without an
+-- uploader (service key; an authenticated user's upload always carries owner_id = its JWT subject), only until its
+-- expiry, and only for the restore reference that opened it. It is NOT a service-role exemption: any other service-key
+-- upload is still refused while maintenance is on. Opening and closing it are private functions with no API grant, so
+-- only a direct database-owner connection (the restore operator) can use them; every open and close is logged in
+-- private.receipt_restore_log. Tooling: scripts/backup.mjs (restore, restore-receipts), which always closes it.
+create table private.receipt_restore_objects (
+  bucket_id text not null check (bucket_id = 'expense-receipts'),
+  name text not null,
+  restore_ref text not null check (restore_ref = btrim(restore_ref) and length(restore_ref) between 1 and 200),
+  expires_at timestamptz not null,
+  primary key (bucket_id, name)
+);
+create table private.receipt_restore_log (
+  id bigint generated always as identity primary key,
+  at timestamptz not null default clock_timestamp(),
+  db_user text not null default current_user,
+  action text not null check (action in ('opened', 'closed')),
+  restore_ref text not null,
+  object_count integer not null,
+  expires_at timestamptz
+);
+alter table private.receipt_restore_objects enable row level security;
+alter table private.receipt_restore_log enable row level security;
+revoke all on table private.receipt_restore_objects, private.receipt_restore_log from public, anon, authenticated, service_role;
+
+-- Opens (or extends) the context for the listed objects, at most 60 minutes. Refuses while another restore is open.
+create function private.receipt_restore_open(p_restore_ref text, p_names text[], p_minutes integer) returns integer
+language plpgsql set search_path = '' as $$
+declare n integer; until_ts timestamptz;
+begin
+  if p_restore_ref is null or p_names is null or cardinality(p_names) = 0 or p_minutes is null or p_minutes not between 1 and 60
+    or exists (select 1 from unnest(p_names) x where x is null or btrim(x) = '')
+  then raise exception 'INVALID_REQUEST' using errcode = 'P0001'; end if;
+  if exists (select 1 from private.receipt_restore_objects where restore_ref <> p_restore_ref) then
+    raise exception 'RESTORE_CONTEXT_BUSY' using errcode = 'P0001';
+  end if;
+  until_ts := clock_timestamp() + make_interval(mins => p_minutes);
+  insert into private.receipt_restore_objects(bucket_id, name, restore_ref, expires_at)
+  select distinct 'expense-receipts', x, p_restore_ref, until_ts from unnest(p_names) x
+  on conflict (bucket_id, name) do update set expires_at = excluded.expires_at;
+  get diagnostics n = row_count;
+  insert into private.receipt_restore_log(action, restore_ref, object_count, expires_at) values ('opened', p_restore_ref, n, until_ts);
+  return n;
+end $$;
+-- Closes the context (idempotent); returns how many grants it removed.
+create function private.receipt_restore_close(p_restore_ref text) returns integer
+language plpgsql set search_path = '' as $$
+declare n integer;
+begin
+  delete from private.receipt_restore_objects where restore_ref = p_restore_ref;
+  get diagnostics n = row_count;
+  insert into private.receipt_restore_log(action, restore_ref, object_count) values ('closed', p_restore_ref, n);
+  return n;
+end $$;
+revoke all on function private.receipt_restore_open(text, text[], integer), private.receipt_restore_close(text) from public, anon, authenticated, service_role;
+
 create function private.storage_receipt_maintenance_guard() returns trigger
 language plpgsql security definer set search_path = '' as $$
 declare uploader uuid;
 begin
   if private.is_valid_uuid_text(new.owner_id) then uploader := new.owner_id::uuid; end if;
-  if not private.maintenance_admit(uploader) then raise exception 'MAINTENANCE_ACTIVE' using errcode = 'P0001'; end if;
-  return new;
+  if private.maintenance_admit(uploader) then return new; end if;
+  -- Still under L1 (maintenance_admit took it). Only an uploader-less (service key) insert of a listed, unexpired name.
+  if new.owner_id is null and exists (select 1 from private.receipt_restore_objects r
+      where r.bucket_id = new.bucket_id and r.name = new.name and r.expires_at > clock_timestamp()) then
+    return new;
+  end if;
+  raise exception 'MAINTENANCE_ACTIVE' using errcode = 'P0001';
 end $$;
 revoke all on function private.storage_receipt_maintenance_guard() from public, anon, authenticated, service_role;
 create trigger expense_receipts_maintenance_guard before insert on storage.objects

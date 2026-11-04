@@ -3,8 +3,11 @@
 //   pnpm backup:db                      back up the database and the private receipt files
 //   pnpm backup:verify                  back up the local stack, restore it and prove the restore
 //   pnpm backup:verify --from <dir>     rehearse an existing (for example production) backup locally
+//   node scripts/backup.mjs restore --from <dir> --confirm <host>
+//                                       restore a backup into a NEW, empty hosted project: exactly the
+//                                       backup's migrations, its data, its receipt files; then verify
 //   node scripts/backup.mjs restore-receipts --from <dir> --confirm <host>
-//                                       upload a backup's receipt files into the project being recovered
+//                                       only upload a backup's receipt files into the project being recovered
 //   node scripts/backup.mjs record --from <dir>
 //                                       re-check a backup's file hashes and list it in Admin > Backup & Recovery
 //
@@ -13,8 +16,8 @@
 // writes to the local stack; restoring into a hosted project is a deliberate manual procedure.
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
@@ -26,18 +29,23 @@ const BUCKET = "expense-receipts";
 // supabase_db_<project_id from supabase/config.toml>
 const LOCAL_DB_CONTAINER = "supabase_db_shopkhata";
 const DUMPS = ["roles.sql", "schema.sql", "data.sql"];
+// The psql client used against a URL-addressed (hosted) database: the image of the documented manual restore.
+const PSQL_IMAGE = "public.ecr.aws/supabase/postgres:17.6.1.159";
 
 class BackupError extends Error {}
 const fail = (message) => { throw new BackupError(message); };
 const log = (message) => console.log(`[backup] ${message}`);
 const sha256 = (buffer) => createHash("sha256").update(buffer).digest("hex");
 
-function supabase(args, { json = false } = {}) {
+function supabase(args, { json = false, all = false } = {}) {
   try {
-    const out = execFileSync(process.execPath, [CLI, "--agent", "no", ...(json ? ["--output-format", "json"] : []), ...args], {
+    const run = spawnSync(process.execPath, [CLI, "--agent", "no", ...(json ? ["--output-format", "json"] : []), ...args], {
       cwd: REPO, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024, timeout: 600_000,
     });
-    return json ? JSON.parse(out.slice(out.indexOf("["), out.lastIndexOf("]") + 1)) : out;
+    if (run.status !== 0) throw Object.assign(new Error(run.error?.message ?? `exit ${run.status}`), { stderr: run.stderr });
+    const out = run.stdout;
+    // `all`: the CLI prints some reports (the push dry run) on stderr.
+    return json ? JSON.parse(out.slice(out.indexOf("["), out.lastIndexOf("]") + 1)) : all ? `${out}\n${run.stderr}` : out;
   } catch (error) {
     // Never echo the arguments: a remote source carries its password in the connection string.
     fail(`supabase ${args[0]} ${args[1]} failed: ${String(error.stderr || error.message).replace(/postgres(ql)?:\/\/\S+/g, "<db-url>").trim()}`);
@@ -68,6 +76,42 @@ const localSource = () => { const saved = process.env.SHOPKHATA_BACKUP_DB_URL; d
 const query = (src, sql) => supabase(["db", "query", ...src.args, sql], { json: true });
 const fingerprint = (src) => supabase(["db", "query", ...src.args, "-f", join("scripts", "backup-fingerprint.sql")], { json: true })[0].fingerprint;
 
+// OPS-01B W5/W6: the authoritative recovery point may only be taken while nothing else is running or holding a
+// transaction open (scripts/ops-01b-quiescence.sql). SHOPKHATA_BACKUP_REQUIRE_QUIESCENT=1 checks it before and after
+// the dumps; an old transaction still open (for example a pre-guard RPC) makes the backup refuse.
+function requireQuiescent(src, when) {
+  const q = supabase(["db", "query", ...src.args, "-f", join("scripts", "ops-01b-quiescence.sql")], { json: true })[0].quiescence;
+  if (!q.quiescent) {
+    fail(`The database is not quiescent ${when} (busy sessions ${q.busy}, open writers ${q.open_writers}, lock waiters ${q.lock_waiters}, write locks: ${q.write_locks.join("; ") || "none"}). This cannot be the recovery point: find the session (runbook V7 / W5), let it finish, and run the backup again.`);
+  }
+  log(`Quiescent ${when}: ${q.sessions.length} other session(s), all idle with no open transaction.`);
+}
+
+// One SQL statement returning a single jsonb column `v`, against a URL-addressed (hosted) database. Written to a file
+// so a long statement (every receipt name) never meets a command-line length limit.
+function urlSql(dbUrl) {
+  return (statement) => {
+    const file = join(mkdtempSync(join(tmpdir(), "shopkhata-sql-")), "q.sql");
+    writeFileSync(file, statement);
+    return supabase(["db", "query", "--db-url", dbUrl, "-f", file], { json: true })[0].v;
+  };
+}
+const lit = (value) => `'${String(value).replaceAll("'", "''")}'`;
+
+// psql against a database URL through the documented client image. A local URL (127.0.0.1) is reached from the
+// container as host.docker.internal; that is the only difference from a hosted restore.
+function psqlUrl(dbUrl, args, stdin) {
+  const url = new URL(dbUrl);
+  const local = ["127.0.0.1", "localhost"].includes(url.hostname);
+  if (local) url.hostname = "host.docker.internal";
+  const result = spawnSync("docker", ["run", "--rm", "-i", ...(local ? ["--add-host", "host.docker.internal:host-gateway"] : []), PSQL_IMAGE,
+    "psql", url.toString(), "-v", "ON_ERROR_STOP=1", "-q", "-A", "-t", ...args], {
+    encoding: "utf8", stdio: [stdin ?? "ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024, timeout: 900_000,
+  });
+  if (result.status !== 0) fail(`psql against the restore target failed: ${(result.stderr || result.error?.message || "").replace(/postgres(ql)?:\/\/\S+/g, "<db-url>").trim()}`);
+  return result.stdout.trim();
+}
+
 function receiptPath(dir, name) {
   const target = resolve(dir, "storage", BUCKET, name);
   if (!target.startsWith(resolve(dir, "storage", BUCKET) + sep)) fail(`Unsafe storage object name: ${name}`);
@@ -87,6 +131,8 @@ async function createBackup() {
   mkdirSync(dir, { recursive: true });
   log(`Backing up ${src.label} (${src.environment}) to ${dir}`);
 
+  const quiet = process.env.SHOPKHATA_BACKUP_REQUIRE_QUIESCENT === "1";
+  if (quiet) requireQuiescent(src, "before the dumps");
   const before = fingerprint(src);
   supabase(["db", "dump", ...src.args, "--role-only", "-f", join(dir, "roles.sql")]);
   supabase(["db", "dump", ...src.args, "-f", join(dir, "schema.sql")]);
@@ -95,6 +141,7 @@ async function createBackup() {
   // internally inconsistent, so it is refused. Take backups outside trading hours or retry.
   const fp = fingerprint(src);
   if (!isDeepStrictEqual(before, fp)) fail("The database changed while it was being dumped. Run the backup again when no one is entering data.");
+  if (quiet) requireQuiescent(src, "after the dumps");
 
   const files = {};
   for (const name of DUMPS) {
@@ -173,20 +220,141 @@ end $$;`;
 
 // Uploads every receipt file of a backup under its original path and reads each one back.
 // The database rows (storage.objects, public.attachments) come from data.sql; this puts the
-// bytes behind them, so it runs after the database restore.
-async function restoreReceipts(dir, manifest, apiUrl, serviceKey) {
+// bytes behind them, so it runs after the database restore. `sql` runs one statement returning jsonb `v` on the target.
+//
+// A restored database can be LOCKED (OPS-01B maintenance on, by design), and these service-key uploads carry no
+// uploader, so the Storage maintenance trigger refuses them. The tool therefore opens the database's receipt restore
+// context for exactly the manifest's object names (private.receipt_restore_open: database owner only, logged), and
+// closes it in every case afterwards. Nothing else is admitted: an ordinary user, or a service-key upload of any other
+// name, is still refused while maintenance is on.
+async function restoreReceipts(dir, manifest, apiUrl, serviceKey, sql) {
   const storage = createClient(apiUrl, serviceKey, { auth: { persistSession: false } }).storage.from(BUCKET);
   // A local storage service restarts with the database reset; wait until it answers.
   for (let attempt = 1; (await storage.list("", { limit: 1 })).error; attempt++) {
     if (attempt === 60) fail("The storage service is not answering.");
     await new Promise((done) => setTimeout(done, 1000));
   }
-  for (const receipt of manifest.receipts) {
-    const { error } = await storage.upload(receipt.name, readFileSync(receiptPath(dir, receipt.name)), { upsert: true, contentType: receipt.contentType });
-    if (error) fail(`Receipt ${receipt.name} could not be restored: ${error.message}`);
-    const { data: blob, error: readError } = await storage.download(receipt.name);
-    if (readError || sha256(Buffer.from(await blob.arrayBuffer())) !== receipt.sha256) fail(`Restored receipt ${receipt.name} does not read back identically.`);
+  const names = manifest.receipts.map((receipt) => receipt.name);
+  if (!names.length) return { files: 0, context: false };
+  // The rows data.sql loaded ARE the backup's object metadata; the upload must keep them (owner, size, type, eTag).
+  const objectRows = () => sql(`select coalesce(jsonb_object_agg(name, jsonb_build_object('owner', owner, 'owner_id', owner_id, 'created_at', created_at,
+    'size', metadata ->> 'size', 'mimetype', metadata ->> 'mimetype', 'etag', metadata ->> 'eTag', 'user_metadata', user_metadata)), '{}') as v
+    from storage.objects where bucket_id = '${BUCKET}'`);
+  const loaded = objectRows();
+  const missing = names.filter((name) => !loaded[name]);
+  if (missing.length) fail(`The restored database has no storage.objects row for ${missing.length} receipt(s) (${missing.slice(0, 3).join(", ")}). Load data.sql before the receipts.`);
+  const unknown = Object.keys(loaded).filter((name) => !names.includes(name));
+  if (unknown.length) fail(`The restored database lists ${unknown.length} receipt object(s) that are not in the backup (${unknown.slice(0, 3).join(", ")}).`);
+
+  const context = sql("select to_jsonb(to_regprocedure('private.receipt_restore_open(text,text[],integer)') is not null) as v");
+  const ref = `receipt-restore ${manifest.createdAt} at ${new Date().toISOString()}`;
+  if (context) log(`Receipt restore context opened for ${sql(`select to_jsonb(private.receipt_restore_open(${lit(ref)}, array[${names.map(lit).join(", ")}]::text[], 60)) as v`)} object(s) (${ref}).`);
+  try {
+    for (const receipt of manifest.receipts) {
+      const { error } = await storage.upload(receipt.name, readFileSync(receiptPath(dir, receipt.name)), { upsert: true, contentType: receipt.contentType });
+      if (error) fail(`Receipt ${receipt.name} could not be restored: ${error.message}`);
+      const { data: blob, error: readError } = await storage.download(receipt.name);
+      if (readError || sha256(Buffer.from(await blob.arrayBuffer())) !== receipt.sha256) fail(`Restored receipt ${receipt.name} does not read back identically.`);
+    }
+  } finally {
+    if (context) {
+      sql(`select to_jsonb(private.receipt_restore_close(${lit(ref)})) as v`);
+      const left = sql("select to_jsonb(count(*)::int) as v from private.receipt_restore_objects");
+      if (left !== 0) fail(`The receipt restore context still lists ${left} object(s) after closing. Close it by hand: select private.receipt_restore_close('<ref>').`);
+      log("Receipt restore context closed; no object is admitted past maintenance any more.");
+    }
   }
+  const restored = objectRows();
+  const changed = names.filter((name) => !isDeepStrictEqual(loaded[name], restored[name]));
+  if (changed.length) fail(`Restoring the bytes changed the stored metadata of ${changed.length} receipt(s): ${changed.slice(0, 3).join(", ")}`);
+  return { files: names.length, context };
+}
+
+// The maintenance state of a restored database, or null for a backup taken before migration 36 (no table yet).
+const maintenanceState = (sql) => (sql("select to_jsonb(to_regclass('private.system_maintenance') is not null) as v")
+  ? sql("select to_jsonb(x) as v from (select enabled, bypass_user_id is not null as bypass from private.system_maintenance) x") : null);
+
+const localSql = (statement) => JSON.parse(psql(["-c", statement]) || "null");
+
+function restoreTarget(confirmHost) {
+  const apiUrl = process.env.SHOPKHATA_RESTORE_SUPABASE_URL;
+  const serviceKey = process.env.SHOPKHATA_RESTORE_SERVICE_ROLE_KEY;
+  const dbUrl = process.env.SHOPKHATA_RESTORE_DB_URL;
+  if (!apiUrl || !serviceKey || !dbUrl) fail("Set SHOPKHATA_RESTORE_SUPABASE_URL, SHOPKHATA_RESTORE_SERVICE_ROLE_KEY and SHOPKHATA_RESTORE_DB_URL to the project being restored.");
+  if (new URL(apiUrl).host !== confirmHost) fail(`--confirm must repeat the target host exactly (${new URL(apiUrl).host}).`);
+  return { apiUrl, serviceKey, dbUrl };
+}
+
+// Copies EXACTLY the backup's migrations, in order, from this checkout into a staging folder for `supabase db push`.
+// A later migration in the checkout is never staged, so a restore cannot run past the backup's version.
+function stageMigrations(versions) {
+  if (!versions.length || versions.some((v, i) => !/^\d{14}$/.test(v) || (i && versions[i - 1] >= v))) fail("STOP: the manifest's migration list is not a strictly increasing list of versions.");
+  const files = readdirSync(join(REPO, "supabase", "migrations")).filter((name) => name.endsWith(".sql"));
+  const stage = mkdtempSync(join(tmpdir(), "shopkhata-restore-"));
+  mkdirSync(join(stage, "supabase", "migrations"), { recursive: true });
+  copyFileSync(join(REPO, "supabase", "config.toml"), join(stage, "supabase", "config.toml"));
+  for (const version of versions) {
+    const match = files.filter((name) => name.split("_")[0] === version);
+    if (match.length !== 1) fail(`STOP: migration ${version} of the backup is ${match.length ? "ambiguous" : "missing"} in this checkout. Check out the release named in manifest.app.gitCommit.`);
+    copyFileSync(join(REPO, "supabase", "migrations", match[0]), join(stage, "supabase", "migrations", match[0]));
+  }
+  return stage;
+}
+
+// Restores a backup into a NEW, empty Supabase project: exactly the manifest's migrations (never a later one in this
+// checkout), then data.sql in one transaction, then the receipt files; then verifies the migration set, the receipts
+// and the fingerprint. A database backed up inside a release window comes back LOCKED; this never unlocks it.
+async function restoreTo(from, confirmHost) {
+  const dir = resolve(from);
+  if (!existsSync(join(dir, "manifest.json"))) fail(`${dir} is not a ShopKhata backup (manifest.json is missing).`);
+  const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8"));
+  checkArtifacts(dir, manifest);
+  const { apiUrl, serviceKey, dbUrl } = restoreTarget(confirmHost);
+  const sql = urlSql(dbUrl);
+  const applied = () => sql("select to_jsonb(coalesce((select array_agg(version order by version) from supabase_migrations.schema_migrations), '{}')) as v");
+  const expected = manifest.migrations;
+  log(`Restoring the ${manifest.environment} backup of ${manifest.createdAt} into ${confirmHost}: exactly ${expected.length} migrations (last ${expected.at(-1)}).`);
+
+  if (sql("select to_jsonb(to_regclass('supabase_migrations.schema_migrations') is not null) as v") && applied().length) {
+    fail("STOP: the target already has migrations applied. Restore only into a new, empty Supabase project.");
+  }
+  const stage = stageMigrations(expected);
+  const dry = supabase(["--workdir", stage, "db", "push", "--db-url", dbUrl, "--dry-run"], { all: true });
+  const listed = [...dry.matchAll(/\b(\d{14})_\S*\.sql/g)].map((m) => m[1]);
+  if (!isDeepStrictEqual(listed, expected)) fail(`STOP: the dry run would apply [${listed.join(", ")}], not exactly the backup's [${expected.join(", ")}].`);
+  supabase(["--workdir", stage, "db", "push", "--db-url", dbUrl]);
+  if (!isDeepStrictEqual(applied(), expected)) fail(`STOP: the target reports migrations [${applied().join(", ")}], expected exactly [${expected.join(", ")}]. Inspect it; do not repair the history by hand.`);
+  log(`Schema: exactly the backup's ${expected.length} migrations applied (last ${expected.at(-1)}); nothing later.`);
+
+  // The migrations create rows of their own (the receipt bucket, the maintenance singleton); the backup replaces them.
+  psqlUrl(dbUrl, ["-c", "set session_replication_role = replica; delete from storage.objects; delete from storage.buckets; do $$ begin if to_regclass('private.system_maintenance') is not null then delete from private.system_maintenance; end if; end $$;"]);
+  // Empty COPY blocks are dropped: they carry no rows, and the postgres role of a Supabase project may not write some of
+  // Supabase's own tables (storage.buckets_vectors, ...), which refuse even an empty COPY. A block WITH rows for such a
+  // table still fails the load loudly. (Found by the production-equivalent restore rehearsal; the local rehearsal loads
+  // as the superuser and never saw it.)
+  const skipped = [];
+  const loadable = readFileSync(join(dir, "data.sql"), "utf8").replace(/^COPY ("[^"\n]+"\."[^"\n]+") \([^\n]*\) FROM stdin;\r?\n\\\.\r?\n/gm, (_, table) => { skipped.push(table); return ""; });
+  const loadFile = join(mkdtempSync(join(tmpdir(), "shopkhata-load-")), "data.sql");
+  writeFileSync(loadFile, loadable);
+  const data = openSync(loadFile, "r");
+  try { psqlUrl(dbUrl, ["--single-transaction"], data); } finally { closeSync(data); }
+  psqlUrl(dbUrl, ["-c", "analyze"]);
+  log(`Data: data.sql loaded in one transaction (${skipped.length} empty table(s) skipped), then analyzed.`);
+
+  const receipts = await restoreReceipts(dir, manifest, apiUrl, serviceKey, sql);
+  const orphans = sql(`select to_jsonb(count(*)::int) as v from public.attachments a where a.expense_id is not null and not exists (select 1 from storage.objects o where o.bucket_id = '${BUCKET}' and o.name = a.file_path and (o.metadata ->> 'size')::bigint = a.byte_size)`);
+  if (orphans) fail(`${orphans} restored receipt record(s) have no matching stored file.`);
+  log(`Receipts: ${receipts.files} file(s) uploaded and read back byte-identical, metadata unchanged, every receipt record has its file${receipts.context ? "; restore context closed" : ""}.`);
+
+  const restored = fingerprint({ args: ["--db-url", dbUrl] });
+  const diff = differences(manifest.fingerprint, restored);
+  const maintenance = maintenanceState(sql);
+  const evidence = { restoredAt: new Date().toISOString(), target: confirmHost, ok: diff.length === 0, migrations: applied(), maintenance, receipts: receipts.files, differences: diff };
+  writeFileSync(join(dir, `restore-${confirmHost.replace(/[^a-z0-9.-]/gi, "_")}-${evidence.restoredAt.replace(/[:.]/g, "-")}.json`), `${JSON.stringify(evidence, null, 2)}\n`);
+  if (diff.length) fail(`The restored state does not reconcile with the backup:\n  ${diff.join("\n  ")}`);
+  if (!isDeepStrictEqual(evidence.migrations, expected)) fail("STOP: the migration set changed during the restore.");
+  log(`Maintenance state of the restored database: ${maintenance ? (maintenance.enabled ? `LOCKED (enabled${maintenance.bypass ? ", WITH an operator bypass" : ", no bypass"})` : "off") : "not installed (backup before migration 36)"}.`);
+  log(`RESTORED: ${confirmHost} is at exactly ${expected.at(-1)} with the backup's data and receipts; fingerprint identical. Validate it (backup-restore.md) before pointing anything at it.`);
 }
 
 // The one step of a real (hosted) recovery that needs a tool. It is never run implicitly:
@@ -194,13 +362,10 @@ async function restoreReceipts(dir, manifest, apiUrl, serviceKey) {
 async function restoreReceiptsTo(from, confirmHost) {
   const dir = resolve(from);
   const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8"));
-  const apiUrl = process.env.SHOPKHATA_RESTORE_SUPABASE_URL;
-  const serviceKey = process.env.SHOPKHATA_RESTORE_SERVICE_ROLE_KEY;
-  if (!apiUrl || !serviceKey) fail("Set SHOPKHATA_RESTORE_SUPABASE_URL and SHOPKHATA_RESTORE_SERVICE_ROLE_KEY to the project being restored.");
-  if (new URL(apiUrl).host !== confirmHost) fail(`--confirm must repeat the target host exactly (${new URL(apiUrl).host}).`);
+  const { apiUrl, serviceKey, dbUrl } = restoreTarget(confirmHost);
   log(`Restoring ${manifest.receipts.length} receipt file(s) from the ${manifest.environment} backup of ${manifest.createdAt} into ${confirmHost}`);
-  await restoreReceipts(dir, manifest, apiUrl, serviceKey);
-  log(`Receipts restored: ${manifest.receipts.length} file(s) uploaded and read back byte-identical.`);
+  await restoreReceipts(dir, manifest, apiUrl, serviceKey, urlSql(dbUrl));
+  log(`Receipts restored: ${manifest.receipts.length} file(s) uploaded and read back byte-identical, stored metadata unchanged.`);
 }
 
 function checkArtifacts(dir, manifest) {
@@ -263,6 +428,8 @@ async function verifyRestore(from) {
   const target = localSource();
   log("Resetting the LOCAL Supabase database (the disposable restore target) to the backup's migration state...");
   supabase(["db", "reset", "--local", "--no-seed", "--version", manifest.migrations.at(-1)]);
+  const reset = localSql("select to_jsonb(array_agg(version order by version)) from supabase_migrations.schema_migrations");
+  if (!isDeepStrictEqual(reset, manifest.migrations)) fail(`The local reset reached ${reset?.at(-1)}, not exactly the backup's migration state.`);
   const tables = [...readFileSync(join(dir, "data.sql"), "utf8").matchAll(/^COPY ("[a-z_]+"\."[a-z_0-9]+") /gm)].map((match) => match[1]);
   // The migrations create rows of their own (the receipt bucket); the backup is the only source of data.
   psql(["-c", `set session_replication_role = replica; truncate ${tables.join(", ")} cascade;`]);
@@ -273,10 +440,12 @@ async function verifyRestore(from) {
   psql(["-c", "analyze"]);
   pass("database restore", `${tables.length} tables restored from data.sql in one transaction, then analyzed`);
 
-  await restoreReceipts(dir, manifest, target.apiUrl, target.serviceKey);
+  const receipts = await restoreReceipts(dir, manifest, target.apiUrl, target.serviceKey, localSql);
   const orphans = Number(psql(["-c", `select count(*) from public.attachments a where a.expense_id is not null and not exists (select 1 from storage.objects o where o.bucket_id = '${BUCKET}' and o.name = a.file_path and (o.metadata ->> 'size')::bigint = a.byte_size)`]));
   if (orphans) fail(`${orphans} restored receipt record(s) have no matching stored file.`);
-  pass("receipt restore", `${manifest.receipts.length} file(s) uploaded and read back byte-identical; all ${manifest.receiptAttachments} receipt record(s) have their file`);
+  pass("receipt restore", `${manifest.receipts.length} file(s) uploaded and read back byte-identical, stored metadata unchanged${receipts.context ? ", through the receipt restore context (closed again)" : ""}; all ${manifest.receiptAttachments} receipt record(s) have their file`);
+  const maintenance = maintenanceState(localSql);
+  if (maintenance) pass("maintenance state", maintenance.enabled ? `restored LOCKED (maintenance on${maintenance.bypass ? ", with the backup's operator bypass" : ", no bypass"}), as in the backup` : "maintenance off, as in the backup");
 
   const restored = fingerprint(target);
   const diff = differences(manifest.fingerprint, restored);
@@ -320,8 +489,9 @@ try {
   if (mode === undefined) await createBackup();
   else if (mode === "verify" && (flag === undefined || hasBackup)) await verifyRestore(value);
   else if (mode === "record" && hasBackup && confirmFlag === undefined) await recordBackup(value);
+  else if (mode === "restore" && hasBackup && confirmFlag === "--confirm" && confirmHost) await restoreTo(value, confirmHost);
   else if (mode === "restore-receipts" && hasBackup && confirmFlag === "--confirm" && confirmHost) await restoreReceiptsTo(value, confirmHost);
-  else fail("Usage: node scripts/backup.mjs [verify [--from <backup directory>] | record --from <backup directory> | restore-receipts --from <backup directory> --confirm <target host>]");
+  else fail("Usage: node scripts/backup.mjs [verify [--from <backup directory>] | record --from <backup directory> | restore --from <backup directory> --confirm <target host> | restore-receipts --from <backup directory> --confirm <target host>]");
 } catch (error) {
   console.error(`[backup] FAILED: ${error instanceof BackupError ? error.message : error.stack}`);
   process.exit(1);

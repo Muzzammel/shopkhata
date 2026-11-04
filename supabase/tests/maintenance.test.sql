@@ -247,6 +247,37 @@ select is((select count(*) from storage.objects where name like '%f8000000-0000-
 insert into storage.buckets(id, name) values ('zz-other-bucket', 'zz-other-bucket');
 select is(pg_temp.final_insert(pg_temp.uid('staff')::text, 5, 'zz-other-bucket'), 'ok', 'the trigger leaves other buckets alone');
 
+-- 5c. Receipt restore context (disaster recovery into a LOCKED database): exact names, no uploader, unexpired, closed after.
+create function pg_temp.receipt(n int) returns text language sql immutable as $$
+  select format('%s/%s/%s.pdf', pg_temp.s1(), 'e9000000-0000-4000-8000-000000000001', 'f8000000-0000-4000-8000-' || lpad(n::text, 12, '0')) $$;
+select is((select count(*) from pg_class c, (values ('anon'), ('authenticated'), ('service_role')) r(role)
+  where c.oid in ('private.receipt_restore_objects'::regclass, 'private.receipt_restore_log'::regclass) and has_table_privilege(r.role, c.oid, 'SELECT,INSERT,UPDATE,DELETE')),
+  0::bigint, 'no API role can read or write the restore context or its log');
+select is((select count(*) from pg_proc p, (values ('anon'), ('authenticated'), ('service_role')) r(role)
+  where p.oid in ('private.receipt_restore_open(text,text[],integer)'::regprocedure, 'private.receipt_restore_close(text)'::regprocedure) and has_function_privilege(r.role, p.oid, 'EXECUTE')),
+  0::bigint, 'no API role can open or close the restore context');
+select ok((select bool_and(relrowsecurity) from pg_class where oid in ('private.receipt_restore_objects'::regclass, 'private.receipt_restore_log'::regclass)), 'RLS is on for both');
+select throws_ok($$select private.receipt_restore_open('r1', array[]::text[], 10)$$, 'P0001', 'INVALID_REQUEST', 'an empty name list is refused');
+select throws_ok($$select private.receipt_restore_open('r1', array['x'], 61)$$, 'P0001', 'INVALID_REQUEST', 'more than 60 minutes is refused');
+select throws_ok($$select private.receipt_restore_open(null, array['x'], 10)$$, 'P0001', 'INVALID_REQUEST', 'a missing restore reference is refused');
+select is(private.receipt_restore_open('restore-test', array[pg_temp.receipt(20), pg_temp.receipt(21)], 10), 2, 'the restore operator lists exactly two objects');
+select throws_ok($$select private.receipt_restore_open('another-restore', array['x'], 10)$$, 'P0001', 'RESTORE_CONTEXT_BUSY', 'a second restore cannot open while one is open');
+select is(pg_temp.final_insert(null, 20), 'ok', 'a listed object with no uploader (service key) is admitted while locked');
+select is(pg_temp.final_insert(pg_temp.uid('staff')::text, 21), 'MAINTENANCE_ACTIVE', 'a listed name WITH an uploader (an ordinary user) is still refused');
+select is(pg_temp.final_insert(null, 22), 'MAINTENANCE_ACTIVE', 'an unlisted name with no uploader is still refused (no service-role exemption)');
+select is(pg_temp.final_insert(pg_temp.uid('owner')::text, 23), 'MAINTENANCE_ACTIVE', 'the owner without a bypass is still refused');
+select pg_temp.act('staff');
+select is(pg_temp.upload(24), 'P0001', 'an ordinary authenticated upload is still refused during the restore');
+update private.receipt_restore_objects set expires_at = clock_timestamp() - interval '1 second' where name = pg_temp.receipt(21);
+select is(pg_temp.final_insert(null, 21), 'MAINTENANCE_ACTIVE', 'an expired listing admits nothing');
+select is(private.receipt_restore_close('restore-test'), 2, 'closing removes every listing of that restore');
+select is(private.receipt_restore_close('restore-test'), 0, 'closing again is harmless');
+select is((select count(*) from private.receipt_restore_objects), 0::bigint, 'the context is empty after closing');
+select is(pg_temp.final_insert(null, 25), 'MAINTENANCE_ACTIVE', 'after closing, an uploader-less insert is refused again');
+select is((select string_agg(action || ':' || object_count || ':' || restore_ref, ',' order by id) from private.receipt_restore_log),
+  'opened:2:restore-test,closed:2:restore-test,closed:0:restore-test', 'every open and close is logged with its reference and count');
+select is((select count(*) from public.audit_events where action like 'maintenance.%' and metadata ? 'restore_ref'), 0::bigint, 'the restore context writes nothing to the business audit trail (a restored fingerprint stays equal)');
+
 -- 6. Operator bypass ---------------------------------------------------------------------------------------------------
 select pg_temp.act('owner');
 select throws_ok($$select pg_temp.bypass('manager')$$, 'P0001', 'BYPASS_USER_NOT_ACTIVE_OWNER', 'a manager cannot be the operator');

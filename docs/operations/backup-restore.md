@@ -129,33 +129,32 @@ Do this only when the production data is lost or damaged beyond repair. Stop, br
 1. **Stop new entries.** Tell staff to stop. Take the application offline or leave it; do not let anyone keep writing to a damaged database.
 2. **Pick the backup.** The newest one from before the damage. Rehearse it first: `pnpm backup:verify --from <backup dir>` must end with `RESTORE VERIFIED`.
 3. **Decide the target.** Prefer a **new Supabase project** (same region, PostgreSQL 17). Restoring over the damaged project destroys the evidence and cannot be undone.
-4. **Check out the release that took the backup**: `git checkout <manifest.app.gitCommit>` and `pnpm install --frozen-lockfile`.
-5. **Build the schema from the migrations**: `pnpm exec supabase db push --db-url "<new database URL>"`.
-6. **Load the data** (the migrations create the empty receipt bucket, which the backup replaces):
+4. **Check out a release that contains the backup's migrations**: preferably `git checkout <manifest.app.gitCommit>`, then `pnpm install --frozen-lockfile`. A later checkout also works: the restore applies only the backup's own migrations (step 5).
+5. **Restore schema, data and receipts with one command** (Docker running):
 
    ```
-   docker run --rm -i -v "<backup dir>:/backup" public.ecr.aws/supabase/postgres:17.6.1.159 psql "<new database URL>" -v ON_ERROR_STOP=1 -c "set session_replication_role = replica; delete from storage.objects; delete from storage.buckets;"
-   docker run --rm -i -v "<backup dir>:/backup" public.ecr.aws/supabase/postgres:17.6.1.159 psql "<new database URL>" -v ON_ERROR_STOP=1 --single-transaction -f /backup/data.sql
-   docker run --rm -i public.ecr.aws/supabase/postgres:17.6.1.159 psql "<new database URL>" -c "analyze"
-   ```
-
-   **Backups taken at migration 36 or later** (OPS-01B) also hold the maintenance state, and migration 36 inserts the single `private.system_maintenance` row itself, so the load would stop on a duplicate key. Clear that row in the same first command: `... delete from storage.buckets; delete from private.system_maintenance;`. The restored database then comes up **with the maintenance state of the backup**: a backup taken inside a release window restores LOCKED (`enabled = true`), which is intended. Check `select enabled, bypass_user_id is null from private.system_maintenance` before pointing anything at it, and do not turn maintenance off until the release runbook says so (rehearsed 2026-11-04: without the extra `delete` the load fails with `system_maintenance_pkey`; with it the restored row reads `enabled = true`).
-   The load is one transaction: it either completes or changes nothing. **Do not skip `analyze`** — without it the invoice screens are slow enough to time out until the database gathers statistics on its own (found in the restore rehearsal).
-7. **Restore the receipt files**:
-
-   ```
+   SHOPKHATA_RESTORE_DB_URL=<new database URL>
    SHOPKHATA_RESTORE_SUPABASE_URL=https://<new ref>.supabase.co
    SHOPKHATA_RESTORE_SERVICE_ROLE_KEY=<new project's service-role key>
-   node scripts/backup.mjs restore-receipts --from <backup dir> --confirm <new ref>.supabase.co
+   node scripts/backup.mjs restore --from <backup dir> --confirm <new ref>.supabase.co
    ```
 
-   Each file is uploaded under its original path and read back; the command fails on the first mismatch.
+   In order, and stopping at the first problem:
+   - **Exact migration set.** It refuses a target that already has migrations. It stages **exactly** the versions listed in `manifest.json` (`migrations`), in order, from the checkout — never a later migration the checkout also holds — requires the push dry run to list exactly those versions, pushes, and requires the target's `supabase_migrations.schema_migrations` to equal the manifest list exactly. A plain `supabase db push` would apply every migration in the checkout and is **not** a restore to the backup's version. Never repair the migration history by hand.
+   - **Data.** It clears the rows the migrations create (the empty receipt bucket and, from migration 36, the `private.system_maintenance` singleton), then loads `data.sql` in **one transaction** (it either completes or changes nothing) through the `public.ecr.aws/supabase/postgres:17.6.1.159` psql client, then runs `analyze` (without it the invoice screens time out until the database gathers statistics). Empty table sections of `data.sql` are skipped: the `postgres` role of a Supabase project may not write some of Supabase's own tables (`storage.buckets_vectors`, …), which refuse even an empty load; a section *with* rows for such a table still fails loudly (found by the production-equivalent rehearsal, 2026-11-04).
+   - **Maintenance state.** Backups taken at migration 36 or later hold it: a backup taken inside a release window restores **LOCKED** (`enabled = true`), which is intended. The tool reports it and never unlocks it. Do not turn maintenance off until the release runbook says so.
+   - **Receipts.** Each file is uploaded under its original path and read back byte-identical, and its stored metadata (owner, size, type, eTag) must be unchanged. A locked database refuses uploads without an uploader, so the tool opens the database's **receipt restore context** for exactly the backup's object names (owner-only, logged in `private.receipt_restore_log`, at most 60 minutes) and closes it in every case; any other upload — an ordinary user's, or a service-key upload of another name — stays refused.
+   - **Verification.** No receipt record without its file, the fingerprint equal to the manifest's, the migration set still exact. Evidence: `restore-<host>-<time>.json` in the backup folder.
+
+   (`node scripts/backup.mjs restore-receipts --from <backup dir> --confirm <host>`, with the same three variables, re-runs only the receipt step.)
+6. *(merged into step 5)*
+7. *(merged into step 5)*
 8. **Validate before anyone uses it** (next section).
 9. **Point the application at the new project**: set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in the hosting settings and redeploy. Set the Auth site URL in the new project. Everyone must sign in again.
 10. **Re-enter what was lost.** Anything saved after the backup was taken is gone. Use paper records and the owner's backdated-entry workflow (with a reason) to re-enter it. Drafts still sitting on a device were never saved and will be sent when the device reconnects.
 11. Take a fresh backup of the restored system and store it off-host.
 
-Steps 5–7 against a *hosted* project follow Supabase's documented restore procedure and the commands the local rehearsal runs, but have not been executed against a hosted project by this release's verification. Rehearse them once against a scratch Supabase project before go-live (see the production checklist).
+Step 5 has been rehearsed end to end against a blank local Supabase project reached by URL as `postgres` (the hosted role), with a populated, locked backup at migration 36 while the checkout held migrations through 39 (`tests/integration/operations/locked-restore.test.ts`), but not against a hosted project. Rehearse it once against a scratch Supabase project before go-live (see the production checklist).
 
 ## Validating a recovery
 
@@ -179,7 +178,7 @@ If any figure differs, the restore has failed. Do not let staff resume; restore 
 
 - A receipt is uploaded to `expense-receipts/<shop id>/<expense id>/<random id>.<ext>` and then registered in `public.attachments` with the same path and its size. Files cannot be changed or deleted by any application account.
 - The backup records every file's path, size and SHA-256, and fails if a registered receipt has no file.
-- On restore, `data.sql` brings back both `public.attachments` and Storage's own index (`storage.objects`); `restore-receipts` then puts the bytes back under the same paths. The rehearsal proves each record has its file at the recorded size.
+- On restore, `data.sql` brings back both `public.attachments` and Storage's own index (`storage.objects`); the restore (step 5) then puts the bytes back under the same paths, through the receipt restore context when the database is locked. The rehearsal proves each record has its file at the recorded size.
 - Access is decided by the path's shop ID and the account's shop assignment, both of which are restored with the data, so a restored Shop 1 account still cannot open a Shop 2 receipt. The rehearsal tests this.
 
 To recover a single lost receipt file, copy it from the newest backup's `storage/expense-receipts/…` folder and upload it to the same path in the Supabase dashboard (Storage → `expense-receipts`).
