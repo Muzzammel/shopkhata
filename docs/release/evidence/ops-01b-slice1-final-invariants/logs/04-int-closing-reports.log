@@ -1,0 +1,25 @@
+# gate: 04-int-closing-reports
+# command: pnpm.cmd run test:integration:closing-reports
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T18:16:25Z
+
+$ vitest run --config vitest.integration.closing-reports.config.mts
+
+ RUN  v4.1.11 C:/Users/Reem/Desktop/shopkhata
+
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  21:16:27
+   Duration  68.05s (transform 94ms, setup 0ms, import 327ms, tests 67.50s, environment 0ms)
+
+
+# finished: 2026-11-04T18:17:35Z
+# exit: 0

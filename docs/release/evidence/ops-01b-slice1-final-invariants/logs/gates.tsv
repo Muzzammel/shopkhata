@@ -1,0 +1,25 @@
+01-db-reset|2026-11-04T18:06:18Z|2026-11-04T18:06:49Z|0|pnpm.cmd exec supabase --agent no db reset --local
+02-pgtap|2026-11-04T18:06:49Z|2026-11-04T18:06:55Z|0|pnpm.cmd exec supabase --agent no test db --local
+03-unit|2026-11-04T18:06:55Z|2026-11-04T18:07:02Z|0|pnpm.cmd exec vitest run
+04-int-batches|2026-11-04T18:07:13Z|2026-11-04T18:08:20Z|0|pnpm.cmd run test:integration:batches
+04-int-payments|2026-11-04T18:08:20Z|2026-11-04T18:10:31Z|0|pnpm.cmd run test:integration:payments
+04-int-shops|2026-11-04T18:10:31Z|2026-11-04T18:12:46Z|0|pnpm.cmd run test:integration:shops
+04-int-overpayment|2026-11-04T18:12:46Z|2026-11-04T18:13:56Z|0|pnpm.cmd run test:integration:overpayment
+04-int-customer-expenses|2026-11-04T18:14:06Z|2026-11-04T18:15:13Z|0|pnpm.cmd run test:integration:customer-expenses
+04-int-offline-excel|2026-11-04T18:15:13Z|2026-11-04T18:16:25Z|0|pnpm.cmd run test:integration:offline-excel
+04-int-closing-reports|2026-11-04T18:16:25Z|2026-11-04T18:17:35Z|0|pnpm.cmd run test:integration:closing-reports
+04-int-acceptance|2026-11-04T18:17:41Z|2026-11-04T18:19:36Z|0|pnpm.cmd run test:integration:acceptance
+04-int-operations-attempt1-worker-crash|2026-11-04T18:19:44Z|2026-11-04T18:30:59Z|1|pnpm.cmd run test:integration:operations
+04-int-operations-attempt2-pass|2026-11-04T18:31:29Z|2026-11-04T18:43:18Z|0|pnpm.cmd run test:integration:operations -- --reporter=verbose
+04-int-operations|2026-11-04T18:43:41Z|2026-11-04T18:55:26Z|0|pnpm.cmd exec vitest run --config vitest.integration.operations.config.mts --reporter=verbose
+05-migration-upgrade-attempt1-killed-low-memory|2026-11-04T18:55:36Z|2026-11-04T18:59:06Z|killed (exit 1 recorded when Claude Code stopped the shell for low system memory; 2 of 7 tests had passed, none failed)|pnpm.cmd exec vitest run --config vitest.integration.config.mts --reporter=verbose
+05-migration-upgrade|2026-11-04T19:25:07Z|2026-11-04T19:31:01Z|0|pnpm.cmd exec vitest run --config vitest.integration.config.mts --reporter=verbose
+06-e2e-maintenance|2026-11-04T19:31:58Z|2026-11-04T19:32:57Z|0|playwright test --project=maintenance --no-deps --workers=1 (db reset 0; fresh pnpm dev)
+07-e2e-chromium-shard-1of3|2026-11-04T19:33:18Z|2026-11-04T19:38:39Z|0|playwright test --project=chromium --workers=1 --shard=1/3 (db reset 0; fresh pnpm dev)
+08-e2e-chromium-shard-2of3-attempt1-postgrest-not-ready|2026-11-04T19:38:51Z|2026-11-04T19:47:00Z|1|playwright test --project=chromium --workers=1 --shard=2/3 (db reset 0; fresh pnpm dev)
+08-e2e-chromium-shard-2of3-attempt2-probe-error|2026-11-04T19:48:30Z||1|harness readiness probe misread anon 401/42501 as not-ready; no test executed
+08-e2e-chromium-shard-2of3|2026-11-04T19:52:36Z|2026-11-04T20:00:38Z|0|playwright test --project=chromium --workers=1 --shard=2/3 (db reset 0; fresh pnpm dev)
+09-e2e-chromium-shard-3of3|2026-11-04T20:00:49Z|2026-11-04T20:05:35Z|0|playwright test --project=chromium --workers=1 --shard=3/3 (db reset 0; fresh pnpm dev)
+10-typecheck|2026-11-04T20:14:21Z|2026-11-04T20:14:25Z|0|pnpm.cmd run typecheck
+11-lint|2026-11-04T20:14:25Z|2026-11-04T20:14:40Z|0|pnpm.cmd run lint
+12-diff-check|2026-11-04T20:14:40Z|2026-11-04T20:14:40Z|0|git diff --check

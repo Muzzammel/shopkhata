@@ -4,7 +4,14 @@
 -- The pre-window gate (ops-01b-preflight.sql) can only prove the catalog prerequisites of the Storage trigger; this proves
 -- that migration 36 actually installed exactly the reviewed objects on the hosted database. Any STOP: firewall stays ON,
 -- do not proceed to W3, follow the runbook's "migration 36 bootstrap gate" failure branch.
+-- EXPECTED-STATE MODE (P00, P08). One statement, so the mode is the literal below:
+--   'w2b'     (this file)                              : exactly one singleton, maintenance OFF, no bypass; P10 no context.
+--   'restore' (scripts/ops-01b-post36-verify-restore.sql): exactly one singleton, no bypass, enabled either way (a backup
+--                                                          can be locked); P10 no context. That file is this one with only
+--                                                          the mode literal changed (enforced by tests/integration/operations/release-gates.test.ts).
+-- An absent or unknown mode STOPs (P00, and P08 fails closed).
 with
+mode(expected) as (values ('w2b')),
 guard_fns(sig) as (values ('private.storage_receipt_maintenance_guard()'), ('private.maintenance_admit(uuid)'),
   ('private.maintenance_allows(private.system_maintenance,uuid)'), ('private.assert_not_in_maintenance()'), ('private.maintenance_lock_exclusive()'),
   ('private.receipt_restore_open(text,text[],integer)'), ('private.receipt_restore_close(text)'),
@@ -32,7 +39,7 @@ checks(id, ok, got) as (
        and def = 'CREATE TRIGGER expense_receipts_maintenance_guard BEFORE INSERT ON storage.objects FOR EACH ROW WHEN ((new.bucket_id = ''expense-receipts''::text)) EXECUTE FUNCTION private.storage_receipt_maintenance_guard()') from guard),
     (select coalesce(jsonb_agg(jsonb_build_object('enabled', tgenabled, 'tgtype', tgtype, 'function', fn, 'definition', def)), '[]') from guard)),
   ('P03 the maintenance, restore-context and control functions exist with the reviewed bodies, security-definer flags, search_path and owner',
-    (select bool_and(oid is not null) and md5(string_agg(sig || '|' || prosecdef::text || '|' || coalesce(proconfig::text, '') || '|' || pg_get_userbyid(proowner) || '|' || prosrc, E'\n' order by sig)) = '000d37b47f592b2059c27e0c8bcd6590' from fns),
+    (select bool_and(oid is not null) and md5(string_agg(sig || '|' || prosecdef::text || '|' || coalesce(proconfig::text, '') || '|' || pg_get_userbyid(proowner) || '|' || prosrc, E'\n' order by sig)) = '3822757383203729978b7c00aea758bc' from fns),
     (select jsonb_build_object('missing', (select coalesce(jsonb_agg(sig), '[]') from fns where oid is null),
        'md5', md5(string_agg(sig || '|' || prosecdef::text || '|' || coalesce(proconfig::text, '') || '|' || pg_get_userbyid(proowner) || '|' || prosrc, E'\n' order by sig))) from fns)),
   ('P04 the trigger''s assumptions still hold: storage.objects.owner_id is text and bucket_id/name are text',
@@ -63,8 +70,13 @@ checks(id, ok, got) as (
     (select count(*) = 0 from pg_trigger t where t.tgrelid = 'storage.objects'::regclass and not t.tgisinternal
        and ((t.tgfoid::regproc::text not like 'storage.%' and t.tgname <> 'expense_receipts_maintenance_guard') or t.tgenabled <> 'O')),
     (select coalesce(jsonb_agg(t.tgname || ':' || t.tgenabled::text || ':' || t.tgfoid::regproc::text order by t.tgname), '[]') from pg_trigger t where t.tgrelid = 'storage.objects'::regclass and not t.tgisinternal)),
-  ('P08 the maintenance singleton exists and is consistent (state recorded; at W2 it must be enabled=false, no bypass)',
-    (select count(*) = 1 and bool_and(id) from private.system_maintenance),
+  ('P00 the expected-state mode is known (w2b or restore)',
+    (select count(*) = 1 and bool_and(expected in ('w2b', 'restore')) from mode),
+    (select jsonb_agg(expected) from mode)),
+  ('P08 exactly one maintenance singleton in the expected state (w2b: enabled=false, no bypass; restore: no bypass)',
+    (select count(*) = 1 and bool_and(id and bypass_user_id is null and bypass_expires_at is null
+       and case (select expected from mode) when 'w2b' then not enabled when 'restore' then true else false end)
+     from private.system_maintenance),
     (select coalesce(jsonb_agg(jsonb_build_object('enabled', enabled, 'bypass', bypass_user_id is not null)), '[]') from private.system_maintenance)),
   ('P09 V3: every API-executable write function calls private.assert_not_in_maintenance() first (no initializer, not commented out, PL/pgSQL)',
     (select count(*) = 0 from unguarded) and (select count(*) = 23 from pg_proc p where p.pronamespace = 'public'::regnamespace and has_function_privilege('authenticated', p.oid, 'EXECUTE') and p.prosrc like '%assert_not_in_maintenance%'),

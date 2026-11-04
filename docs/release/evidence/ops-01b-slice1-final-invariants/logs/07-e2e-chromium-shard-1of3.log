@@ -1,0 +1,338 @@
+﻿# gate: 07-e2e-chromium-shard-1of3
+# command: pnpm exec supabase db reset --local; pnpm dev (server log: 07-e2e-chromium-shard-1of3.server.log); pnpm exec playwright test -c <scratch>/pw.config.ts --project=chromium --workers=1 --shard=1/3
+# wrapper config: repo playwright.config.ts with webServer removed (dev server started by this script)
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T19:33:18Z
+
+Resetting local database...
+Recreating database...
+Initialising schema...
+Seeding globals from roles.sql...
+Applying migration 20260826095752_core_schema.sql...
+Applying migration 20260826095753_financial_schema.sql...
+Applying migration 20260828164246_rls.sql...
+Applying migration 20260902073650_phase2_security_remediation.sql...
+Applying migration 20260916120000_invoice_delivered_flag_and_note.sql...
+Applying migration 20260916120100_batch_idempotency_fingerprint.sql...
+Applying migration 20260916120200_invoice_number_registry.sql...
+Applying migration 20260916120300_submit_batch_rpc.sql...
+Applying migration 20260917090000_payment_idempotency_fingerprint.sql...
+Applying migration 20260917090100_record_payment_rpc.sql...
+Applying migration 20260918090000_customer_credits_approved_at.sql...
+Applying migration 20260918090100_approve_overpayment_rpc.sql...
+Applying migration 20260924010000_submit_batch_replay_before_date_rules.sql...
+Applying migration 20260924020000_submit_batch_flag_fingerprint_and_effective_balances.sql...
+Applying migration 20260924030000_invoice_effective_balances_canonical_id.sql...
+Applying migration 20260924040000_submit_batch_qatar_business_date.sql...
+Applying migration 20260924050000_record_payment_qatar_business_date.sql...
+Applying migration 20260925060000_owner_backdated_replay_authorization.sql...
+Applying migration 20261003090000_invoice_operations.sql...
+Applying migration 20261003090100_invoice_overpayment_projection.sql...
+Applying migration 20261003090200_customer_ledger_and_expenses.sql...
+Applying migration 20261004090000_daily_close_and_reports.sql...
+Applying migration 20261004100000_owner_account_administration.sql...
+Applying migration 20261004110000_production_scale_read_performance.sql...
+Applying migration 20261004120000_submit_batch_row_limit.sql...
+Applying migration 20261005090000_dashboard_top_customers_rpc.sql...
+Applying migration 20261009090000_correction_target_total.sql...
+Applying migration 20261009090100_backup_records.sql...
+Applying migration 20261017100000_data_api_privilege_hardening.sql...
+Applying migration 20261021090000_bank_payment_method.sql...
+Applying migration 20261021100000_shop_management.sql...
+Applying migration 20261022180428_performance_customer_balances_set_based.sql...
+Applying migration 20261025145523_performance_read_indexes.sql...
+Applying migration 20261028163252_dashboard_snapshot.sql...
+Applying migration 20261031165915_ops_01a_shop_user_status_controls.sql...
+Applying migration 20261103140000_ops_01b_maintenance_guard.sql...
+Applying migration 20261103150000_ops_01b_invoice_void.sql...
+Applying migration 20261103190000_ops_01b_void_remediation.sql...
+Applying migration 20261103203806_ops_01b_sales_totals_release_compat.sql...
+Seeding data from supabase/seed.sql...
+Restarting containers...
+Finished supabase db reset on branch ops/ops-01b-financial-corrections.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+# db reset exit: 0
+
+
+Running 70 tests using 1 worker, shard 1 of 3
+
+(node:15836) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests\e2e\auth.spec.ts:13:7 › browser authentication and authorization › redirects an unauthenticated visit to the protected application route to login (406ms)
+  ✓   2 [chromium] › tests\e2e\auth.spec.ts:21:7 › browser authentication and authorization › exposes accessible login fields and a submit action (338ms)
+  ✓   3 [chromium] › tests\e2e\auth.spec.ts:33:7 › browser authentication and authorization › shows a safe error for invalid credentials (481ms)
+  ✓   4 [chromium] › tests\e2e\auth.spec.ts:49:7 › browser authentication and authorization › authenticates the seeded local Shop 1 staff user through the real UI (1.3s)
+  ✓   5 [chromium] › tests\e2e\auth.spec.ts:66:7 › browser authentication and authorization › preserves the authenticated session after refreshing the protected page (1.7s)
+  ✓   6 [chromium] › tests\e2e\auth.spec.ts:86:7 › browser authentication and authorization › does not grant Shop 2 authority through client-controlled URL state (1.2s)
+  ✓   7 [chromium] › tests\e2e\backup-recovery.spec.ts:5:5 › the owner sees backup status and a recovery workflow, with no way to restore from the browser (2.3s)
+  ✓   8 [chromium] › tests\e2e\backup-recovery.spec.ts:21:5 › a non-owner cannot open Backup & Recovery or read the backup record (1.6s)
+  ✓   9 [chromium] › tests\e2e\backup-recovery.spec.ts:28:5 › the theme choice is applied, persists across a reload, and follows the system when asked (2.2s)
+(node:27124) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:28164) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:17868) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:20412) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  10 [chromium] › tests\e2e\closing-reports.spec.ts:65:5 › an owner reviews, closes and reopens a business date, and the close blocks new entries (16.7s)
+(node:23372) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:30372) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  11 [chromium] › tests\e2e\closing-reports.spec.ts:133:5 › staff cannot backdate; an owner backdates with a reason and the entry is shown as backdated (7.7s)
+(node:10992) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:13604) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:8008) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:3312) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:11440) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  12 [chromium] › tests\e2e\closing-reports.spec.ts:181:5 › a date closed by a manager while a draft was offline rejects the draft and keeps it (14.7s)
+(node:18204) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Stopped services: [supabase_imgproxy_shopkhata supabase_analytics_shopkhata supabase_vector_shopkhata supabase_pooler_shopkhata]
+WARN: INBUCKET_URL is deprecated and will be removed in v3, use MAILPIT_URL instead.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:21420) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  13 [chromium] › tests\e2e\closing-reports.spec.ts:229:5 › reports show reconciled values for invoices, payments, dues, credit, expenses and corrections, and export them (10.4s)
+(node:26516) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:30412) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:15404) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  14 [chromium] › tests\e2e\cross-browser.spec.ts:9:5 › the critical workflow works end to end (11.6s)
+(node:30104) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:19156) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:24312) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  15 [chromium] › tests\e2e\customer-expenses.spec.ts:13:5 › customer ledger reconciles, payment allocates FIFO, and private expense receipt correction is governed (21.3s)
+  ✓  16 [chromium] › tests\e2e\dashboard.spec.ts:12:5 › defaults to Today, and every period control is reachable (2.3s)
+  ✓  17 [chromium] › tests\e2e\dashboard.spec.ts:27:5 › a new invoice raises today's Sales KPI by exactly its effective total (3.9s)
+  ✓  18 [chromium] › tests\e2e\dashboard.spec.ts:47:5 › Week, Month and Year widen the window, and a custom range is validated like every other history screen (4.4s)
+  ✓  19 [chromium] › tests\e2e\dashboard.spec.ts:60:5 › Customer Due is the current customer-ledger balance; All Unpaid Invoices is every unpaid invoice in the period (2.1s)
+  ✓  20 [chromium] › tests\e2e\dashboard.spec.ts:75:5 › an empty historical window renders zero states without NaN or undefined (2.0s)
+  ✓  21 [chromium] › tests\e2e\dashboard.spec.ts:85:5 › owner sees a shop comparison; single-shop staff sees no comparison section and only their own shop (4.3s)
+  ✓  22 [chromium] › tests\e2e\dashboard.spec.ts:102:5 › daily closing health renders today's state and links to Closing (1.6s)
+  ✓  23 [chromium] › tests\e2e\dashboard.spec.ts:111:5 › Needs Attention lists only actionable items, or says everything looks good (1.5s)
+  ✓  24 [chromium] › tests\e2e\dashboard.spec.ts:123:5 › quick actions deep-link to the right surfaces (1.4s)
+  ✓  25 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 320px (2.0s)
+  ✓  26 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 375px (1.6s)
+  ✓  27 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 414px (2.0s)
+  ✓  28 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 640px (1.6s)
+  ✓  29 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 641px (1.5s)
+  ✓  30 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 700px (1.6s)
+  ✓  31 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 767px (1.5s)
+  ✓  32 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 768px (1.6s)
+  ✓  33 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 820px (1.8s)
+  ✓  34 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 900px (2.4s)
+  ✓  35 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 920px (2.3s)
+  ✓  36 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 960px (1.6s)
+  ✓  37 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 1024px (1.5s)
+  ✓  38 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 1100px (1.6s)
+  ✓  39 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 1180px (1.6s)
+  ✓  40 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 1279px (2.1s)
+  ✓  41 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 1280px (1.7s)
+  ✓  42 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 1366px (1.7s)
+  ✓  43 [chromium] › tests\e2e\header-responsive.spec.ts:29:9 › app header layout › controls never overlap, clip or sit under another control at 1440px (1.7s)
+  ✓  44 [chromium] › tests\e2e\header-responsive.spec.ts:64:7 › app header layout › keyboard order follows the visual order and every focus target is fully visible (3.2s)
+  ✓  45 [chromium] › tests\e2e\header-responsive.spec.ts:88:7 › app header layout › the theme menu opens from a real click at a narrow desktop width in Light, Dark and System (2.1s)
+  ✓  46 [chromium] › tests\e2e\header-responsive.spec.ts:100:7 › app header layout › on a phone the theme lives in the profile menu (1.9s)
+(node:8292) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:29800) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  47 [chromium] › tests\e2e\invoice-entry.spec.ts:52:5 › searches beyond 200 customers and keeps a selected customer on a delivered invoice with due (4.7s)
+(node:6500) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  48 [chromium] › tests\e2e\invoice-entry.spec.ts:102:5 › distinguishes duplicate customer names by mobile and public ID (3.0s)
+(node:24376) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  49 [chromium] › tests\e2e\invoice-entry.spec.ts:125:5 › rapid customer searches ignore an older response that arrives last (2.3s)
+  ✓  50 [chromium] › tests\e2e\invoice-entry.spec.ts:160:5 › Shop 1 staff saves a mixed batch and sees it after refresh (3.3s)
+(node:28016) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:30604) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:14732) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  51 [chromium] › tests\e2e\invoice-entry.spec.ts:200:5 › invoice detail shows canonical identity, effective balances, payments, and approved corrections (5.0s)
+  ✓  52 [chromium] › tests\e2e\invoice-entry.spec.ts:224:5 › invoice detail safely hides missing and cross-shop invoices (1.6s)
+  ✓  53 [chromium] › tests\e2e\invoice-entry.spec.ts:232:5 › invoice detail shows empty customer and payment states (2.3s)
+(node:14744) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  54 [chromium] › tests\e2e\invoice-entry.spec.ts:242:5 › invoice detail opens invoices in the currently selected owner shop (6.3s)
+  ✓  55 [chromium] › tests\e2e\invoice-entry.spec.ts:267:5 › a duplicate older than the recent preview gets a row error (7.6s)
+  ✓  56 [chromium] › tests\e2e\invoice-entry.spec.ts:300:5 › the duplicate check follows the number typed: normalized match, other shop, change and clear (5.2s)
+(node:11720) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:25828) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  57 [chromium] › tests\e2e\invoice-entry.spec.ts:338:5 › recent invoices show approved invoice and payment corrections (4.1s)
+  ✓  58 [chromium] › tests\e2e\invoice-entry.spec.ts:377:5 › records partial and full cash payments and rejects overpayment in review (2.7s)
+(node:7248) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:14744) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  59 [chromium] › tests\e2e\invoice-entry.spec.ts:406:5 › shows approved corrections in the payment lookup and blocks zero due (3.9s)
+(node:30484) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  60 [chromium] › tests\e2e\invoice-entry.spec.ts:434:5 › looks up normalized invoice numbers without exposing other shops (3.2s)
+(node:23964) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:5424) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:9144) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:28908) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  61 [chromium] › tests\e2e\invoice-entry.spec.ts:456:5 › hides another shop's invoice and retries the same payment command after a lost response (7.1s)
+  ✓  62 [chromium] › tests\e2e\invoice-entry.spec.ts:537:5 › Qatar operating date in a different browser timezone › an open Shop 1 workspace advances its displayed Qatar date at midnight (2.5s)
+  ✓  63 [chromium] › tests\e2e\invoice-entry.spec.ts:557:5 › Qatar operating date in a different browser timezone › a lost save response keeps the original date and retry key across midnight (2.8s)
+(node:29728) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  64 [chromium] › tests\e2e\invoice-entry.spec.ts:593:5 › Qatar operating date in a different browser timezone › owner backdated retry preserves its exact command across midnight (3.2s)
+  ✓  65 [chromium] › tests\e2e\invoice-entry.spec.ts:648:5 › Qatar operating date in a different browser timezone › staff remain on today's Qatar date without a backdate control (1.2s)
+(node:18056) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:11992) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Stopped services: [supabase_imgproxy_shopkhata supabase_analytics_shopkhata supabase_vector_shopkhata supabase_pooler_shopkhata]
+WARN: INBUCKET_URL is deprecated and will be removed in v3, use MAILPIT_URL instead.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  66 [chromium] › tests\e2e\invoice-operations.spec.ts:30:5 › complete staff invoice lifecycle with separate owner approvals, canonical history and isolation (23.6s)
+(node:25792) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  67 [chromium] › tests\e2e\invoice-operations.spec.ts:127:5 › a financial correction replaces the invoice total: 1000 becomes 1500, not 2500 (9.5s)
+  ✓  68 [chromium] › tests\e2e\invoice-operations.spec.ts:182:5 › uncertain detail payment retains exact command and allows retry without duplicate money (6.0s)
+  ✓  69 [chromium] › tests\e2e\invoice-operations.spec.ts:210:5 › fully paid duplicates offer canonical View invoice and block new creation (4.1s)
+  ✓  70 [chromium] › tests\e2e\invoice-operations.spec.ts:230:5 › OPS-01B: a manager voids an unpaid invoice; staff cannot; the original stays visible as VOID at 0 in detail, list and export (9.4s)
+
+  70 passed (4.7m)
+
+# finished: 2026-11-04T19:38:39Z
+# exit: 0

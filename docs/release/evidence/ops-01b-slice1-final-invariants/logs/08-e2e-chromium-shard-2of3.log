@@ -1,0 +1,722 @@
+﻿# gate: 08-e2e-chromium-shard-2of3
+# command: pnpm exec supabase db reset --local; pnpm dev (server log: 08-e2e-chromium-shard-2of3.server.log); pnpm exec playwright test -c <scratch>/pw.config.ts --project=chromium --workers=1 --shard=2/3
+# wrapper config: repo playwright.config.ts with webServer removed (dev server started by this script)
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T19:52:36Z
+
+Resetting local database...
+Recreating database...
+Initialising schema...
+Seeding globals from roles.sql...
+Applying migration 20260826095752_core_schema.sql...
+Applying migration 20260826095753_financial_schema.sql...
+Applying migration 20260828164246_rls.sql...
+Applying migration 20260902073650_phase2_security_remediation.sql...
+Applying migration 20260916120000_invoice_delivered_flag_and_note.sql...
+Applying migration 20260916120100_batch_idempotency_fingerprint.sql...
+Applying migration 20260916120200_invoice_number_registry.sql...
+Applying migration 20260916120300_submit_batch_rpc.sql...
+Applying migration 20260917090000_payment_idempotency_fingerprint.sql...
+Applying migration 20260917090100_record_payment_rpc.sql...
+Applying migration 20260918090000_customer_credits_approved_at.sql...
+Applying migration 20260918090100_approve_overpayment_rpc.sql...
+Applying migration 20260924010000_submit_batch_replay_before_date_rules.sql...
+Applying migration 20260924020000_submit_batch_flag_fingerprint_and_effective_balances.sql...
+Applying migration 20260924030000_invoice_effective_balances_canonical_id.sql...
+Applying migration 20260924040000_submit_batch_qatar_business_date.sql...
+Applying migration 20260924050000_record_payment_qatar_business_date.sql...
+Applying migration 20260925060000_owner_backdated_replay_authorization.sql...
+Applying migration 20261003090000_invoice_operations.sql...
+Applying migration 20261003090100_invoice_overpayment_projection.sql...
+Applying migration 20261003090200_customer_ledger_and_expenses.sql...
+Applying migration 20261004090000_daily_close_and_reports.sql...
+Applying migration 20261004100000_owner_account_administration.sql...
+Applying migration 20261004110000_production_scale_read_performance.sql...
+Applying migration 20261004120000_submit_batch_row_limit.sql...
+Applying migration 20261005090000_dashboard_top_customers_rpc.sql...
+Applying migration 20261009090000_correction_target_total.sql...
+Applying migration 20261009090100_backup_records.sql...
+Applying migration 20261017100000_data_api_privilege_hardening.sql...
+Applying migration 20261021090000_bank_payment_method.sql...
+Applying migration 20261021100000_shop_management.sql...
+Applying migration 20261022180428_performance_customer_balances_set_based.sql...
+Applying migration 20261025145523_performance_read_indexes.sql...
+Applying migration 20261028163252_dashboard_snapshot.sql...
+Applying migration 20261031165915_ops_01a_shop_user_status_controls.sql...
+Applying migration 20261103140000_ops_01b_maintenance_guard.sql...
+Applying migration 20261103150000_ops_01b_invoice_void.sql...
+Applying migration 20261103190000_ops_01b_void_remediation.sql...
+Applying migration 20261103203806_ops_01b_sales_totals_release_compat.sql...
+Seeding data from supabase/seed.sql...
+Restarting containers...
+Finished supabase db reset on branch ops/ops-01b-financial-corrections.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+# db reset exit: 0
+
+# data API ready after db reset: True (waited 2 s)
+
+
+Running 70 tests using 1 worker, shard 2 of 3
+
+(node:10420) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests\e2e\invoices.spec.ts:15:5 › opens with the last-30-day default and a visible status filter (2.5s)
+  ✓   2 [chromium] › tests\e2e\invoices.spec.ts:28:5 › a custom range shows only invoices in that range, and reset returns to the 30-day default (4.0s)
+  ✓   3 [chromium] › tests\e2e\invoices.spec.ts:41:5 › invoice-number search finds an invoice outside the default 30-day window, and stays shop-scoped (6.1s)
+  ✓   4 [chromium] › tests\e2e\invoices.spec.ts:75:5 › staff cannot reach another shop's invoices by editing the shop query parameter (1.7s)
+  ✓   5 [chromium] › tests\e2e\invoices.spec.ts:83:5 › pagination moves through invoice history deterministically (4.5s)
+(node:29604) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:268) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:30248) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:28780) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓   6 [chromium] › tests\e2e\offline-excel.spec.ts:17:7 › Excel import › downloads the template and imports a valid workbook through preview, review and save (6.2s)
+(node:20924) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓   7 [chromium] › tests\e2e\offline-excel.spec.ts:66:7 › Excel import › merges an import into a non-blank draft or replaces it, by explicit choice (2.6s)
+(node:6660) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓   8 [chromium] › tests\e2e\offline-excel.spec.ts:88:7 › Excel import › rejects malformed headers, rows and money values before anything can be saved (3.8s)
+  ✓   9 [chromium] › tests\e2e\offline-excel.spec.ts:157:7 › durable local drafts › adding a row while an earlier row is invalid keeps the click and the error (1.8s)
+(node:29940) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:16076) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:22776) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  10 [chromium] › tests\e2e\offline-excel.spec.ts:174:7 › durable local drafts › a draft survives reload with the same row identities and error mapping (7.4s)
+(node:30524) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  11 [chromium] › tests\e2e\offline-excel.spec.ts:229:7 › durable local drafts › a draft can be discarded explicitly and does not come back (2.7s)
+(node:8460) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  12 [chromium] › tests\e2e\offline-excel.spec.ts:243:7 › durable local drafts › a draft is private to its user on a shared device and is removed on explicit sign-out (6.2s)
+(node:30440) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:28116) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:5864) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:30620) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  13 [chromium] › tests\e2e\offline-excel.spec.ts:282:7 › offline operation › drafts can be created, edited and filled by import while offline, then commit exactly once on reconnect (7.5s)
+(node:3172) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:23520) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:6408) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  14 [chromium] › tests\e2e\offline-excel.spec.ts:336:7 › offline operation › a queued submission can be edited before it is sent (5.3s)
+(node:9208) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:5648) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:21592) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:16420) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:12416) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  15 [chromium] › tests\e2e\offline-excel.spec.ts:357:7 › retry and conflicts › a lost response stays uncertain, keeps the draft, and resumes after reload without duplicates (8.5s)
+(node:30432) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:26580) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:22852) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:5604) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:17672) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:12568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  16 [chromium] › tests\e2e\offline-excel.spec.ts:401:7 › retry and conflicts › an invoice number used by someone else while offline becomes a row conflict linking to the existing invoice (13.6s)
+(node:12576) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:15228) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:27984) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:23128) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:17508) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  17 [chromium] › tests\e2e\offline-excel.spec.ts:442:7 › retry and conflicts › a business date closed while offline blocks the batch and preserves the draft (8.1s)
+(node:7332) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:12740) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:14100) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:2420) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:24132) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:5604) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:11928) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  18 [chromium] › tests\e2e\offline-excel.spec.ts:469:7 › retry and conflicts › shop access revoked while offline stops the queued batch from committing (9.5s)
+(node:24616) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:28316) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:12536) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:26708) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  19 [chromium] › tests\e2e\offline-excel.spec.ts:496:7 › retry and conflicts › an expired session preserves the draft and commits only after signing in again (8.7s)
+(node:5968) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:19380) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:27372) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:24768) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:3416) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  20 [chromium] › tests\e2e\offline-excel.spec.ts:534:7 › Excel export › exports invoices, a customer ledger and expenses with effective values, scoped to the shop (12.0s)
+(node:30096) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  21 [chromium] › tests\e2e\payment-method.spec.ts:66:7 › New Sale › defaults to Cash, saves a Bank receipt, and the invoice shows Bank (4.0s)
+(node:25984) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:23316) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  22 [chromium] › tests\e2e\payment-method.spec.ts:87:7 › New Sale › a row that receives nothing records no method, and a Cash row stays Cash (4.2s)
+  ✓  23 [chromium] › tests\e2e\payment-method.spec.ts:103:7 › New Sale › the selector is a labelled radio group that works from the keyboard, with a visible focus and a non-colour selected cue (1.3s)
+  ✓  24 [chromium] › tests\e2e\payment-method.spec.ts:123:7 › New Sale › works at phone width: no horizontal overflow and touch targets of at least 44px (1.7s)
+  ✓  25 [chromium] › tests\e2e\payment-method.spec.ts:142:7 › New Sale › dark mode keeps the selected and unselected options distinct and readable (2.0s)
+(node:27992) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  26 [chromium] › tests\e2e\payment-method.spec.ts:164:7 › Record payment › a Bank payment is reviewed as Bank, stored as bank and listed as Bank in payment history (5.5s)
+(node:25920) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  27 [chromium] › tests\e2e\payment-method.spec.ts:189:7 › Record payment › the invoice page's Record payment sheet offers Cash and Bank, and Cash stays the default (5.4s)
+(node:14372) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Stopped services: [supabase_imgproxy_shopkhata supabase_analytics_shopkhata supabase_vector_shopkhata supabase_pooler_shopkhata]
+WARN: INBUCKET_URL is deprecated and will be removed in v3, use MAILPIT_URL instead.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:9852) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:7468) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  28 [chromium] › tests\e2e\payment-method.spec.ts:210:7 › Customer payment › a Bank customer payment is allocated as before, stored as bank and shown as Bank in the customer's payments (6.6s)
+(node:25760) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Stopped services: [supabase_imgproxy_shopkhata supabase_analytics_shopkhata supabase_vector_shopkhata supabase_pooler_shopkhata]
+WARN: INBUCKET_URL is deprecated and will be removed in v3, use MAILPIT_URL instead.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  29 [chromium] › tests\e2e\payment-method.spec.ts:235:7 › Customer payment › applying credit offers no payment method (3.4s)
+(node:12504) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  30 [chromium] › tests\e2e\payment-method.spec.ts:248:7 › Daily Close and Reports › Daily Close shows Cash, Bank and Total received, with Bank never inside Cash (6.3s)
+(node:26608) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  31 [chromium] › tests\e2e\payment-method.spec.ts:271:7 › Daily Close and Reports › the payments report separates Cash and Bank and reports Total as their sum (2.9s)
+  ✓  32 [chromium] › tests\e2e\payment-method.spec.ts:283:7 › Daily Close and Reports › the daily report lists Cash received, Bank received and Total received (1.8s)
+  ✓  33 [chromium] › tests\e2e\payment-method.spec.ts:290:7 › Daily Close and Reports › the dashboard keeps Cash Received cash-only and names Bank and Total next to it (2.6s)
+(node:17452) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:30076) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:26056) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  34 [chromium] › tests\e2e\payment-method.spec.ts:300:7 › Offline › a Bank draft stays Bank through a shop switch, a queued save and the retry after reconnect (6.2s)
+  ✓  35 [chromium] › tests\e2e\payment-method.spec.ts:341:7 › Offline › the payments table scrolls inside its own region on a phone and keeps Method reachable from the keyboard (2.0s)
+  ✓  36 [chromium] › tests\e2e\payments.spec.ts:20:5 › the Payments page loads with Record Payment and a history list (1.8s)
+  ✓  37 [chromium] › tests\e2e\payments.spec.ts:28:5 › recording a payment on the Payments page uses the authoritative workflow and appears in its own history (4.7s)
+  ✓  38 [chromium] › tests\e2e\payments.spec.ts:49:5 › invoice-number search finds a payment outside the default 30-day window (4.2s)
+  ✓  39 [chromium] › tests\e2e\payments.spec.ts:71:5 › a custom date range narrows payment history, and reset restores the last 30 days (4.0s)
+  ✓  40 [chromium] › tests\e2e\payments.spec.ts:82:5 › payment rows link safely to their invoice and customer (3.5s)
+  ✓  41 [chromium] › tests\e2e\payments.spec.ts:103:5 › staff cannot reach another shop's payment history by editing the shop query parameter (1.9s)
+  ✓  42 [chromium] › tests\e2e\payments.spec.ts:111:5 › an approved payment correction is shown as its own effective row, not a mutation of the original (9.9s)
+(node:26708) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:25176) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:26196) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  43 [chromium] › tests\e2e\release-acceptance.spec.ts:22:7 › owner administration › an owner registers an account, assigns a shop, deactivates and re-roles it, and each change applies at once (20.6s)
+  ✓  44 [chromium] › tests\e2e\release-acceptance.spec.ts:147:7 › security headers and sessions › sends the security headers on public and authenticated pages without breaking the application (4.1s)
+(node:22884) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  45 [chromium] › tests\e2e\release-acceptance.spec.ts:174:7 › security headers and sessions › rejects unauthenticated access, ignores hostile return addresses, and ends the session on sign-out and expiry (10.8s)
+(node:24140) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+[large-excel] 100 rows: parse and preview 117 ms, save 641 ms
+(node:13716) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:16220) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:17248) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:18140) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  46 [chromium] › tests\e2e\release-acceptance.spec.ts:237:7 › largest Excel batch › imports, reviews and saves 100 rows as one batch, and maps a bad row to its own line (7.1s)
+(node:17452) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  47 [chromium] › tests\e2e\release-acceptance.spec.ts:331:9 › responsive usability and accessibility › every workspace is usable and accessible at desktop size (1366x768) (23.1s)
+(node:24292) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  48 [chromium] › tests\e2e\release-acceptance.spec.ts:331:9 › responsive usability and accessibility › every workspace is usable and accessible at tablet size (820x1180) (22.5s)
+(node:30624) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  49 [chromium] › tests\e2e\release-acceptance.spec.ts:331:9 › responsive usability and accessibility › every workspace is usable and accessible at mobile size (390x844) (22.6s)
+  ✓  50 [chromium] › tests\e2e\shop-management.spec.ts:43:7 › Shop management › only an owner reaches Shops; managers and staff get the not-found page (1.8s)
+  ✓  51 [chromium] › tests\e2e\shop-management.spec.ts:51:7 › Shop management › the directory lists real data only and offers no archive or delete (1.8s)
+(node:15104) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:20760) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:10848) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:16420) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:18576) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:10640) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:30104) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  52 [chromium] › tests\e2e\shop-management.spec.ts:67:7 › Shop management › adding a shop reviews first, then creates an empty shop and shows it in the switcher (11.5s)
+(node:12504) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:30360) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:12532) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  53 [chromium] › tests\e2e\shop-management.spec.ts:95:7 › Shop management › a new shop shows none of Shop 1's sales, customers, expenses or Cash and Bank totals (12.3s)
+(node:2652) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:4664) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  54 [chromium] › tests\e2e\shop-management.spec.ts:130:7 › Shop management › renaming reviews the change, keeps the shop id and is written to the history in words (5.0s)
+(node:17872) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:26628) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:28852) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:18016) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  55 [chromium] › tests\e2e\shop-management.spec.ts:155:7 › Shop management › sales entry offers the new shop: a Shop 1 draft never follows the owner into it and a Bank sale saves only there (5.9s)
+(node:27544) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:30084) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:4176) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:2532) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  56 [chromium] › tests\e2e\shop-management.spec.ts:179:7 › Shop management › manager and staff see the shop only while assigned, using the existing Accounts flow (11.2s)
+(node:29768) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  57 [chromium] › tests\e2e\shop-management.spec.ts:212:7 › Shop management › duplicate and invalid names are refused, and the page works at phone width (3.4s)
+(node:23696) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:30488) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:8568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:8916) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:21420) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:25140) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  58 [chromium] › tests\e2e\shop-management.spec.ts:224:7 › Shop management › deactivating needs a reason and a review, keeps the shop listed, refuses a sale already open in another tab, and reactivation restores it (13.9s)
+(node:28316) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:25504) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:13572) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Stopped services: [supabase_imgproxy_shopkhata supabase_analytics_shopkhata supabase_vector_shopkhata supabase_pooler_shopkhata]
+WARN: INBUCKET_URL is deprecated and will be removed in v3, use MAILPIT_URL instead.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:30316) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:4344) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:27768) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:11008) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:30464) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:388) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  59 [chromium] › tests\e2e\shop-management.spec.ts:291:7 › Shop management › an owner reads an inactive shop's history read-only; staff gain nothing; writes stay refused until reactivation (18.2s)
+(node:15364) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:7608) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  60 [chromium] › tests\e2e\shop-management.spec.ts:376:7 › Shop management › the inactive state is readable at phone width (3.3s)
+  ✓  61 [chromium] › tests\e2e\shop-switching.spec.ts:93:5 › owners switch isolated workspaces and can use the same invoice number in both shops (5.0s)
+(node:13324) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:17536) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  62 [chromium] › tests\e2e\shop-switching.spec.ts:123:5 › owner shop switching clears a selected customer from the old shop (4.5s)
+  ✓  63 [chromium] › tests\e2e\shop-switching.spec.ts:152:5 › staff with one assigned shop has no selector, and owners confirm before discarding a draft (2.7s)
+  ✓  64 [chromium] › tests\e2e\shop-switching.spec.ts:175:5 › an uncertain batch blocks switching and retries the identical command before releasing the shop (2.7s)
+  ✓  65 [chromium] › tests\e2e\shop-switching.spec.ts:217:5 › an uncertain payment blocks switching until its original idempotent command is retried (3.1s)
+  ✓  66 [chromium] › tests\e2e\shop-switching.spec.ts:257:5 › a delayed successful batch cannot switch shops or move Shop 1 data into Shop 2 (3.1s)
+  ✓  67 [chromium] › tests\e2e\shop-switching.spec.ts:287:5 › a committed batch with a lost response keeps its exact retry while switching is blocked (2.9s)
+  ✓  68 [chromium] › tests\e2e\shop-switching.spec.ts:312:5 › a delayed successful payment cannot switch shops or move Shop 1 balances into Shop 2 (3.4s)
+  ✓  69 [chromium] › tests\e2e\shop-switching.spec.ts:336:5 › a committed payment with a lost response keeps its exact retry while switching is blocked (3.5s)
+  ✓  70 [chromium] › tests\e2e\smoke.spec.ts:3:5 › redirects an unauthenticated visitor to the sign-in page (346ms)
+
+  70 passed (7.4m)
+
+# finished: 2026-11-04T20:00:38Z
+# exit: 0

@@ -177,6 +177,8 @@ select is(pg_temp.outcome($$select public.create_customer(jsonb_build_object('sh
   'MAINTENANCE_ACTIVE', 'business writes fail closed with no state row');
 select is(pg_temp.final_insert(pg_temp.uid('staff')::text, 90), 'MAINTENANCE_ACTIVE', 'a Storage insert fails closed with no state row');
 select is((select count(*) from public.customers where name = 'No State Row'), 0::bigint, 'nothing was written');
+select throws_ok($$select private.receipt_restore_open('no-state', array['x'], 10)$$, 'P0001', 'MAINTENANCE_STATE_MISSING', 'the restore context cannot open with no state row');
+select is((select count(*) from private.receipt_restore_objects) + (select count(*) from private.receipt_restore_log), 0::bigint, 'no restore listing or log row is created with no state row');
 insert into private.system_maintenance(id) values (true);
 select ok(not (select enabled from private.system_maintenance), 'the restored singleton starts disabled');
 
@@ -199,6 +201,9 @@ select throws_ok($$select public.set_maintenance('{"enabled":"yes","reason":"Rel
 select throws_ok($$select public.set_maintenance('{"enabled":true,"reason":"Release window","extra":1}')$$, 'P0001', 'INVALID_REQUEST', 'unknown keys are refused');
 select throws_ok($$select pg_temp.bypass('owner')$$, 'P0001', 'MAINTENANCE_NOT_ACTIVE', 'no bypass while maintenance is off');
 select is(pg_temp.audits('maintenance.enabled') + pg_temp.audits('maintenance.operator_bypass_enabled'), 0::bigint, 'refused control calls audit nothing');
+select throws_ok($$select private.receipt_restore_open('while-off', array['x'], 10)$$, 'P0001', 'MAINTENANCE_NOT_ACTIVE', 'the restore context cannot open while maintenance is off');
+select is((select count(*) from private.receipt_restore_objects) + (select count(*) from private.receipt_restore_log), 0::bigint, 'a refused open creates no listing and no log row');
+select is((select count(*) from public.audit_events where action like 'maintenance.%'), 0::bigint, 'a refused open writes no audit event');
 
 -- 4. Enable: audited once, idempotent ----------------------------------------------------------------------------------
 select is(pg_temp.mt(true) - 'enabled_at', '{"ok":true,"changed":true,"enabled":true,"release_ref":"5603633","bypass_user_id":null,"bypass_expires_at":null}'::jsonb, 'owner enables maintenance');
@@ -365,6 +370,26 @@ select is(pg_temp.upload(6), 'ok', 'staff can upload again');
 select is(pg_temp.final_insert(pg_temp.uid('staff')::text, 11), 'ok', 'the Storage trigger admits everyone again');
 select is(pg_temp.outcome($$select public.create_customer(jsonb_build_object('shop_id', pg_temp.s2(), 'name', 'Wrong Shop', 'mobile', '55519910'))$$),
   'UNAUTHORIZED_SHOP', 'shop isolation is unchanged');
+
+-- 7b. The restore context is bound to one maintenance period: disable clears it, re-enable never revives it ---------
+select pg_temp.act('owner');
+select throws_ok($$select private.receipt_restore_open('after-off', array[pg_temp.receipt(30)], 10)$$, 'P0001', 'MAINTENANCE_NOT_ACTIVE', 'after disable the context cannot open');
+select pg_temp.mt(true, 'Second window', 'r2');
+select is(private.receipt_restore_open('abandoned', array[pg_temp.receipt(30), pg_temp.receipt(31)], 60), 2, 'opened while on');
+select is(pg_temp.final_insert(null, 30), 'ok', 'the listed uploader-less insert works inside the valid context');
+-- The restore process is abandoned here (never closes). Maintenance goes OFF -> ON.
+select pg_temp.mt(false, 'Abandon window', 'r2');
+select is((select count(*) from private.receipt_restore_objects), 0::bigint, 'disabling maintenance clears the open context');
+select is((select action || ':' || object_count || ':' || restore_ref from private.receipt_restore_log order by id desc limit 1), 'cleared:2:abandoned',
+  'the automatic clear is logged with its reference and the listings it removed');
+select pg_temp.mt(true, 'Third window', 'r3');
+select is(pg_temp.final_insert(null, 31), 'MAINTENANCE_ACTIVE', 're-enabling does not reactivate the abandoned context');
+-- Defense in depth: a listing from an earlier period (e.g. the state flipped outside set_maintenance) admits nothing.
+insert into private.receipt_restore_objects values ('expense-receipts', pg_temp.receipt(31), 'stale', clock_timestamp() + interval '1 hour',
+  (select enabled_at from private.system_maintenance) - interval '1 second');
+select is(pg_temp.final_insert(null, 31), 'MAINTENANCE_ACTIVE', 'a listing from another maintenance period admits nothing');
+delete from private.receipt_restore_objects;
+select pg_temp.mt(false, 'Done', 'r3');
 
 -- 8. Global audit rows are owner-only reads.
 select pg_temp.act('staff');

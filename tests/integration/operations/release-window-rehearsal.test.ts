@@ -245,7 +245,7 @@ create trigger zz_hold after insert on storage.objects for each row execute func
 
   // W12: record-level comparison with the runbook's declaration template.
   const declarations = loadDeclarations(readFileSync("scripts/ops-01b-smoke-declaration.json", "utf8"), {
-    SHOP_ID: SHOP_1, BUSINESS_DATE: today, OWNER_ID, S1_NUMBER: s1.number, S1_TOTAL: 10000, S2_NUMBER: s2.number, S2_TOTAL: 20000, PAYMENT_AMOUNT: 2500,
+    SHOP_ID: SHOP_1, BUSINESS_DATE: today, OWNER_ID, S1_NUMBER: s1.number, S1_TOTAL: 10000, S2_NUMBER: s2.number, S2_TOTAL: 20000, PAYMENT_AMOUNT: 2500, VOID_REASON: "Operator smoke void of a test invoice",
   });
   const migrations = NEW_VERSIONS.slice(1);
   const w12 = compareSnapshots(baseline, await snapshot(), { declarations, expectMigrations: migrations, expectMaintenanceAudit: ["maintenance.operator_bypass_enabled"], expectMaintenance: "bypass" });

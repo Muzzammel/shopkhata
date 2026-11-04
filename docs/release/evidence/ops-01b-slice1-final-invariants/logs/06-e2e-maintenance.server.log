@@ -1,0 +1,58 @@
+$ next dev
+▲ Next.js 16.4.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.18.7:3000
+- Environments: .env.local
+✓ Ready in 883ms
+✓ Running next.config.ts took 121ms
+
+✓ Generated AGENTS.md for AI agents. Set `agentRules: false` in next.config to disable.
+ GET /login 200 in 1732ms (next.js: 1256ms, proxy.ts: 192ms, application-code: 284ms)
+ GET /login 200 in 55ms (next.js: 11ms, proxy.ts: 6ms, application-code: 38ms)
+ GET /offline 200 in 363ms (next.js: 201ms, proxy.ts: 6ms, application-code: 156ms)
+ GET /login 200 in 550ms (next.js: 85ms, proxy.ts: 249ms, application-code: 216ms)
+ GET / 200 in 684ms (next.js: 150ms, proxy.ts: 247ms, application-code: 288ms)
+ GET / 200 in 302ms (next.js: 4ms, proxy.ts: 7ms, application-code: 291ms)
+ POST / 200 in 46ms (next.js: 3ms, proxy.ts: 5ms, application-code: 38ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["mt-pay-1793820755839"]) in 22ms app/(app)/workspace-actions.ts
+ POST / 200 in 233ms (next.js: 4ms, proxy.ts: 6ms, application-code: 223ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"9365a774-2c36-4929-b864-93f91d35c7bc","...":"3 items not stringified"}) in 57ms app/(app)/invoice-actions.ts
+ GET /login 200 in 80ms (next.js: 13ms, proxy.ts: 20ms, application-code: 47ms)
+ POST / 200 in 124ms (next.js: 19ms, proxy.ts: 27ms, application-code: 79ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 64ms app/(app)/workspace-actions.ts
+ GET /offline 200 in 52ms (next.js: 6ms, proxy.ts: 5ms, application-code: 41ms)
+ GET /login 200 in 109ms (next.js: 11ms, proxy.ts: 10ms, application-code: 88ms)
+ GET / 200 in 236ms (next.js: 33ms, proxy.ts: 10ms, application-code: 193ms)
+ GET / 200 in 177ms (next.js: 2ms, proxy.ts: 4ms, application-code: 171ms)
+ GET /payments?shop=10000000-0000-4000-8000-000000000001 200 in 274ms (next.js: 69ms, proxy.ts: 4ms, application-code: 201ms)
+ POST / 200 in 178ms (next.js: 9ms, proxy.ts: 122ms, application-code: 47ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["mt-sale-1793820755839"]) in 32ms app/(app)/workspace-actions.ts
+ POST /payments?shop=10000000-0000-4000-8000-000000000001 200 in 60ms (next.js: 3ms, proxy.ts: 8ms, application-code: 49ms)
+  └─ ƒ lookupInvoiceForPayment({"invoiceNumber":"MT-PAY-1793820755839","shopId":"10000000-0000-4000-8000-000000000001"}) in 42ms app/(app)/payment-actions.ts
+ GET /login 200 in 43ms (next.js: 5ms, proxy.ts: 4ms, application-code: 34ms)
+ GET /offline 200 in 36ms (next.js: 6ms, proxy.ts: 4ms, application-code: 27ms)
+ GET /login 200 in 90ms (next.js: 7ms, proxy.ts: 13ms, application-code: 70ms)
+ GET / 200 in 209ms (next.js: 22ms, proxy.ts: 13ms, application-code: 174ms)
+ GET /expenses?shop=10000000-0000-4000-8000-000000000001 200 in 344ms (next.js: 99ms, proxy.ts: 4ms, application-code: 241ms)
+ GET /login 200 in 36ms (next.js: 4ms, proxy.ts: 3ms, application-code: 29ms)
+ GET /offline 200 in 65ms (next.js: 5ms, proxy.ts: 5ms, application-code: 55ms)
+ GET /login 200 in 104ms (next.js: 4ms, proxy.ts: 7ms, application-code: 93ms)
+ GET / 200 in 208ms (next.js: 28ms, proxy.ts: 6ms, application-code: 174ms)
+ GET /closing?shop=10000000-0000-4000-8000-000000000002&date=2000-09-30 200 in 386ms (next.js: 83ms, proxy.ts: 4ms, application-code: 300ms)
+{"at":"2026-11-04T19:32:48.404Z","requestId":"255eb133-0f25-4e1e-8395-a54760f23062","app":"shopkhata","level":"warn","operation":"submit_batch","code":"P0001","shopId":"10000000-0000-4000-8000-000000000001","actorId":"10000000-0000-4000-8000-000000000102"}
+ POST / 200 in 58ms (next.js: 5ms, proxy.ts: 5ms, application-code: 47ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"ea24e396-7e16-4af8-aa96-692efcf9d60f","...":"3 items not stringified"}) in 42ms app/(app)/invoice-actions.ts
+{"at":"2026-11-04T19:32:49.376Z","requestId":"dea25283-fcfc-43ef-b96b-e66e6af296e6","app":"shopkhata","level":"warn","operation":"record_payment","code":"P0001","shopId":"10000000-0000-4000-8000-000000000001","actorId":"10000000-0000-4000-8000-000000000101"}
+ POST /payments?shop=10000000-0000-4000-8000-000000000001 200 in 50ms (next.js: 7ms, proxy.ts: 4ms, application-code: 38ms)
+  └─ ƒ recordInvoicePayment({"amount_dirham":1500,"business_date":"2026-11-04","idempotency_key":"29294c04-945f-41dd-90e8-0b50283c92b2","...":"3 items not stringified"}) in 32ms app/(app)/payment-actions.ts
+{"at":"2026-11-04T19:32:50.337Z","requestId":"86751f60-abaf-4880-9efa-47d1326a20ad","app":"shopkhata","level":"warn","operation":"create_expense","code":"P0001","shopId":"10000000-0000-4000-8000-000000000001","actorId":"10000000-0000-4000-8000-000000000102"}
+ POST /expenses?shop=10000000-0000-4000-8000-000000000001 200 in 39ms (next.js: 5ms, proxy.ts: 5ms, application-code: 29ms)
+  └─ ƒ createExpense({"amount_dirham":350,"business_date":"2026-11-04","category":"other","...":"3 items not stringified"}) in 23ms app/(app)/customer-actions.ts
+{"at":"2026-11-04T19:32:51.318Z","requestId":"ec153ead-8a3b-4105-8fbb-3061fb7b884c","app":"shopkhata","level":"warn","operation":"close_business_date","code":"P0001","shopId":"10000000-0000-4000-8000-000000000002","actorId":"10000000-0000-4000-8000-000000000101"}
+ POST /closing?shop=10000000-0000-4000-8000-000000000002&date=2000-09-30 200 in 38ms (next.js: 4ms, proxy.ts: 4ms, application-code: 30ms)
+  └─ ƒ closeBusinessDate({"business_date":"2000-09-30","shop_id":"10000000-0000-4000-8000-000000000002"}) in 25ms app/(app)/closing/actions.ts
+ GET /closing?shop=10000000-0000-4000-8000-000000000002&date=2000-09-30 200 in 206ms (next.js: 3ms, proxy.ts: 4ms, application-code: 199ms)
+ POST / 200 in 267ms (next.js: 4ms, proxy.ts: 6ms, application-code: 257ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"ea24e396-7e16-4af8-aa96-692efcf9d60f","...":"3 items not stringified"}) in 39ms app/(app)/invoice-actions.ts
+ POST / 200 in 132ms (next.js: 4ms, proxy.ts: 86ms, application-code: 42ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 34ms app/(app)/workspace-actions.ts

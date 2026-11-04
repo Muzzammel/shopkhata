@@ -124,7 +124,7 @@ const mt = (enabled: boolean, reason = "Integration release window") => ({ comma
 
 describe("OPS-01B maintenance boundary (real Data API, Storage API and concurrent sessions)", () => {
   let supabaseAvailable = false;
-  let credentials: { url: string; key: string } = { url: "", key: "" };
+  let credentials: { url: string; key: string; service: string } = { url: "", key: "", service: "" };
 
   beforeAll(() => {
     if (!isSupabaseRunning()) throw new Error("Prerequisite: local Supabase must be running. Start it with: pnpm.cmd exec supabase start --local");
@@ -134,7 +134,7 @@ describe("OPS-01B maintenance boundary (real Data API, Storage API and concurren
     const url = env.API_URL;
     const key = env.PUBLISHABLE_KEY ?? env.ANON_KEY;
     if (!url || !key) throw new Error("Could not read local Supabase URL/key from `supabase status -o env`.");
-    credentials = { url, key };
+    credentials = { url, key, service: env.SERVICE_ROLE_KEY ?? env.SECRET_KEY ?? "" };
   }, SUITE_TIMEOUT);
 
   afterAll(() => {
@@ -290,6 +290,76 @@ describe("OPS-01B maintenance boundary (real Data API, Storage API and concurren
     expect([c.out, d.out].map((out) => /r:(true|false)/.exec(out)?.[1]).sort()).toEqual(["false", "true"]);
     expect(await psqlScalar("select enabled from private.system_maintenance")).toBe("f");
     expect(Number(await psqlScalar("select count(*) from public.audit_events where entity_type = 'system_maintenance'")) - before).toBe(2);
+  });
+
+  // Receipt restore context: opens only while maintenance is ON, serialized with enable/disable on L1; disable clears it.
+  const ownerMt = async (on: boolean) => {
+    const r = await session(`begin;
+${as(OWNER_ID)}select 'mt:' || (public.set_maintenance('${JSON.stringify(mt(on).command)}') ->> 'changed');
+commit;
+`).done;
+    expect(r.code, r.err).toBe(0);
+  };
+  const restoreLog = (ref: string) => psqlScalar(`select coalesce(string_agg(action || ':' || object_count, ',' order by id), '') from private.receipt_restore_log where restore_ref = '${ref}'`);
+
+  it("restore race 1: an open that queues behind an uncommitted disable refuses MAINTENANCE_NOT_ACTIVE and leaves nothing", async () => {
+    await clearMaintenance();
+    await ownerMt(true);
+    const disable = session(`begin;
+${as(OWNER_ID)}select 'off:' || (public.set_maintenance('${JSON.stringify(mt(false).command)}') ->> 'changed');
+select pg_sleep(1.5);
+commit;
+`);
+    await disable.until("off:");
+    const open = session(`select private.receipt_restore_open('race-1', array['${SHOP_1}/race/1.pdf'], 10);
+`);
+    const [d, o] = await Promise.all([disable.done, open.done]);
+    expect(d.code, d.err).toBe(0);
+    expect(o.code).not.toBe(0);
+    expect(o.err).toContain("MAINTENANCE_NOT_ACTIVE");
+    expect(o.at).toBeGreaterThanOrEqual(d.at - 50);
+    expect(await psqlScalar("select count(*) from private.receipt_restore_objects")).toBe("0");
+    expect(await restoreLog("race-1")).toBe("");
+  });
+
+  it("restore race 2: a disable that queues behind an uncommitted open waits, then clears the context", async () => {
+    await clearMaintenance();
+    await ownerMt(true);
+    const open = session(`begin;
+select 'opened:' || private.receipt_restore_open('race-2', array['${SHOP_1}/race/2.pdf'], 10);
+select pg_sleep(1.5);
+commit;
+`);
+    await open.until("opened:");
+    const disable = session(`begin;
+${as(OWNER_ID)}select 'off:' || (public.set_maintenance('${JSON.stringify(mt(false).command)}') ->> 'changed');
+commit;
+`);
+    const [o, d] = await Promise.all([open.done, disable.done]);
+    expect(o.code, o.err).toBe(0);
+    expect(d.code, d.err).toBe(0);
+    expect(d.at).toBeGreaterThanOrEqual(o.at - 50);
+    expect(await psqlScalar("select count(*) from private.receipt_restore_objects")).toBe("0");
+    expect(await restoreLog("race-2")).toBe("opened:1,cleared:1");
+  });
+
+  it("restore abandonment: a context left open by a dead restore process is useless after maintenance OFF -> ON (real Storage API)", async () => {
+    await clearMaintenance();
+    await ownerMt(true);
+    const used = `${SHOP_1}/abandon/${crypto.randomUUID()}.pdf`;
+    const spare = `${SHOP_1}/abandon/${crypto.randomUUID()}.pdf`;
+    expect((await session(`select private.receipt_restore_open('abandon', array['${used}', '${spare}'], 60);
+`).done).code).toBe(0);
+    const service = createClient(credentials.url, credentials.service, { auth: { persistSession: false } }).storage.from("expense-receipts");
+    expect((await service.upload(used, pdf("restore"), { contentType: "application/pdf" })).error, "the valid context admits its listed name").toBeNull();
+    // The restore process dies here: no close. Maintenance goes OFF, then ON again.
+    await ownerMt(false);
+    expect(await psqlScalar("select count(*) from private.receipt_restore_objects")).toBe("0");
+    await ownerMt(true);
+    expect((await service.upload(spare, pdf("late"), { contentType: "application/pdf" })).error, "the abandoned listing admits nothing in a new period").not.toBeNull();
+    expect(await psqlScalar(`select count(*) from storage.objects where name = '${spare}'`)).toBe("0");
+    expect(await restoreLog("abandon")).toBe("opened:2,cleared:2");
+    await clearMaintenance();
   });
 
   // ---------------------------------------------------------------------------------------------------------------

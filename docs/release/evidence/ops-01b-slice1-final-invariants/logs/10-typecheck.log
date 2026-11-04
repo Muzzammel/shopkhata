@@ -1,0 +1,12 @@
+# gate: 10-typecheck
+# command: pnpm.cmd run typecheck
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T20:14:21Z
+
+$ next typegen && tsc --noEmit
+Generating route types...
+✓ Types generated successfully
+
+# finished: 2026-11-04T20:14:25Z
+# exit: 0

@@ -1,0 +1,3 @@
+# Evidence is stored byte-for-byte (SHA256SUMS stays valid on any checkout) and is exempt from whitespace checks
+# (raw tool output keeps its trailing spaces; git diff --check applies to the code, not to these logs).
+* -text -whitespace

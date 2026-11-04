@@ -1,0 +1,123 @@
+# gate: 05-migration-upgrade
+# command: pnpm.cmd exec vitest run --config vitest.integration.config.mts --reporter=verbose
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T18:55:36Z
+
+
+ RUN  v4.1.11 C:/Users/Reem/Desktop/shopkhata
+
+ ✓ tests/integration/migration/invoice-number-registry-backfill.test.ts > invoice-number registry backfill > registers every pre-existing invoice number with no gaps 35011ms
+ ✓ tests/integration/migration/invoice-number-registry-backfill.test.ts > invoice-number registry backfill > refuses to backfill when two pre-existing invoices in the same shop collide after normalization 37812ms
+ × tests/integration/migration/invoice-number-registry-backfill.test.ts > invoice-number registry backfill > refuses to backfill when a pre-existing invoice has a null-equivalent (blank-after-trim) invoice_id 13483ms
+   → Command failed: pnpm.cmd exec supabase --agent no db reset --local --version 20260916120100
+Command failed: C:\WINDOWS\system32\cmd.exe /d /s /c call pnpm.cmd exec supabase --agent no db reset --local --version 20260916120100
+Resetting local database to version: 20260916120100
+Recreating database...
+Initialising schema...
+error running container: exit 66
+Try rerunning the command with --debug to troubleshoot the error.
+
+
+Resetting local database to version: 20260916120100
+Recreating database...
+Initialising schema...
+error running container: exit 66
+Try rerunning the command with --debug to troubleshoot the error.
+
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/migration/invoice-number-registry-backfill.test.ts > invoice-number registry backfill
+Error: Command failed: pnpm.cmd exec supabase --agent no db reset --local
+Command failed: C:\WINDOWS\system32\cmd.exe /d /s /c call pnpm.cmd exec supabase --agent no db reset --local
+
+
+ ❯ run tests/integration/migration/invoice-number-registry-backfill.test.ts:47:21
+     45|       failure.stderr ?? "",
+     46|     ].join("\n");
+     47|     const wrapped = new Error(
+       |                     ^
+     48|       `Command failed: ${PNPM} ${args.join(" ")}\n${combined}`,
+     49|     ) as CommandFailure;
+ ❯ runSupabase tests/integration/migration/invoice-number-registry-backfill.test.ts:65:10
+ ❯ tests/integration/migration/invoice-number-registry-backfill.test.ts:144:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { stdout: '', stderr: '' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/migration/invoice-number-registry-backfill.test.ts > invoice-number registry backfill > refuses to backfill when a pre-existing invoice has a null-equivalent (blank-after-trim) invoice_id
+Error: Command failed: pnpm.cmd exec supabase --agent no db reset --local --version 20260916120100
+Command failed: C:\WINDOWS\system32\cmd.exe /d /s /c call pnpm.cmd exec supabase --agent no db reset --local --version 20260916120100
+Resetting local database to version: 20260916120100
+Recreating database...
+Initialising schema...
+error running container: exit 66
+Try rerunning the command with --debug to troubleshoot the error.
+
+
+Resetting local database to version: 20260916120100
+Recreating database...
+Initialising schema...
+error running container: exit 66
+Try rerunning the command with --debug to troubleshoot the error.
+
+ ❯ run tests/integration/migration/invoice-number-registry-backfill.test.ts:47:21
+     45|       failure.stderr ?? "",
+     46|     ].join("\n");
+     47|     const wrapped = new Error(
+       |                     ^
+     48|       `Command failed: ${PNPM} ${args.join(" ")}\n${combined}`,
+     49|     ) as CommandFailure;
+ ❯ runSupabase tests/integration/migration/invoice-number-registry-backfill.test.ts:65:10
+ ❯ tests/integration/migration/invoice-number-registry-backfill.test.ts:269:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { stdout: '', stderr: 'Resetting local database to version: 20260916120100\nRecreating database...\nInitialising schema...\nerror running container: exit 66\nTry rerunning the command with --debug to troubleshoot the error.\n' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 2 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/.pnpm/vitest@4.1.11_@types+node@2_d3cbcf3baed96995ab3a3cb94fb9a079/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21
+ ❯ EventEmitter.emit node:events:509:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/.pnpm/vitest@4.1.11_@types+node@2_d3cbcf3baed96995ab3a3cb94fb9a079/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22
+ ❯ ChildProcess.emit node:events:509:28
+ ❯ Process.ChildProcess._handle.onexit node:internal/child_process:295:12
+
+Caused by: Error: Worker exited unexpectedly
+ ❯ ChildProcess.emitUnexpectedExit node_modules/.pnpm/vitest@4.1.11_@types+node@2_d3cbcf3baed96995ab3a3cb94fb9a079/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33
+ ❯ ChildProcess.emit node:events:509:28
+ ❯ Process.ChildProcess._handle.onexit node:internal/child_process:295:12
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/.pnpm/vitest@4.1.11_@types+node@2_d3cbcf3baed96995ab3a3cb94fb9a079/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21
+ ❯ EventEmitter.emit node:events:509:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/.pnpm/vitest@4.1.11_@types+node@2_d3cbcf3baed96995ab3a3cb94fb9a079/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22
+ ❯ ChildProcess.emit node:events:509:28
+ ❯ Process.ChildProcess._handle.onexit node:internal/child_process:295:12
+
+Caused by: Error: Worker exited unexpectedly
+ ❯ ChildProcess.emitUnexpectedExit node_modules/.pnpm/vitest@4.1.11_@types+node@2_d3cbcf3baed96995ab3a3cb94fb9a079/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33
+ ❯ ChildProcess.emit node:events:509:28
+ ❯ Process.ChildProcess._handle.onexit node:internal/child_process:295:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+     Errors  2 errors
+   Start at  21:55:37
+   Duration  147.86s (transform 21ms, setup 0ms, import 33ms, tests 87.67s, environment 0ms)
+

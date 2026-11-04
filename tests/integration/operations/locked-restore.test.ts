@@ -1,4 +1,5 @@
-import { mkdtempSync, readdirSync, readFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
@@ -58,6 +59,13 @@ async function rehearse(): Promise<void> {
   expect(manifest.migrations).toHaveLength(36);
   expect(manifest.receipts.map((r: { name: string }) => r.name)).toEqual([path]);
   expect(manifest.receiptAttachments).toBe(1);
+  // Complete Storage inventory at the source: every Storage table but the platform's own storage.migrations, with
+  // expected-empty distinguished from non-empty (one bucket, one receipt object).
+  const storageTables = (await psql("select string_agg('storage.' || relname, ',' order by relname) from pg_class where relnamespace = 'storage'::regnamespace and relkind in ('r', 'p') and relname <> 'migrations'")).split(",");
+  expect(Object.keys(manifest.fingerprint.storage).sort()).toEqual(storageTables);
+  for (const [table, value] of Object.entries(manifest.fingerprint.storage as Record<string, string>)) {
+    expect(value, table).toMatch(["storage.buckets", "storage.objects"].includes(table) ? /^1:[0-9a-f]{32}$/ : /^0:$/);
+  }
 
   // ---- (a) local rehearsal restore of the locked, populated backup ------------------------------------------------
   const verified = await sh(["backup:verify", "--from", backup!], {}, 600_000);
@@ -76,13 +84,23 @@ async function rehearse(): Promise<void> {
   const restored = await backupTool(["restore", "--from", backup!, "--confirm", host], target);
   expect(restored).toContain("RESTORED:");
   expect(restored).toContain("LOCKED (enabled, no bypass)");
+  expect(restored).toContain("proven empty at the source");
+  // Evidence: the skipped (empty) sections, each proven empty at the source; the target inventory equals the source's.
+  const evidenceFile = readdirSync(backup!).find((name) => name.startsWith("restore-") && name.endsWith(".json") && name !== "restore-verification.json");
+  const evidence = JSON.parse(readFileSync(join(backup!, evidenceFile!), "utf8"));
+  expect(evidence.ok).toBe(true);
+  expect(evidence.differences).toEqual([]);
+  expect(evidence.storageInventory).toEqual(manifest.fingerprint.storage);
+  const emptyStorage = storageTables.filter((t) => manifest.fingerprint.storage[t] === "0:").map((t) => `"storage"."${t.split(".")[1]}"`);
+  expect(evidence.skippedEmptySections).toEqual(expect.arrayContaining(emptyStorage));
+  for (const t of storageTables) expect(await psql(`select count(*) from ${t}`), `target ${t}`).toBe(manifest.fingerprint.storage[t].split(":")[0]);
 
   // Exactly the manifest's migration set: 36, never 37/38/39 from this checkout.
   expect(JSON.parse(await psql("select to_jsonb(array_agg(version order by version)) from supabase_migrations.schema_migrations"))).toEqual(manifest.migrations);
   for (const later of NEW_VERSIONS.slice(1)) expect(await psql(`select count(*) from supabase_migrations.schema_migrations where version = '${later}'`), `${later} must be absent`).toBe("0");
   expect(await psql("select to_regclass('public.invoice_voids') is null and to_regprocedure('public.void_invoice(jsonb)') is null")).toBe("t");
   // The maintenance mechanism is present and exactly as reviewed, and the restored state is LOCKED.
-  const post36 = await runSqlFile("scripts/ops-01b-post36-verify.sql");
+  const post36 = await runSqlFile("scripts/ops-01b-post36-verify-restore.sql");
   expect(post36.verdict, JSON.stringify(post36.checks.filter((c: { ok: boolean }) => !c.ok))).toBe("PASS");
   expect(await psql("select enabled::text || ':' || (bypass_user_id is null)::text from private.system_maintenance")).toBe("true:true");
 
@@ -107,7 +125,33 @@ async function rehearse(): Promise<void> {
   expect((await service().upload(path, PNG, { contentType: "image/png", upsert: true })).error, "the closed context admits nothing").not.toBeNull();
   expect(await psql("select count(*) from storage.objects where bucket_id = 'expense-receipts'")).toBe("1");
 
+  // Empty skipped sections must be PROVEN empty by the source inventory; the restore STOPs before touching the target.
+  const tampered = (name: string, edit: (m: { fingerprint: { storage?: Record<string, string> } }) => void) => {
+    const copy = join(mkdtempSync(join(tmpdir(), `ops01b-tampered-${name}-`)), "backup");
+    cpSync(backup!, copy, { recursive: true });
+    const m = JSON.parse(readFileSync(join(copy, "manifest.json"), "utf8")); edit(m);
+    writeFileSync(join(copy, "manifest.json"), JSON.stringify(m, null, 2));
+    return copy;
+  };
+  await expect(backupTool(["restore", "--from", tampered("nonzero", (m) => { m.fingerprint.storage!["storage.buckets_vectors"] = "1:abc"; }), "--confirm", host], target))
+    .rejects.toThrow(/STOP: data.sql has an empty section for storage.buckets_vectors, but the source fingerprint records 1 row/);
+  await expect(backupTool(["restore", "--from", tampered("unreadable", (m) => { m.fingerprint.storage!["storage.s3_multipart_uploads"] = "unreadable"; }), "--confirm", host], target))
+    .rejects.toThrow(/STOP: data.sql has an empty section for storage.s3_multipart_uploads, but the source fingerprint records an unreadable table/);
+  await expect(backupTool(["restore", "--from", tampered("no-inventory", (m) => { delete m.fingerprint.storage; }), "--confirm", host], target))
+    .rejects.toThrow(/STOP: data.sql has an empty section for storage\.\w+, but the backup's fingerprint has no inventory/);
+
   // A second restore into the now non-empty target is refused before anything is pushed.
   await expect(backupTool(["restore", "--from", backup!, "--confirm", host], target)).rejects.toThrow(/already has migrations applied/);
+  // A NON-empty section for a Storage table the restore role cannot write stays a hard failure (never skipped).
+  const withRow = tampered("nonempty-unsupported", (m) => { m.fingerprint.storage!["storage.buckets_vectors"] = "1:x"; });
+  const dataSql = readFileSync(join(withRow, "data.sql"), "utf8").replace(/^(COPY "storage"\."buckets_vectors" \([^\n]*\) FROM stdin;\r?\n)/m, "$1vec-1\tVECTOR\t2026-11-04 00:00:00+00\t2026-11-04 00:00:00+00\n");
+  expect(dataSql).toContain("vec-1\tVECTOR");
+  writeFileSync(join(withRow, "data.sql"), dataSql);
+  const m2 = JSON.parse(readFileSync(join(withRow, "manifest.json"), "utf8"));
+  m2.files["data.sql"].sha256 = createHash("sha256").update(readFileSync(join(withRow, "data.sql"))).digest("hex");
+  writeFileSync(join(withRow, "manifest.json"), JSON.stringify(m2, null, 2));
+  await supabase(["--workdir", stageMigrations(""), "db", "reset", "--local", "--no-seed"], undefined, 240_000);
+  await expect(backupTool(["restore", "--from", withRow, "--confirm", host], target)).rejects.toThrow(/permission denied for table buckets_vectors/);
+
   console.log(`[locked-restore] PASS: ${manifest.migrations.length} migrations (last ${V36}), 1 receipt restored locked, context closed, maintenance effective`);
 }

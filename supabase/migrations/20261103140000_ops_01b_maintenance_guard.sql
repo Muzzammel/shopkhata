@@ -13,8 +13,8 @@
 --   L1  the single private.system_maintenance row
 --         FOR SHARE  : every business write RPC (first statement) and every expense-receipts Storage insert
 --                      (BEFORE INSERT trigger on storage.objects), held until that transaction ends.
---         FOR UPDATE : set_maintenance and set_maintenance_bypass (enable, disable, grant/renew, revoke), as their
---                      first lock.
+--         FOR UPDATE : set_maintenance and set_maintenance_bypass (enable, disable, grant/renew, revoke), and
+--                      private.receipt_restore_open/close, as their first lock.
 --   L2  advisory lock 'account-administration' (private.assert_account_admin): admin RPCs and the two control RPCs.
 --   L3  everything else: per-shop and idempotency advisory locks, invoice/ledger row locks.
 -- Consequences: (a) a control transition waits for every write admitted before it and reports success only after they
@@ -144,18 +144,23 @@ end $do$;
 -- upload is still refused while maintenance is on. Opening and closing it are private functions with no API grant, so
 -- only a direct database-owner connection (the restore operator) can use them; every open and close is logged in
 -- private.receipt_restore_log. Tooling: scripts/backup.mjs (restore, restore-receipts), which always closes it.
+-- MAINTENANCE-BOUND. The context exists only inside one maintenance period: it can be opened only while maintenance is
+-- ON (under L1 FOR UPDATE, so it serializes with enable/disable), every listing records the enabled_at of the period it
+-- was opened in and admits nothing in any other period, and set_maintenance(disable) deletes it (logged 'cleared').
+-- So maintenance OFF never retains restore authority, and an OFF->ON transition never revives an old listing.
 create table private.receipt_restore_objects (
   bucket_id text not null check (bucket_id = 'expense-receipts'),
   name text not null,
   restore_ref text not null check (restore_ref = btrim(restore_ref) and length(restore_ref) between 1 and 200),
   expires_at timestamptz not null,
+  maintenance_enabled_at timestamptz not null,
   primary key (bucket_id, name)
 );
 create table private.receipt_restore_log (
   id bigint generated always as identity primary key,
   at timestamptz not null default clock_timestamp(),
   db_user text not null default current_user,
-  action text not null check (action in ('opened', 'closed')),
+  action text not null check (action in ('opened', 'closed', 'cleared')),
   restore_ref text not null,
   object_count integer not null,
   expires_at timestamptz
@@ -164,30 +169,38 @@ alter table private.receipt_restore_objects enable row level security;
 alter table private.receipt_restore_log enable row level security;
 revoke all on table private.receipt_restore_objects, private.receipt_restore_log from public, anon, authenticated, service_role;
 
--- Opens (or extends) the context for the listed objects, at most 60 minutes. Refuses while another restore is open.
+-- Opens (or extends) the context for the listed objects, at most 60 minutes. Refuses while another restore is open, and
+-- refuses unless maintenance is ON: L1 FOR UPDATE first (MAINTENANCE_STATE_MISSING if the singleton is gone), then the
+-- state is judged under that lock, so an enable/disable is ordered strictly before or after this open.
 create function private.receipt_restore_open(p_restore_ref text, p_names text[], p_minutes integer) returns integer
 language plpgsql set search_path = '' as $$
-declare n integer; until_ts timestamptz;
+declare n integer; until_ts timestamptz; m private.system_maintenance;
 begin
   if p_restore_ref is null or p_names is null or cardinality(p_names) = 0 or p_minutes is null or p_minutes not between 1 and 60
     or exists (select 1 from unnest(p_names) x where x is null or btrim(x) = '')
   then raise exception 'INVALID_REQUEST' using errcode = 'P0001'; end if;
+  m := private.maintenance_lock_exclusive();                -- L1
+  if not m.enabled or m.enabled_at is null or m.enabled_by is null then
+    raise exception 'MAINTENANCE_NOT_ACTIVE' using errcode = 'P0001';
+  end if;
   if exists (select 1 from private.receipt_restore_objects where restore_ref <> p_restore_ref) then
     raise exception 'RESTORE_CONTEXT_BUSY' using errcode = 'P0001';
   end if;
   until_ts := clock_timestamp() + make_interval(mins => p_minutes);
-  insert into private.receipt_restore_objects(bucket_id, name, restore_ref, expires_at)
-  select distinct 'expense-receipts', x, p_restore_ref, until_ts from unnest(p_names) x
-  on conflict (bucket_id, name) do update set expires_at = excluded.expires_at;
+  insert into private.receipt_restore_objects(bucket_id, name, restore_ref, expires_at, maintenance_enabled_at)
+  select distinct 'expense-receipts', x, p_restore_ref, until_ts, m.enabled_at from unnest(p_names) x
+  on conflict (bucket_id, name) do update set expires_at = excluded.expires_at, maintenance_enabled_at = excluded.maintenance_enabled_at;
   get diagnostics n = row_count;
   insert into private.receipt_restore_log(action, restore_ref, object_count, expires_at) values ('opened', p_restore_ref, n, until_ts);
   return n;
 end $$;
--- Closes the context (idempotent); returns how many grants it removed.
+-- Closes the context (idempotent); returns how many grants it removed. Takes L1 FOR UPDATE when the singleton exists
+-- (so it orders with open and disable), but never needs it: closing must always work.
 create function private.receipt_restore_close(p_restore_ref text) returns integer
 language plpgsql set search_path = '' as $$
 declare n integer;
 begin
+  perform 1 from private.system_maintenance where id for update;  -- L1
   delete from private.receipt_restore_objects where restore_ref = p_restore_ref;
   get diagnostics n = row_count;
   insert into private.receipt_restore_log(action, restore_ref, object_count) values ('closed', p_restore_ref, n);
@@ -202,7 +215,9 @@ begin
   if private.is_valid_uuid_text(new.owner_id) then uploader := new.owner_id::uuid; end if;
   if private.maintenance_admit(uploader) then return new; end if;
   -- Still under L1 (maintenance_admit took it). Only an uploader-less (service key) insert of a listed, unexpired name.
+  -- The listing must belong to the CURRENT maintenance period (same enabled_at), never an earlier one.
   if new.owner_id is null and exists (select 1 from private.receipt_restore_objects r
+      join private.system_maintenance m on m.id and m.enabled and m.enabled_at = r.maintenance_enabled_at
       where r.bucket_id = new.bucket_id and r.name = new.name and r.expires_at > clock_timestamp()) then
     return new;
   end if;
@@ -244,7 +259,8 @@ begin
 end $$;
 revoke all on function private.assert_maintenance_controller() from public, anon, authenticated, service_role;
 
--- command: {enabled: boolean, reason: text, release_ref?: text}. Disabling also clears any operator bypass.
+-- command: {enabled: boolean, reason: text, release_ref?: text}. Disabling also clears any operator bypass and any open
+-- receipt restore context (logged 'cleared' in private.receipt_restore_log), under the same L1 lock.
 -- Lock order: L1 (FOR UPDATE) then L2.
 create function public.set_maintenance(command jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
@@ -277,6 +293,10 @@ begin
       release_ref = null, bypass_user_id = null, bypass_expires_at = null, bypass_enabled_by = null, bypass_reason = null,
       updated_at = at_ts where id returning * into m;
     if not found then raise exception 'MAINTENANCE_STATE_MISSING' using errcode = 'P0001'; end if;
+    -- "where true": API sessions load pg_safeupdate, which refuses an unqualified DELETE.
+    with gone as (delete from private.receipt_restore_objects where true returning restore_ref, expires_at)
+    insert into private.receipt_restore_log(action, restore_ref, object_count, expires_at)
+    select 'cleared', restore_ref, count(*), max(expires_at) from gone group by restore_ref;
     if prior.bypass_user_id is not null then
       insert into public.audit_events(shop_id, actor_id, action, entity_type, entity_id, reason, metadata)
       values (null, actor, 'maintenance.operator_bypass_disabled', 'system_maintenance', 'global', why,

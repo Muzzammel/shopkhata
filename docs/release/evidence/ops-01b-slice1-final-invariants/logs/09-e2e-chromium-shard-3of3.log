@@ -1,0 +1,277 @@
+﻿# gate: 09-e2e-chromium-shard-3of3
+# command: pnpm exec supabase db reset --local; pnpm dev (server log: 09-e2e-chromium-shard-3of3.server.log); pnpm exec playwright test -c <scratch>/pw.config.ts --project=chromium --workers=1 --shard=3/3
+# wrapper config: repo playwright.config.ts with webServer removed (dev server started by this script)
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T20:00:49Z
+
+Resetting local database...
+Recreating database...
+Initialising schema...
+Seeding globals from roles.sql...
+Applying migration 20260826095752_core_schema.sql...
+Applying migration 20260826095753_financial_schema.sql...
+Applying migration 20260828164246_rls.sql...
+Applying migration 20260902073650_phase2_security_remediation.sql...
+Applying migration 20260916120000_invoice_delivered_flag_and_note.sql...
+Applying migration 20260916120100_batch_idempotency_fingerprint.sql...
+Applying migration 20260916120200_invoice_number_registry.sql...
+Applying migration 20260916120300_submit_batch_rpc.sql...
+Applying migration 20260917090000_payment_idempotency_fingerprint.sql...
+Applying migration 20260917090100_record_payment_rpc.sql...
+Applying migration 20260918090000_customer_credits_approved_at.sql...
+Applying migration 20260918090100_approve_overpayment_rpc.sql...
+Applying migration 20260924010000_submit_batch_replay_before_date_rules.sql...
+Applying migration 20260924020000_submit_batch_flag_fingerprint_and_effective_balances.sql...
+Applying migration 20260924030000_invoice_effective_balances_canonical_id.sql...
+Applying migration 20260924040000_submit_batch_qatar_business_date.sql...
+Applying migration 20260924050000_record_payment_qatar_business_date.sql...
+Applying migration 20260925060000_owner_backdated_replay_authorization.sql...
+Applying migration 20261003090000_invoice_operations.sql...
+Applying migration 20261003090100_invoice_overpayment_projection.sql...
+Applying migration 20261003090200_customer_ledger_and_expenses.sql...
+Applying migration 20261004090000_daily_close_and_reports.sql...
+Applying migration 20261004100000_owner_account_administration.sql...
+Applying migration 20261004110000_production_scale_read_performance.sql...
+Applying migration 20261004120000_submit_batch_row_limit.sql...
+Applying migration 20261005090000_dashboard_top_customers_rpc.sql...
+Applying migration 20261009090000_correction_target_total.sql...
+Applying migration 20261009090100_backup_records.sql...
+Applying migration 20261017100000_data_api_privilege_hardening.sql...
+Applying migration 20261021090000_bank_payment_method.sql...
+Applying migration 20261021100000_shop_management.sql...
+Applying migration 20261022180428_performance_customer_balances_set_based.sql...
+Applying migration 20261025145523_performance_read_indexes.sql...
+Applying migration 20261028163252_dashboard_snapshot.sql...
+Applying migration 20261031165915_ops_01a_shop_user_status_controls.sql...
+Applying migration 20261103140000_ops_01b_maintenance_guard.sql...
+Applying migration 20261103150000_ops_01b_invoice_void.sql...
+Applying migration 20261103190000_ops_01b_void_remediation.sql...
+Applying migration 20261103203806_ops_01b_sales_totals_release_compat.sql...
+Seeding data from supabase/seed.sql...
+Restarting containers...
+Finished supabase db reset on branch ops/ops-01b-financial-corrections.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+# db reset exit: 0
+
+# data API ready after db reset: True (waited 7 s)
+
+
+Running 69 tests using 1 worker, shard 3 of 3
+
+(node:28796) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests\e2e\ui-v2-accounts-backup.spec.ts:18:7 › Accounts › the directory states each role, status and shop access in words (2.6s)
+(node:23024) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:5968) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:20824) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:20204) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:30200) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:4016) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:12752) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:26832) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓   2 [chromium] › tests\e2e\ui-v2-accounts-backup.spec.ts:37:7 › Accounts › an account without a shop and a deactivated account are labelled, not only coloured (12.5s)
+(node:29856) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓   3 [chromium] › tests\e2e\ui-v2-accounts-backup.spec.ts:90:7 › Accounts › the Manage drawer saves nothing until confirmed, and Escape returns focus to its button (3.9s)
+  ✓   4 [chromium] › tests\e2e\ui-v2-accounts-backup.spec.ts:115:7 › Accounts › registration is validated in the drawer before anything is sent (2.5s)
+  ✓   5 [chromium] › tests\e2e\ui-v2-accounts-backup.spec.ts:128:7 › Accounts › staff and managers are offered neither Accounts nor Backup and get 404 by URL (4.3s)
+  ✓   6 [chromium] › tests\e2e\ui-v2-accounts-backup.spec.ts:141:9 › Accounts › shows cards without page overflow at 390px, and the drawer is a full-width sheet (2.5s)
+  ✓   7 [chromium] › tests\e2e\ui-v2-accounts-backup.spec.ts:141:9 › Accounts › shows cards without page overflow at 360px, and the drawer is a full-width sheet (2.1s)
+  ✓   8 [chromium] › tests\e2e\ui-v2-accounts-backup.spec.ts:157:7 › Accounts › dark mode uses the charcoal canvas (1.7s)
+(node:20764) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:332) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:10880) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓   9 [chromium] › tests\e2e\ui-v2-accounts-backup.spec.ts:171:7 › Backup & Recovery › shows the empty state, then recorded backups newest first with integrity and rehearsal, and never offers a restore (5.2s)
+  ✓  10 [chromium] › tests\e2e\ui-v2-accounts-backup.spec.ts:210:9 › Backup & Recovery › has no page-level horizontal overflow at 390px (1.8s)
+  ✓  11 [chromium] › tests\e2e\ui-v2-accounts-backup.spec.ts:210:9 › Backup & Recovery › has no page-level horizontal overflow at 390px in dark mode (1.7s)
+  ✓  12 [chromium] › tests\e2e\ui-v2-closing-reports.spec.ts:18:9 › Daily close › has no page-level horizontal overflow at 390px, and the review is a full-width sheet (2.2s)
+  ✓  13 [chromium] › tests\e2e\ui-v2-closing-reports.spec.ts:18:9 › Daily close › has no page-level horizontal overflow at 360px, and the review is a full-width sheet (2.1s)
+  ✓  14 [chromium] › tests\e2e\ui-v2-closing-reports.spec.ts:35:7 › Daily close › Escape closes the review and returns focus to the button that opened it (2.4s)
+  ✓  15 [chromium] › tests\e2e\ui-v2-closing-reports.spec.ts:47:7 › Daily close › the state is written as words and the page headings are in order (1.8s)
+  ✓  16 [chromium] › tests\e2e\ui-v2-closing-reports.spec.ts:56:7 › Daily close › dark mode uses the charcoal canvas and keeps the state readable (1.9s)
+  ✓  17 [chromium] › tests\e2e\ui-v2-closing-reports.spec.ts:70:9 › Reports › has no page-level horizontal overflow at 390px on every report (3.7s)
+  ✓  18 [chromium] › tests\e2e\ui-v2-closing-reports.spec.ts:70:9 › Reports › has no page-level horizontal overflow at 360px on every report (3.7s)
+  ✓  19 [chromium] › tests\e2e\ui-v2-closing-reports.spec.ts:83:7 › Reports › period presets set the range and show which one is active (2.2s)
+  ✓  20 [chromium] › tests\e2e\ui-v2-closing-reports.spec.ts:99:7 › Reports › a custom range is validated and falls back to today with a reason (1.7s)
+  ✓  21 [chromium] › tests\e2e\ui-v2-closing-reports.spec.ts:106:7 › Reports › dark mode keeps report figures on the charcoal surfaces (1.8s)
+(node:13824) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Stopped services: [supabase_imgproxy_shopkhata supabase_analytics_shopkhata supabase_vector_shopkhata supabase_pooler_shopkhata]
+WARN: INBUCKET_URL is deprecated and will be removed in v3, use MAILPIT_URL instead.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  22 [chromium] › tests\e2e\ui-v2-customers.spec.ts:45:7 › Customer Directory › shows factual balance states, due and credit, and opens the customer from anywhere on the row (4.4s)
+  ✓  23 [chromium] › tests\e2e\ui-v2-customers.spec.ts:63:7 › Customer Directory › says plainly when a search matches nobody (1.7s)
+(node:8204) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Stopped services: [supabase_imgproxy_shopkhata supabase_analytics_shopkhata supabase_vector_shopkhata supabase_pooler_shopkhata]
+WARN: INBUCKET_URL is deprecated and will be removed in v3, use MAILPIT_URL instead.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  24 [chromium] › tests\e2e\ui-v2-customers.spec.ts:72:7 › Customer Detail › summarises the customer and keeps payments, credits and activity honest (4.3s)
+(node:27468) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Stopped services: [supabase_imgproxy_shopkhata supabase_analytics_shopkhata supabase_vector_shopkhata supabase_pooler_shopkhata]
+WARN: INBUCKET_URL is deprecated and will be removed in v3, use MAILPIT_URL instead.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  25 [chromium] › tests\e2e\ui-v2-customers.spec.ts:103:7 › Customer Detail › keeps another person's name private from staff, using the safe fallback (3.1s)
+(node:3544) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Stopped services: [supabase_imgproxy_shopkhata supabase_analytics_shopkhata supabase_vector_shopkhata supabase_pooler_shopkhata]
+WARN: INBUCKET_URL is deprecated and will be removed in v3, use MAILPIT_URL instead.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  26 [chromium] › tests\e2e\ui-v2-customers.spec.ts:110:7 › Customer Detail › answers a missing or mismatched customer with a real 404 that streams none of their data (7.2s)
+(node:12836) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Stopped services: [supabase_imgproxy_shopkhata supabase_analytics_shopkhata supabase_vector_shopkhata supabase_pooler_shopkhata]
+WARN: INBUCKET_URL is deprecated and will be removed in v3, use MAILPIT_URL instead.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  27 [chromium] › tests\e2e\ui-v2-customers.spec.ts:128:7 › Customer Detail › Record payment drawer traps focus, closes on Escape, and applies credit through the existing flow (5.5s)
+(node:15168) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Stopped services: [supabase_imgproxy_shopkhata supabase_analytics_shopkhata supabase_vector_shopkhata supabase_pooler_shopkhata]
+WARN: INBUCKET_URL is deprecated and will be removed in v3, use MAILPIT_URL instead.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  28 [chromium] › tests\e2e\ui-v2-customers.spec.ts:165:7 › Customers on a phone › uses cards, not a squeezed table, and a full-screen payment sheet (4.0s)
+(node:16996) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Stopped services: [supabase_imgproxy_shopkhata supabase_analytics_shopkhata supabase_vector_shopkhata supabase_pooler_shopkhata]
+WARN: INBUCKET_URL is deprecated and will be removed in v3, use MAILPIT_URL instead.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  29 [chromium] › tests\e2e\ui-v2-expenses.spec.ts:38:7 › Expenses list › shows the period summary, a structured table with factual flags, and filters by category (4.4s)
+  ✓  30 [chromium] › tests\e2e\ui-v2-expenses.spec.ts:69:7 › Expenses list › says when filters match nothing and offers a reset (2.2s)
+(node:7288) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Stopped services: [supabase_imgproxy_shopkhata supabase_analytics_shopkhata supabase_vector_shopkhata supabase_pooler_shopkhata]
+WARN: INBUCKET_URL is deprecated and will be removed in v3, use MAILPIT_URL instead.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  31 [chromium] › tests\e2e\ui-v2-expenses.spec.ts:77:7 › Expenses list › phones get cards, not a squeezed table, with no horizontal scroll (3.9s)
+  ✓  32 [chromium] › tests\e2e\ui-v2-expenses.spec.ts:99:7 › Add expense › validates each field immediately, reviews before saving, and returns focus on Escape (3.2s)
+  ✓  33 [chromium] › tests\e2e\ui-v2-expenses.spec.ts:130:7 › Add expense › the Add expense quick action opens the drawer directly (3.3s)
+(node:25528) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Stopped services: [supabase_imgproxy_shopkhata supabase_analytics_shopkhata supabase_vector_shopkhata supabase_pooler_shopkhata]
+WARN: INBUCKET_URL is deprecated and will be removed in v3, use MAILPIT_URL instead.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  34 [chromium] › tests\e2e\ui-v2-expenses.spec.ts:139:7 › Expense detail › is a governed document: no receipt state, request shows the difference, staff cannot decide, a manager rejects with a reason (8.2s)
+(node:26420) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Stopped services: [supabase_imgproxy_shopkhata supabase_analytics_shopkhata supabase_vector_shopkhata supabase_pooler_shopkhata]
+WARN: INBUCKET_URL is deprecated and will be removed in v3, use MAILPIT_URL instead.
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  35 [chromium] › tests\e2e\ui-v2-expenses.spec.ts:179:7 › Expense detail › an expense in another shop is a real 404 (2.7s)
+  ✓  36 [chromium] › tests\e2e\ui-v2-sales.spec.ts:20:7 › New Sale › starts as one invoice, with cash shown as the fixed payment method and no method picker (1.3s)
+(node:7356) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  37 [chromium] › tests\e2e\ui-v2-sales.spec.ts:30:7 › New Sale › Add another invoice makes the sale multi-invoice, and one save commits both atomically (3.3s)
+  ✓  38 [chromium] › tests\e2e\ui-v2-sales.spec.ts:46:7 › New Sale › errors appear on blur and on review, focus the first invalid field, and keep what was typed (1.7s)
+  ✓  39 [chromium] › tests\e2e\ui-v2-sales.spec.ts:67:7 › New Sale › a delivered invoice with due shows the customer requirement before it blocks saving (1.6s)
+  ✓  40 [chromium] › tests\e2e\ui-v2-sales.spec.ts:76:7 › New Sale › secondary tools start collapsed under Other tools and stay available (1.3s)
+  ✓  41 [chromium] › tests\e2e\ui-v2-sales.spec.ts:88:7 › New Sale › with several invoices, the others collapse into summary cards that expand again (1.8s)
+  ✓  42 [chromium] › tests\e2e\ui-v2-sales.spec.ts:106:7 › New Sale › is usable on a phone without sideways scrolling (1.6s)
+  ✓  43 [chromium] › tests\e2e\ui-v2-sales.spec.ts:118:7 › Sales list › rows open the invoice, badges carry words, and phones get cards instead of a wide table (5.3s)
+(node:26836) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+(node:9416) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  44 [chromium] › tests\e2e\ui-v2-sales.spec.ts:141:7 › Invoice detail › delivery change is a request: delivery stays unchanged until a manager or owner approves (10.2s)
+  ✓  45 [chromium] › tests\e2e\ui-v2-sales.spec.ts:170:7 › Invoice detail › drawers trap focus and close with Escape; Print shows only the document (4.8s)
+  ✓  46 [chromium] › tests\e2e\ui-v2-sales.spec.ts:196:7 › Invoice detail › actions lead with Record payment; the rest sit under More actions, on phones too (5.3s)
+(node:19112) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `supabase.exe --trace-warnings ...` to show where the warning was created)
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+  ✓  47 [chromium] › tests\e2e\ui-v2-sales.spec.ts:219:7 › Invoice detail › the timeline names people and shows old and new values (4.8s)
+  ✓  48 [chromium] › tests\e2e\ui-v2-sales.spec.ts:232:7 › Invoice detail › dark mode keeps the financial figures on readable, distinct surfaces (3.6s)
+  ✓  49 [chromium] › tests\e2e\ui-v2-shell.spec.ts:16:7 › desktop › the dashboard is an asymmetric composition led by the Sales card (2.5s)
+  ✓  50 [chromium] › tests\e2e\ui-v2-shell.spec.ts:31:7 › desktop › Daily closing health and Shop comparison live only inside the collapsed More detail (2.6s)
+  ✓  51 [chromium] › tests\e2e\ui-v2-shell.spec.ts:40:7 › desktop › the top bar marks the current page with the black pill and keeps the shop on every link (2.8s)
+  ✓  52 [chromium] › tests\e2e\ui-v2-shell.spec.ts:52:7 › desktop › the quick-action rail stays put while scrolling and labels every icon (3.9s)
+  ✓  53 [chromium] › tests\e2e\ui-v2-shell.spec.ts:69:7 › desktop › Ctrl+K search hands the term to the existing invoice search (2.6s)
+  ✓  54 [chromium] › tests\e2e\ui-v2-shell.spec.ts:80:7 › desktop › the shop switcher moves the whole page to the other shop (3.9s)
+  ✓  55 [chromium] › tests\e2e\ui-v2-shell.spec.ts:89:7 › desktop › KPI cards act in place: Cash Received switches the chart to cash, Customer Due navigates (3.5s)
+  ✓  56 [chromium] › tests\e2e\ui-v2-shell.spec.ts:98:7 › desktop › period pills switch the data, and the chart reads out values from the keyboard (3.5s)
+  ✓  57 [chromium] › tests\e2e\ui-v2-shell.spec.ts:111:7 › desktop › loading and errors never show a giant spinner: the loading state is skeletons (3.3s)
+  ✓  58 [chromium] › tests\e2e\ui-v2-shell.spec.ts:121:7 › tablet › pills fold into a Menu sheet and the rail stays available (3.0s)
+  ✓  59 [chromium] › tests\e2e\ui-v2-shell.spec.ts:137:7 › phone › a dedicated composition: full-width Sales card, two-column KPIs, bottom bar, no rail (2.4s)
+  ✓  60 [chromium] › tests\e2e\ui-v2-shell.spec.ts:149:7 › phone › bottom navigation: Home is current, Add opens the quick actions, More lists every page (3.8s)
+  ✓  61 [chromium] › tests\e2e\ui-v2-shell.spec.ts:169:7 › phone › phone order ends in a collapsed More insights holding the secondary cards (2.7s)
+  ✓  62 [chromium] › tests\e2e\ui-v2-shell.spec.ts:184:7 › phone › touch targets in the bars are at least 40px (2.3s)
+  ✓  63 [chromium] › tests\e2e\ui-v2-shell.spec.ts:196:9 › phone bottom bar never covers content › 320x568: keyboard focus and the end of the page stay above the bar (2.8s)
+  ✓  64 [chromium] › tests\e2e\ui-v2-shell.spec.ts:196:9 › phone bottom bar never covers content › 360x740: keyboard focus and the end of the page stay above the bar (2.7s)
+  ✓  65 [chromium] › tests\e2e\ui-v2-shell.spec.ts:196:9 › phone bottom bar never covers content › 390x844: keyboard focus and the end of the page stay above the bar (2.6s)
+  ✓  66 [chromium] › tests\e2e\ui-v2-shell.spec.ts:196:9 › phone bottom bar never covers content › 430x932: keyboard focus and the end of the page stay above the bar (2.7s)
+  ✓  67 [chromium] › tests\e2e\ui-v2-shell.spec.ts:229:7 › theme and motion › dark mode is a designed charcoal palette, not an inversion; only Sales is heavily filled (2.7s)
+  ✓  68 [chromium] › tests\e2e\ui-v2-shell.spec.ts:245:7 › theme and motion › reduced motion turns entrances and counters off (2.4s)
+  ✓  69 [chromium] › tests\e2e\ui-v2-shell.spec.ts:256:7 › theme and motion › desktop and phone screenshots in light and dark (10.2s)
+
+  69 passed (4.0m)
+
+# finished: 2026-11-04T20:05:35Z
+# exit: 0

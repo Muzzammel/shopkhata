@@ -1,0 +1,19 @@
+# gate: 04-int-operations
+# command: pnpm.cmd run test:integration:operations -- --reporter=verbose
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T18:31:29Z
+
+$ vitest run --config vitest.integration.operations.config.mts "--" "--reporter=verbose"
+
+ RUN  v4.1.11 C:/Users/Reem/Desktop/shopkhata
+
+
+ Test Files  6 passed (6)
+      Tests  42 passed (42)
+   Start at  21:31:30
+   Duration  708.05s (transform 180ms, setup 0ms, import 466ms, tests 706.81s, environment 0ms)
+
+
+# finished: 2026-11-04T18:43:18Z
+# exit: 0

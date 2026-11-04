@@ -1,0 +1,19 @@
+# gate: 04-int-batches
+# command: pnpm.cmd run test:integration:batches
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T18:07:13Z
+
+$ vitest run --config vitest.integration.batches.config.mts
+
+ RUN  v4.1.11 C:/Users/Reem/Desktop/shopkhata
+
+
+ Test Files  1 passed (1)
+      Tests  9 passed (9)
+   Start at  21:07:14
+   Duration  65.45s (transform 69ms, setup 0ms, import 172ms, tests 65.14s, environment 0ms)
+
+
+# finished: 2026-11-04T18:08:20Z
+# exit: 0

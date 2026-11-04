@@ -1,0 +1,41 @@
+# gate: 04-int-operations
+# command: pnpm.cmd run test:integration:operations
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T18:19:44Z
+
+$ vitest run --config vitest.integration.operations.config.mts
+
+ RUN  v4.1.11 C:/Users/Reem/Desktop/shopkhata
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/.pnpm/vitest@4.1.11_@types+node@2_d3cbcf3baed96995ab3a3cb94fb9a079/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21
+ ❯ EventEmitter.emit node:events:509:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/.pnpm/vitest@4.1.11_@types+node@2_d3cbcf3baed96995ab3a3cb94fb9a079/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22
+ ❯ ChildProcess.emit node:events:509:28
+ ❯ Process.ChildProcess._handle.onexit node:internal/child_process:295:12
+
+Caused by: Error: Worker exited unexpectedly
+ ❯ ChildProcess.emitUnexpectedExit node_modules/.pnpm/vitest@4.1.11_@types+node@2_d3cbcf3baed96995ab3a3cb94fb9a079/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33
+ ❯ ChildProcess.emit node:events:509:28
+ ❯ Process.ChildProcess._handle.onexit node:internal/child_process:295:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  5 passed (6)
+      Tests  41 passed (42)
+     Errors  1 error
+   Start at  21:19:45
+   Duration  674.07s (transform 206ms, setup 0ms, import 516ms, tests 518.61s, environment 0ms)
+
+[ELIFECYCLE] Command failed with exit code 1.
+
+# finished: 2026-11-04T18:30:59Z
+# exit: 1

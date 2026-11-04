@@ -189,6 +189,22 @@ function psql(args, stdin) {
   return result.stdout.trim();
 }
 
+// A skipped (empty) COPY section of a public or Storage table is allowed only if the backup's own fingerprint proves the
+// SOURCE table had 0 rows; the restored fingerprint must then equal it, which proves the TARGET has 0 rows too. A table
+// the fingerprint does not cover, or could not read, STOPs the restore. (A non-empty section is always loaded; one the
+// target role cannot write fails the load loudly.) Other schemas (auth: users are fingerprinted as a whole) are outside
+// this rule.
+function provenEmpty(manifest, skipped) {
+  const fp = manifest.fingerprint ?? {};
+  for (const quoted of skipped) {
+    const [schema, table] = quoted.split(".").map((part) => part.replace(/^"|"$/g, ""));
+    if (schema !== "public" && schema !== "storage") continue;
+    const count = schema === "public" ? fp.tables?.[table] : fp.storage?.[`storage.${table}`];
+    if (count === undefined) fail(`STOP: data.sql has an empty section for ${schema}.${table}, but the backup's fingerprint has no inventory for it (a backup taken before the Storage inventory, or an unknown table). Take a new backup.`);
+    if (count !== "0:") fail(`STOP: data.sql has an empty section for ${schema}.${table}, but the source fingerprint records ${count === "unreadable" ? "an unreadable table" : `${count.split(":")[0]} row(s)`}.`);
+  }
+}
+
 function differences(expected, actual, path = "") {
   if (isDeepStrictEqual(expected, actual)) return [];
   const plain = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -225,7 +241,7 @@ end $$;`;
 // A restored database can be LOCKED (OPS-01B maintenance on, by design), and these service-key uploads carry no
 // uploader, so the Storage maintenance trigger refuses them. The tool therefore opens the database's receipt restore
 // context for exactly the manifest's object names (private.receipt_restore_open: database owner only, logged), and
-// closes it in every case afterwards. Nothing else is admitted: an ordinary user, or a service-key upload of any other
+// closes it in every case afterwards. Unlocked databases need no context (the context refuses to open while OFF). Nothing else is admitted: an ordinary user, or a service-key upload of any other
 // name, is still refused while maintenance is on.
 async function restoreReceipts(dir, manifest, apiUrl, serviceKey, sql) {
   const storage = createClient(apiUrl, serviceKey, { auth: { persistSession: false } }).storage.from(BUCKET);
@@ -246,7 +262,9 @@ async function restoreReceipts(dir, manifest, apiUrl, serviceKey, sql) {
   const unknown = Object.keys(loaded).filter((name) => !names.includes(name));
   if (unknown.length) fail(`The restored database lists ${unknown.length} receipt object(s) that are not in the backup (${unknown.slice(0, 3).join(", ")}).`);
 
-  const context = sql("select to_jsonb(to_regprocedure('private.receipt_restore_open(text,text[],integer)') is not null) as v");
+  // Only a LOCKED database needs (and accepts) the context: it opens only while maintenance is on. Unlocked, the
+  // guard admits the uploads anyway.
+  const context = maintenanceState(sql)?.enabled === true;
   const ref = `receipt-restore ${manifest.createdAt} at ${new Date().toISOString()}`;
   if (context) log(`Receipt restore context opened for ${sql(`select to_jsonb(private.receipt_restore_open(${lit(ref)}, array[${names.map(lit).join(", ")}]::text[], 60)) as v`)} object(s) (${ref}).`);
   try {
@@ -309,6 +327,14 @@ async function restoreTo(from, confirmHost) {
   if (!existsSync(join(dir, "manifest.json"))) fail(`${dir} is not a ShopKhata backup (manifest.json is missing).`);
   const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8"));
   checkArtifacts(dir, manifest);
+  // Empty COPY blocks are dropped: they carry no rows, and the postgres role of a Supabase project may not write some of
+  // Supabase's own tables (storage.buckets_vectors, ...), which refuse even an empty COPY. A block WITH rows for such a
+  // table still fails the load loudly. (Found by the production-equivalent restore rehearsal; the local rehearsal loads
+  // as the superuser and never saw it.) Each skipped public/Storage section must be proven empty at the source, before
+  // anything touches the target.
+  const skipped = [];
+  const loadable = readFileSync(join(dir, "data.sql"), "utf8").replace(/^COPY ("[^"\n]+"\."[^"\n]+") \([^\n]*\) FROM stdin;\r?\n\\\.\r?\n/gm, (_, table) => { skipped.push(table); return ""; });
+  provenEmpty(manifest, skipped);
   const { apiUrl, serviceKey, dbUrl } = restoreTarget(confirmHost);
   const sql = urlSql(dbUrl);
   const applied = () => sql("select to_jsonb(coalesce((select array_agg(version order by version) from supabase_migrations.schema_migrations), '{}')) as v");
@@ -328,18 +354,13 @@ async function restoreTo(from, confirmHost) {
 
   // The migrations create rows of their own (the receipt bucket, the maintenance singleton); the backup replaces them.
   psqlUrl(dbUrl, ["-c", "set session_replication_role = replica; delete from storage.objects; delete from storage.buckets; do $$ begin if to_regclass('private.system_maintenance') is not null then delete from private.system_maintenance; end if; end $$;"]);
-  // Empty COPY blocks are dropped: they carry no rows, and the postgres role of a Supabase project may not write some of
-  // Supabase's own tables (storage.buckets_vectors, ...), which refuse even an empty COPY. A block WITH rows for such a
-  // table still fails the load loudly. (Found by the production-equivalent restore rehearsal; the local rehearsal loads
-  // as the superuser and never saw it.)
-  const skipped = [];
-  const loadable = readFileSync(join(dir, "data.sql"), "utf8").replace(/^COPY ("[^"\n]+"\."[^"\n]+") \([^\n]*\) FROM stdin;\r?\n\\\.\r?\n/gm, (_, table) => { skipped.push(table); return ""; });
+  // The empty sections were proven empty at the source above (provenEmpty); the restored fingerprint proves the target.
   const loadFile = join(mkdtempSync(join(tmpdir(), "shopkhata-load-")), "data.sql");
   writeFileSync(loadFile, loadable);
   const data = openSync(loadFile, "r");
   try { psqlUrl(dbUrl, ["--single-transaction"], data); } finally { closeSync(data); }
   psqlUrl(dbUrl, ["-c", "analyze"]);
-  log(`Data: data.sql loaded in one transaction (${skipped.length} empty table(s) skipped), then analyzed.`);
+  log(`Data: data.sql loaded in one transaction (${skipped.length} empty table(s) skipped, every public/storage one proven empty at the source), then analyzed.`);
 
   const receipts = await restoreReceipts(dir, manifest, apiUrl, serviceKey, sql);
   const orphans = sql(`select to_jsonb(count(*)::int) as v from public.attachments a where a.expense_id is not null and not exists (select 1 from storage.objects o where o.bucket_id = '${BUCKET}' and o.name = a.file_path and (o.metadata ->> 'size')::bigint = a.byte_size)`);
@@ -349,7 +370,7 @@ async function restoreTo(from, confirmHost) {
   const restored = fingerprint({ args: ["--db-url", dbUrl] });
   const diff = differences(manifest.fingerprint, restored);
   const maintenance = maintenanceState(sql);
-  const evidence = { restoredAt: new Date().toISOString(), target: confirmHost, ok: diff.length === 0, migrations: applied(), maintenance, receipts: receipts.files, differences: diff };
+  const evidence = { restoredAt: new Date().toISOString(), target: confirmHost, ok: diff.length === 0, migrations: applied(), maintenance, receipts: receipts.files, skippedEmptySections: skipped, storageInventory: restored.storage, differences: diff };
   writeFileSync(join(dir, `restore-${confirmHost.replace(/[^a-z0-9.-]/gi, "_")}-${evidence.restoredAt.replace(/[:.]/g, "-")}.json`), `${JSON.stringify(evidence, null, 2)}\n`);
   if (diff.length) fail(`The restored state does not reconcile with the backup:\n  ${diff.join("\n  ")}`);
   if (!isDeepStrictEqual(evidence.migrations, expected)) fail("STOP: the migration set changed during the restore.");

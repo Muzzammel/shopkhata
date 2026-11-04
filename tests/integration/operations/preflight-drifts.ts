@@ -44,6 +44,6 @@ export const POST36_DRIFTS: Record<string, { sql: string; stops: string[]; admin
   "the restore context executable by authenticated": { sql: "grant execute on function private.receipt_restore_open(text, text[], integer) to authenticated;", stops: ["P05"] },
   "a write RPC whose wrapper lost the guard": { sql: "create or replace function public.create_customer(command jsonb) returns jsonb language plpgsql security definer set search_path = '' as $$ begin return private.create_customer(command); end $$;", stops: ["P09"] },
   "owner_id with an unexpected type": { sql: "alter table storage.objects alter column owner_id type uuid using owner_id::uuid;", stops: ["P04"], admin: true },
-  "a leftover restore grant": { sql: "insert into private.receipt_restore_objects values ('expense-receipts', 'x', 'r', now() + interval '1 hour');", stops: ["P10"] },
+  "a leftover restore grant": { sql: "insert into private.receipt_restore_objects values ('expense-receipts', 'x', 'r', now() + interval '1 hour', now());", stops: ["P10"] },
   "a later migration already applied": { sql: "insert into supabase_migrations.schema_migrations(version, name) values ('20261103150000', 'x');", stops: ["P01"] },
 };

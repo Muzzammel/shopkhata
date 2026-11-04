@@ -1,0 +1,19 @@
+# gate: 04-int-customer-expenses
+# command: pnpm.cmd run test:integration:customer-expenses
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T18:14:06Z
+
+$ vitest run --config vitest.integration.customer-expenses.config.mts
+
+ RUN  v4.1.11 C:/Users/Reem/Desktop/shopkhata
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  21:14:07
+   Duration  66.19s (transform 53ms, setup 0ms, import 106ms, tests 65.93s, environment 0ms)
+
+
+# finished: 2026-11-04T18:15:13Z
+# exit: 0

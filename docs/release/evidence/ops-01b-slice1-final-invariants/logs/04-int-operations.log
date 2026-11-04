@@ -1,0 +1,158 @@
+# gate: 04-int-operations
+# command: pnpm.cmd exec vitest run --config vitest.integration.operations.config.mts --reporter=verbose
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T18:43:41Z
+
+
+ RUN  v4.1.11 C:/Users/Reem/Desktop/shopkhata
+
+stdout | tests/integration/operations/locked-restore.test.ts > OPS-01B locked, populated, exact-version restore > restores receipts into a locked database through the restore context, at exactly migration 36
+[locked-restore] PASS: 36 migrations (last 20261103140000), 1 receipt restored locked, context closed, maintenance effective
+
+ ✓ tests/integration/operations/locked-restore.test.ts > OPS-01B locked, populated, exact-version restore > restores receipts into a locked database through the restore context, at exactly migration 36 195799ms
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] P0 production modeled at migration 35 with business data
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] P1 inventory gate PASS (25 checks; session postgres)
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] P1 inventory gate STOP on all 26 simulated drifts, each on its own check
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] P2 backup capability proven (pre-window copy, not the recovery point)
+[window] W1 Vercel firewall ON: modeled (rehearsed separately on a disposable Vercel project)
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] R  CREATE TRIGGER waits for the in-flight upload: ShareRowExclusiveLock blocked by RowExclusiveLock, ShareRowExclusiveLock blocked by RowShareLock
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] R  the upload committed first (no guard existed when it inserted), then 36 committed; the object row is committed and will be in the recovery point
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] W2b post-36 gate PASS (11 checks: trigger, definition, function bodies, owner_id, privileges, V3)
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] W2/W3 guard installed after 149 bootstrap writes, maintenance ON
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] W3 bootstrap traffic: 169 accepted and stored, 58 refused with MAINTENANCE_ACTIVE, 0 other outcomes
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] W4 ordinary writes refused for staff, manager and owner; direct receipt upload refused; V3 (runbook text) 0 rows; V4 1
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] W2b post-36 gate STOP on all 11 simulated install defects
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] S  W5 detects the old pre-36 RPC transaction (open writers 1, write locks 3); the recovery backup REFUSES
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] S  drained: the old transaction committed (accepted, before the recovery point)
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] T  W5 quiescent twice 5.1 s apart; 0 lock waiters; sessions: 12 idle (authenticator, supabase_admin, supabase_auth_admin, supabase_storage_admin)
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] W6 recovery point (quiescent, 1 receipt(s) incl. the bootstrap one, the drained old-RPC write) RESTORE VERIFIED (locked); baseline stable
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] W7 migration 20261103150000 applied; business data unchanged record by record; maintenance still ON
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] W7 migration 20261103190000 applied; business data unchanged record by record; maintenance still ON
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] W7 migration 20261103203806 applied; business data unchanged record by record; maintenance still ON
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] W11 operator smoke: S1 + payment, S2 + void (two batches); S1 void refused PAYMENTS_OUTSTANDING; staff and manager still refused
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] W12 record-level comparison PASS: 13 declared records matched, unexpected 0
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] W15 final comparison PASS (maintenance on -> bypass -> revoked -> off, 13 smoke records); undeclared smoke and wrong final state FAIL
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] A1 accepted since the recovery point: batch.submit, batch.submit, invoice.void, record_payment
+
+stdout | tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen
+[window] W16/W17 reopened: staff writes normally, maintenance off, no bypass
+[window] TRANSCRIPT
+P0 production modeled at migration 35 with business data
+P1 inventory gate PASS (25 checks; session postgres)
+P1 inventory gate STOP on all 26 simulated drifts, each on its own check
+P2 backup capability proven (pre-window copy, not the recovery point)
+W1 Vercel firewall ON: modeled (rehearsed separately on a disposable Vercel project)
+R  CREATE TRIGGER waits for the in-flight upload: ShareRowExclusiveLock blocked by RowExclusiveLock, ShareRowExclusiveLock blocked by RowShareLock
+R  the upload committed first (no guard existed when it inserted), then 36 committed; the object row is committed and will be in the recovery point
+W2b post-36 gate PASS (11 checks: trigger, definition, function bodies, owner_id, privileges, V3)
+W2/W3 guard installed after 149 bootstrap writes, maintenance ON
+W3 bootstrap traffic: 169 accepted and stored, 58 refused with MAINTENANCE_ACTIVE, 0 other outcomes
+W4 ordinary writes refused for staff, manager and owner; direct receipt upload refused; V3 (runbook text) 0 rows; V4 1
+W2b post-36 gate STOP on all 11 simulated install defects
+S  W5 detects the old pre-36 RPC transaction (open writers 1, write locks 3); the recovery backup REFUSES
+S  drained: the old transaction committed (accepted, before the recovery point)
+T  W5 quiescent twice 5.1 s apart; 0 lock waiters; sessions: 12 idle (authenticator, supabase_admin, supabase_auth_admin, supabase_storage_admin)
+W6 recovery point (quiescent, 1 receipt(s) incl. the bootstrap one, the drained old-RPC write) RESTORE VERIFIED (locked); baseline stable
+W7 migration 20261103150000 applied; business data unchanged record by record; maintenance still ON
+W7 migration 20261103190000 applied; business data unchanged record by record; maintenance still ON
+W7 migration 20261103203806 applied; business data unchanged record by record; maintenance still ON
+W11 operator smoke: S1 + payment, S2 + void (two batches); S1 void refused PAYMENTS_OUTSTANDING; staff and manager still refused
+W12 record-level comparison PASS: 13 declared records matched, unexpected 0
+W15 final comparison PASS (maintenance on -> bypass -> revoked -> off, 13 smoke records); undeclared smoke and wrong final state FAIL
+A1 accepted since the recovery point: batch.submit, batch.submit, invoice.void, record_payment
+W16/W17 reopened: staff writes normally, maintenance off, no bypass
+
+ ✓ tests/integration/operations/release-window-rehearsal.test.ts > OPS-01B release window (35 -> 39), rehearsed on the local stack > walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen 184407ms
+ ✓ tests/integration/operations/release-gates.test.ts > OPS-01B release gates at migration 36 (post-36 expected state, W3 decision) > enforces the expected state and the W3 invariant 117236ms
+ ✓ tests/integration/operations/maintenance.test.ts > OPS-01B maintenance boundary (real Data API, Storage API and concurrent sessions) > refuses every business write from sessions opened before maintenance, for owner, manager and staff; bypass is owner-only, short-lived and keeps role checks 979ms
+ ✓ tests/integration/operations/maintenance.test.ts > OPS-01B maintenance boundary (real Data API, Storage API and concurrent sessions) > race: an enable waits for an in-flight write, which commits; nothing written after the enable 1780ms
+ ✓ tests/integration/operations/maintenance.test.ts > OPS-01B maintenance boundary (real Data API, Storage API and concurrent sessions) > race: a write that starts while an enable is uncommitted waits, then refuses 1697ms
+ ✓ tests/integration/operations/maintenance.test.ts > OPS-01B maintenance boundary (real Data API, Storage API and concurrent sessions) > race: two owners enabling and disabling concurrently leave one state and one audit row per transition 1568ms
+ ✓ tests/integration/operations/maintenance.test.ts > OPS-01B maintenance boundary (real Data API, Storage API and concurrent sessions) > restore race 1: an open that queues behind an uncommitted disable refuses MAINTENANCE_NOT_ACTIVE and leaves nothing 1973ms
+ ✓ tests/integration/operations/maintenance.test.ts > OPS-01B maintenance boundary (real Data API, Storage API and concurrent sessions) > restore race 2: a disable that queues behind an uncommitted open waits, then clears the context 1967ms
+ ✓ tests/integration/operations/maintenance.test.ts > OPS-01B maintenance boundary (real Data API, Storage API and concurrent sessions) > restore abandonment: a context left open by a dead restore process is useless after maintenance OFF -> ON (real Storage API) 847ms
+ ✓ tests/integration/operations/maintenance.test.ts > OPS-01B maintenance boundary (real Data API, Storage API and concurrent sessions) > storage race 1: an upload admitted before activation is refused when it reaches the guard; activation does not wait for bytes 1133ms
+ ✓ tests/integration/operations/maintenance.test.ts > OPS-01B maintenance boundary (real Data API, Storage API and concurrent sessions) > storage race 2: an upload past the guard is waited for by the activation, which then reports success after it committed 2251ms
+ ✓ tests/integration/operations/maintenance.test.ts > OPS-01B maintenance boundary (real Data API, Storage API and concurrent sessions) > storage race 3: a bypass upload admitted before revocation is refused when it reaches the guard 851ms
+ ✓ tests/integration/operations/maintenance.test.ts > OPS-01B maintenance boundary (real Data API, Storage API and concurrent sessions) > storage race 4: a bypass upload past the guard is waited for by the revocation, which reports success only after it committed 2202ms
+ ✓ tests/integration/operations/maintenance.test.ts > OPS-01B maintenance boundary (real Data API, Storage API and concurrent sessions) > race: a business write admitted under the bypass is waited for by the revocation; after it returns the same write refuses 2052ms
+ ✓ tests/integration/operations/maintenance.test.ts > OPS-01B maintenance boundary (real Data API, Storage API and concurrent sessions) > lock order: an admin RPC holding the maintenance share lock and a control RPC cannot deadlock (L1 before L2) 1887ms
+ ✓ tests/integration/operations/maintenance.test.ts > OPS-01B maintenance boundary (real Data API, Storage API and concurrent sessions) > lock order, positive control: the REVERSE order (L2 then L1) does deadlock, so the test above would catch a regression 1647ms
+ ✓ tests/integration/operations/maintenance.test.ts > OPS-01B maintenance boundary (real Data API, Storage API and concurrent sessions) > race: a bypass grant racing a disable leaves one consistent state and an audited auto-clear 1520ms
+ ✓ tests/integration/operations/invoice-void.test.ts > OPS-01B invoice void (real network, real sessions, concurrent sessions) > enforces role and shop through real sessions, and keeps the void record shop-private 289ms
+ ✓ tests/integration/operations/invoice-void.test.ts > OPS-01B invoice void (real network, real sessions, concurrent sessions) > race: two concurrent voids with different keys — exactly one succeeds, the other waits and gets ALREADY_VOID 1903ms
+ ✓ tests/integration/operations/invoice-void.test.ts > OPS-01B invoice void (real network, real sessions, concurrent sessions) > race: two concurrent voids with the same key — the second waits and replays the first result 1731ms
+ ✓ tests/integration/operations/invoice-void.test.ts > OPS-01B invoice void (real network, real sessions, concurrent sessions) > race: a payment that locked the invoice first commits; the waiting void then refuses with PAYMENTS_OUTSTANDING 1818ms
+ ✓ tests/integration/operations/invoice-void.test.ts > OPS-01B invoice void (real network, real sessions, concurrent sessions) > race: a payment that arrives while a void is in flight waits, then is refused and writes nothing 1809ms
+ ✓ tests/integration/operations/invoice-void.test.ts > OPS-01B invoice void (real network, real sessions, concurrent sessions) > race: void in flight, then a correction approval waits and is refused with INVOICE_VOID 1847ms
+ ✓ tests/integration/operations/invoice-void.test.ts > OPS-01B invoice void (real network, real sessions, concurrent sessions) > race: correction approval in flight, then the void waits and reverses the corrected total 1933ms
+ ✓ tests/integration/operations/invoice-void.test.ts > OPS-01B invoice void (real network, real sessions, concurrent sessions) > race: void in flight, then a credit application waits and applies nothing to the voided invoice 1974ms
+ ✓ tests/integration/operations/invoice-void.test.ts > OPS-01B invoice void (real network, real sessions, concurrent sessions) > race: credit application in flight, then the void waits and refuses with CREDIT_APPLIED 1887ms
+ ✓ tests/integration/operations/invoice-void.test.ts > OPS-01B invoice void (real network, real sessions, concurrent sessions) > race: void in flight, then closing today waits and the closed day includes the void 1916ms
+ ✓ tests/integration/operations/invoice-void.test.ts > OPS-01B invoice void (real network, real sessions, concurrent sessions) > race: closing today in flight, then the void waits and refuses with CLOSED_DATE 1932ms
+ ✓ tests/integration/operations/invoice-operations.test.ts > complete invoice operations through real authenticated Supabase > records a follow-up payment then approves a correction exactly once 136ms
+ ✓ tests/integration/operations/invoice-operations.test.ts > complete invoice operations through real authenticated Supabase > corrects a payment through the append-only ledger and rejects invalid corrected payments 68ms
+ ✓ tests/integration/operations/invoice-operations.test.ts > complete invoice operations through real authenticated Supabase > reserves current and historical numbers, supports same number in another shop, and blocks duplicates 85ms
+ ✓ tests/integration/operations/invoice-operations.test.ts > complete invoice operations through real authenticated Supabase > serializes racing replacement approvals into one linear revision 53ms
+ ✓ tests/integration/operations/invoice-operations.test.ts > complete invoice operations through real authenticated Supabase > serializes racing approvals/rejections of one request and prevents contradictory decisions 36ms
+ ✓ tests/integration/operations/invoice-operations.test.ts > complete invoice operations through real authenticated Supabase > safely races two invoices reserving the same normalized number 51ms
+ ✓ tests/integration/operations/invoice-operations.test.ts > complete invoice operations through real authenticated Supabase > returns one decision and one audit event for concurrent exact retry 32ms
+ ✓ tests/integration/operations/invoice-operations.test.ts > complete invoice operations through real authenticated Supabase > enforces staff approval denial, shop isolation, direct write denial and actor fingerprints 60ms
+ ✓ tests/integration/operations/invoice-operations.test.ts > complete invoice operations through real authenticated Supabase > uses the effective customer for new governed credits while retaining original credit and replay 80ms
+ ✓ tests/integration/operations/invoice-operations.test.ts > complete invoice operations through real authenticated Supabase > corrects 1000 to exactly 1500, not 2500, idempotently, leaving the original invoice and history unchanged 132ms
+ ✓ tests/integration/operations/invoice-operations.test.ts > complete invoice operations through real authenticated Supabase > corrects 1500 down to exactly 1000 48ms
+ ✓ tests/integration/operations/invoice-operations.test.ts > complete invoice operations through real authenticated Supabase > refuses a corrected total that would leave an invalid paid or due state, at request and again at approval 92ms
+ ✓ tests/integration/operations/invoice-operations.test.ts > complete invoice operations through real authenticated Supabase > never stacks two corrected-total requests: the second is stale once the first is approved 66ms
+
+ Test Files  6 passed (6)
+      Tests  42 passed (42)
+   Start at  21:43:42
+   Duration  703.29s (transform 226ms, setup 0ms, import 522ms, tests 701.98s, environment 0ms)
+
+
+# finished: 2026-11-04T18:55:26Z
+# exit: 0
