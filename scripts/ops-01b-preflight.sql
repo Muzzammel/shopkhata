@@ -12,6 +12,11 @@
 -- Expected values are the reviewed state of production at migration 35 (20261031165915), captured from the local stack
 -- built from the same migrations. A hosted-only difference (extra object, drifted function body, extra grant) shows up as
 -- a STOP and must be understood by a human before the release is attempted.
+-- LINE-ENDING CANONICALIZATION (C05, C15). One rule for every function-body fingerprint in the OPS-01B gates:
+-- a body is hashed as regexp_replace(prosrc, E'\r\n?', E'\n', 'g'): CRLF -> LF, then any remaining lone CR -> LF.
+-- Nothing else is normalized: spaces, tabs, comments, case and every other character stay significant. PostgreSQL keeps
+-- prosrc byte-for-byte as the migration file was materialized by Git (core.autocrlf), so a raw hash differs between an LF
+-- and a CRLF checkout of the same reviewed migration (P1A 2026-11-05: production bodies carry CRLF, the reference LF).
 with
 -- Schemas owned and managed by Supabase itself. Everything else (public, private, graphql_public, any schema someone
 -- added) is inventoried for mutation paths.
@@ -42,14 +47,14 @@ views as (
                  else has_table_privilege(r.role, a.oid, p.priv) end) as api_write_grant
   from app_rel a where a.relkind in ('v', 'm', 'f')),
 app_triggers as (
-  select n.nspname, c.relname, t.tgname, t.tgenabled::text as tgenabled, t.tgtype, f.oid::regprocedure::text as fn, pg_get_triggerdef(t.oid) as def, md5(f.prosrc) as body
+  select n.nspname, c.relname, t.tgname, t.tgenabled::text as tgenabled, t.tgtype, f.oid::regprocedure::text as fn, pg_get_triggerdef(t.oid) as def, md5(regexp_replace(f.prosrc, E'\r\n?', E'\n', 'g')) as body
   from pg_trigger t join pg_class c on c.oid = t.tgrelid join pg_namespace n on n.oid = c.relnamespace join pg_proc f on f.oid = t.tgfoid
   where not t.tgisinternal and n.nspname not in (select nspname from internal)),
 storage_triggers as (
   select t.tgname, t.tgenabled::text as tgenabled, t.tgtype, t.tgfoid::regprocedure::text as fn, pg_get_triggerdef(t.oid) as def
   from pg_trigger t where t.tgrelid = 'storage.objects'::regclass and not t.tgisinternal),
 api_fns as (   -- every function in public that the signed-in API role can execute
-  select p.oid, p.proname, p.oid::regprocedure::text as sig, p.provolatile, p.prosecdef, p.proconfig, p.proowner, p.prosrc
+  select p.oid, p.proname, p.oid::regprocedure::text as sig, p.provolatile, p.prosecdef, p.proconfig, p.proowner, regexp_replace(p.prosrc, E'\r\n?', E'\n', 'g') as prosrc   -- canonical body (C05)
   from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prokind = 'f' and has_function_privilege('authenticated', p.oid, 'EXECUTE')),
 objects_columns as (select jsonb_object_agg(attname, format_type(atttypid, atttypmod)) as cols from pg_attribute where attrelid = 'storage.objects'::regclass and attnum > 0 and not attisdropped),
 checks(id, ok, got) as (
@@ -70,7 +75,7 @@ checks(id, ok, got) as (
     (select count(*) = 32 and md5(string_agg(sig, '|' order by sig)) = '3803beb72a9d216a46538f66fdd1c301' from api_fns),
     (select jsonb_build_object('count', count(*), 'md5', md5(string_agg(sig, '|' order by sig))) from api_fns)),
   ('C05 the 32 function bodies, owners, security-definer flags and search_path settings are byte-identical to the reviewed ones (migration 36 moves them unchanged)',
-    (select md5(string_agg(proname || '|' || prosecdef::text || '|' || coalesce(proconfig::text, '') || '|' || pg_get_userbyid(proowner) || '|' || prosrc, E'\n' order by proname)) = '5179935ff304c0d990bcde9eb78542bf' from api_fns),
+    (select md5(string_agg(proname || '|' || prosecdef::text || '|' || coalesce(proconfig::text, '') || '|' || pg_get_userbyid(proowner) || '|' || prosrc, E'\n' order by proname)) = '81a19e9eeb0e97453269b242ac153eae' from api_fns),
     (select to_jsonb(md5(string_agg(proname || '|' || prosecdef::text || '|' || coalesce(proconfig::text, '') || '|' || pg_get_userbyid(proowner) || '|' || prosrc, E'\n' order by proname))) from api_fns)),
   ('C06 anon, service_role and PUBLIC cannot execute any public function',
     (select count(*) = 0 from pg_proc p where p.pronamespace = 'public'::regnamespace and (has_function_privilege('anon', p.oid, 'EXECUTE') or has_function_privilege('service_role', p.oid, 'EXECUTE'))),
@@ -121,7 +126,7 @@ checks(id, ok, got) as (
     (select count(*) = 0 from pg_publication_tables),
     (select coalesce(jsonb_agg(pubname || ':' || schemaname || '.' || tablename), '[]') from pg_publication_tables)),
   ('C15 the 46 application triggers are the reviewed ones: table, name, enabled state, timing/events, function identity and schema, full definition and function body',
-    (select count(*) = 46 and md5(string_agg(concat_ws('|', nspname, relname, tgname, tgenabled, tgtype, fn, def, body), E'\n' order by nspname, relname, tgname)) = 'eacf6d522c6bfce09fa3feaf192eedb5' from app_triggers),
+    (select count(*) = 46 and md5(string_agg(concat_ws('|', nspname, relname, tgname, tgenabled, tgtype, fn, def, body), E'\n' order by nspname, relname, tgname)) = '0d7b1051a65dc974e1b7fa20368f38eb' from app_triggers),
     (select jsonb_build_object('count', count(*), 'md5', md5(string_agg(concat_ws('|', nspname, relname, tgname, tgenabled, tgtype, fn, def, body), E'\n' order by nspname, relname, tgname))) from app_triggers)),
   ('C15b no application trigger is disabled (a disabled integrity or audit trigger is a STOP)',
     (select count(*) = 0 from app_triggers where tgenabled <> 'O'),

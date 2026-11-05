@@ -88,13 +88,23 @@ Reads (tables, views, report RPCs) are not blocked by the database. RLS still sc
 Keep these in a password manager or the shell session, never in a file in the repository.
 
 ```
-DB_URL=<production database URL>                 # project ref karvhrylmogxxfegubnc
+DB_URL=<production database URL>                 # project ref karvhrylmogxxfegubnc; how to set it: §3.1
 OWNER_ID=<owner auth user id>                    # select id from public.profiles where role = 'owner' and is_active
 OPERATOR_IP=<the operator's public IP>           # curl -s https://api.ipify.org
 CANDIDATE_SHA=<full candidate commit>
 RELEASE_REF=ops-01b-slice1-$CANDIDATE_SHA
 EVIDENCE=<a folder outside the repository>       # every output below is saved here
 ```
+
+### 3.1 The migration connection (`DB_URL`) — the same session for the preflight and for migration 36
+
+C13c proves the prerequisites of migration 36 **for the session that runs the gate**, so the inventory gate (§4.1), every `db push` and every control/verification statement use one `$DB_URL`, set once in the operator shell. `supabase db query --linked` is **not** a substitute: it goes through the CLI's own login path, not the connection that will push 36 (P1 2026-11-05 used it because `$DB_URL` was not set; that run cannot satisfy C13c).
+
+1. Supabase dashboard → project `shopkhata-prod` (`karvhrylmogxxfegubnc`) → **Connect** → **Session pooler** (session mode, port 5432; not the transaction pooler on 6543, which cannot run migrations). The URI's user is `postgres.karvhrylmogxxfegubnc` (the `postgres` role). The database password is in the owner's password manager; if it must be reset, do that in the dashboard *before* the release day, never during the window.
+2. In the operator shell (Git Bash), without echo and without history: `read -rs DB_URL && export DB_URL` and paste the full URI (password included). Never put it in a file, a command argument that is logged, `.env*`, the evidence folder or a chat. Do not use `--debug` (it prints connection details).
+3. Check it without printing it: `pnpm exec supabase db query --db-url "$DB_URL" "select current_user, session_user, current_setting('server_version')"` → `postgres`, `postgres`, 17.x. Then run the §4.1 commands **in the same shell**. The preflight's `evidence.session` (and C13c's `current_user`/`session_user`) is the release identity; record it.
+4. Before saving any output to `$EVIDENCE`, check stderr for the URI (a failed connection can echo the host and user; it must never echo the password — if anything credential-like appears, redact it before saving).
+5. After the window: `unset DB_URL` and close the shell.
 
 `OPERATOR_IP` must be a network no staff member shares (use a phone hotspot, not the shop Wi-Fi). Check it from the network you will smoke from, and again before the bypass: mobile IPs change. If it changes during the window, edit the firewall rule (§6) before continuing.
 
@@ -126,7 +136,7 @@ The script's checks:
 | C02 | exactly the 35 reviewed migrations, last `20261031165915` | any other count, version or order |
 | C03 | none of the OPS-01B objects exist yet (maintenance table and functions, `void_invoice`, `invoice_voids`, the Storage trigger, moved bodies) | any exists (a half-applied release) |
 | C04 | the API role executes exactly the 23 reviewed write RPCs and 9 reports, same signatures and grants | an extra, missing or re-granted function (an unexpected write RPC) |
-| C05 | the 32 function bodies, owners, security-definer flags and `search_path` are byte-identical to the reviewed ones (migration 36 moves them unchanged) | any drift |
+| C05 | the 32 function bodies (canonical line endings, see below), owners, security-definer flags and `search_path` are identical to the reviewed ones (migration 36 moves them unchanged) | any drift |
 | C06 | `anon`, `service_role` and `PUBLIC` execute no public function | any |
 | C07 | no volatile function is offered to `anon`/`authenticated` from a schema outside the Supabase-owned ones and `public`/`graphql_public` (those two: C04, C21) | any |
 | C08 | **effective** direct mutation rights of `anon`, `authenticated` and `service_role` — `has_table_privilege`/`has_sequence_privilege`, so grants to `PUBLIC` and through role membership count (unlike `information_schema.role_table_grants`) — for INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER on every table, view, materialized view and foreign table, and USAGE/UPDATE on every sequence, in every schema outside the Supabase-owned ones: only `service_role` INSERT on `backup_records` | anything else |
@@ -138,7 +148,7 @@ The script's checks:
 | C13b | every trigger on `storage.objects` runs `storage.*` code and is enabled; the guard's name is free (also C03) | a foreign or disabled trigger |
 | C13c | **this session** (= the migration session, same `$DB_URL`) has every catalog prerequisite of migration 36: TRIGGER on `storage.objects`, USAGE on `storage`, CREATE on `private` and `public`, PL/pgSQL installed and usable, EXECUTE on `private.is_valid_uuid_text`, ownership (or membership of the owner) of every write RPC it moves | any missing |
 | C14 | Realtime publishes no table | any published table |
-| C15 | the 46 application triggers, fingerprinted by table, name, **enabled state**, timing/events, function identity and schema, full `pg_get_triggerdef` and the trigger **function body** | an added, changed, re-pointed or edited trigger |
+| C15 | the 46 application triggers, fingerprinted by table, name, **enabled state**, timing/events, function identity and schema, full `pg_get_triggerdef` and the trigger **function body** (canonical line endings) | an added, changed, re-pointed or edited trigger |
 | C15b | no application trigger is disabled | any disabled (named in the output) |
 | C16 | no scheduled job and no database webhook | any |
 | C17 | exposed API schemas, where stored on the role, are only `public`/`graphql_public` | any other schema |
@@ -147,6 +157,8 @@ The script's checks:
 | C20 | the 7 application views are the reviewed ones (name, `security_invoker`, updatability bits, INSTEAD OF triggers, rules). `public.invoice_effective_balances` is auto-updatable and has no write grant: C19 is what keeps it read-only | any change |
 | C21 | the only function `anon`/`authenticated` may execute in an exposed schema other than `public` is `graphql_public.graphql(...)` (pg_graphql's entry point; it resolves mutations to the relations and functions C04–C08/C19 cover) | any other |
 | C22 | Storage: every storage table `anon`/`authenticated` can write has RLS on, and no storage table other than `objects` has a policy | any |
+
+**Canonical body fingerprints (C05, C15, and P03 of the post-36 gate).** A function body is hashed as `regexp_replace(prosrc, E'\r\n?', E'\n', 'g')`: CRLF → LF, then any lone CR → LF. Nothing else is normalized — spaces, tabs, comments, case and every other character stay significant, so any textual change still STOPs. Reason: PostgreSQL stores `prosrc` byte-for-byte as the migration file was materialized by Git (`core.autocrlf`), so the same reviewed migration pushed from an LF or a CRLF checkout gave different raw hashes (P1, 2026-11-05: production C05/C15 STOP; P1A proved all 20 differing bodies and 7 triggers were line-endings-only). The reviewed values (C05 `81a19e9eeb0e97453269b242ac153eae`, C15 `0d7b1051a65dc974e1b7fa20368f38eb`, P03 `3822757383203729978b7c00aea758bc`) are reproduced from a clean local DB35/DB36; `tests/integration/operations/fingerprint-line-endings.test.ts` proves LF, CRLF, lone-CR and mixed bodies (and databases built from CRLF migration files, through 39) pass, and statement, authorization, trigger and whitespace drifts STOP. Deparsed text (`pg_get_triggerdef`, `pg_policies`, P02) is generated by PostgreSQL and does not depend on the file's line endings; it is not normalized.
 
 The `evidence` block is recorded, not judged: the session (`current_user`, `session_user`, superuser flag, role memberships — locally `postgres` is a member of `anon`, `authenticated` and `service_role`, which is how it holds TRIGGER on `storage.objects`), the owner of `storage.objects` (`supabase_storage_admin`), the Storage service's schema version (`storage.migrations`), the existing BEFORE INSERT triggers on `storage.objects` in firing order, and the event triggers. Compare it with the release log and explain any change. C10/C12 compare deparsed policy text, which depends on the session's `search_path`; a different `search_path` gives a STOP, never a false PASS.
 

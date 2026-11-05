@@ -11,13 +11,18 @@
 --                                                          can be locked); P10 no context. That file is this one with only
 --                                                          the mode literal changed (enforced by tests/integration/operations/release-gates.test.ts).
 -- An absent or unknown mode STOPs (P00, and P08 fails closed).
+-- LINE-ENDING CANONICALIZATION (P03). One rule for every function-body fingerprint in the OPS-01B gates:
+-- a body is hashed as regexp_replace(prosrc, E'\r\n?', E'\n', 'g'): CRLF -> LF, then any remaining lone CR -> LF.
+-- Nothing else is normalized: spaces, tabs, comments, case and every other character stay significant. PostgreSQL keeps
+-- prosrc byte-for-byte as the migration file was materialized by Git (core.autocrlf), so a raw hash differs between an LF
+-- and a CRLF checkout of the same reviewed migration (P1A 2026-11-05: production bodies carry CRLF, the reference LF).
 with
 mode(expected) as (values ('restore')),
 guard_fns(sig) as (values ('private.storage_receipt_maintenance_guard()'), ('private.maintenance_admit(uuid)'),
   ('private.maintenance_allows(private.system_maintenance,uuid)'), ('private.assert_not_in_maintenance()'), ('private.maintenance_lock_exclusive()'),
   ('private.receipt_restore_open(text,text[],integer)'), ('private.receipt_restore_close(text)'),
   ('public.set_maintenance(jsonb)'), ('public.set_maintenance_bypass(jsonb)')),
-fns as (select g.sig, p.oid, p.prosecdef, p.proconfig, p.proowner, p.prosrc from guard_fns g left join pg_proc p on p.oid = to_regprocedure(g.sig)),
+fns as (select g.sig, p.oid, p.prosecdef, p.proconfig, p.proowner, regexp_replace(p.prosrc, E'\r\n?', E'\n', 'g') as prosrc from guard_fns g left join pg_proc p on p.oid = to_regprocedure(g.sig)),
 guard as (select t.oid, t.tgname, t.tgenabled::text as tgenabled, t.tgtype, t.tgfoid::regprocedure::text as fn, pg_get_triggerdef(t.oid) as def
   from pg_trigger t where t.tgrelid = 'storage.objects'::regclass and t.tgname = 'expense_receipts_maintenance_guard'),
 -- V3 (runbook section 6), identical text: API-executable volatile functions that do not call the guard first.
