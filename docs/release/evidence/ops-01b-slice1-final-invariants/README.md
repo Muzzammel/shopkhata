@@ -36,9 +36,9 @@ part of the tested tree or the commit.
 | 2 | pgTAP (full) | `pnpm exec supabase test db --local` | **21 files, 1271 tests, PASS** | `logs/02-pgtap.log` |
 | 3 | Unit (full) | `pnpm exec vitest run` | **38 files, 365 tests, PASS** | `logs/03-unit.log` |
 | 4 | Integration: batches | `pnpm run test:integration:batches` | 1 file, 9 tests, PASS | `logs/04-int-batches.log` |
-| 4 | Integration: payments | `pnpm run test:integration:payments` | 1 file, 5 tests, PASS | `logs/04-int-payments.log` |
-| 4 | Integration: shops | `pnpm run test:integration:shops` | 2 files, 14 tests, PASS | `logs/04-int-shops.log` |
-| 4 | Integration: overpayment | `pnpm run test:integration:overpayment` | 2 files, 9 tests, PASS | `logs/04-int-overpayment.log` |
+| 4 | Integration: payments | `pnpm run test:integration:payments` | 2 files, 14 tests, PASS | `logs/04-int-payments.log` |
+| 4 | Integration: shops | `pnpm run test:integration:shops` | 2 files, 9 tests, PASS | `logs/04-int-shops.log` |
+| 4 | Integration: overpayment | `pnpm run test:integration:overpayment` | 1 file, 5 tests, PASS | `logs/04-int-overpayment.log` |
 | 4 | Integration: customer-expenses | `pnpm run test:integration:customer-expenses` | 1 file, 4 tests, PASS | `logs/04-int-customer-expenses.log` |
 | 4 | Integration: offline-excel | `pnpm run test:integration:offline-excel` | 1 file, 15 tests, PASS | `logs/04-int-offline-excel.log` |
 | 4 | Integration: closing-reports | `pnpm run test:integration:closing-reports` | 1 file, 5 tests, PASS | `logs/04-int-closing-reports.log` |
