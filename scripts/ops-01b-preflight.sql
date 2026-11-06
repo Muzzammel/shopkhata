@@ -3,9 +3,9 @@
 --   {"verdict":"PASS"|"STOP","checks":[{"id","ok","got"}...],"evidence":{...},"manual":[...]}
 -- Any ok=false is a STOP: do not enter the release window; the reviewed assumptions below no longer hold.
 --
--- RUN IT WITH THE SAME CONNECTION STRING THAT WILL APPLY MIGRATION 36 ($DB_URL, `supabase db query --db-url`). The
--- session identity and privileges checked in C13c are then those of the migration session (current_user/session_user
--- are recorded in "evidence"). What this gate can and cannot prove is listed in the runbook (section 4.1, "What C13
+-- RUN IT OVER THE SAME CONNECTION PATH THAT WILL APPLY MIGRATION 36 ($DB_URL + PGPASSWORD, `supabase db query --db-url`).
+-- Each CLI call is its own session; what C13c checks is the role and privileges of that path, i.e. of the migration
+-- role (current_user/session_user are recorded in "evidence"). What this gate can and cannot prove is listed in the runbook (section 4.1, "What C13
 -- proves"): it proves the catalog prerequisites of `CREATE TRIGGER` on storage.objects, not that the hosted DDL will
 -- succeed; migration 36 itself is therefore a controlled bootstrap gate followed by scripts/ops-01b-post36-verify.sql.
 --
@@ -110,7 +110,7 @@ checks(id, ok, got) as (
   ('C13b storage.objects has no trigger running code outside the storage schema and every existing trigger is enabled (the guard is the only one migration 36 adds)',
     (select count(*) = 0 from storage_triggers where fn not like 'storage.%' or tgenabled <> 'O'),
     (select coalesce(jsonb_agg(jsonb_build_object('name', tgname, 'enabled', tgenabled, 'function', fn, 'definition', def) order by tgname), '[]') from storage_triggers)),
-  ('C13c THIS session (= the migration session when run with the same $DB_URL) has every catalog prerequisite migration 36 needs: TRIGGER on storage.objects, USAGE on schema storage, CREATE on schemas private and public, PL/pgSQL installed and usable, EXECUTE on private.is_valid_uuid_text, and ownership (or membership of the owner) of every public write RPC it moves',
+  ('C13c the role of THIS connection path (= the migration role when run over the same $DB_URL) has every catalog prerequisite migration 36 needs: TRIGGER on storage.objects, USAGE on schema storage, CREATE on schemas private and public, PL/pgSQL installed and usable, EXECUTE on private.is_valid_uuid_text, and ownership (or membership of the owner) of every public write RPC it moves',
     (select has_table_privilege(current_user, 'storage.objects', 'TRIGGER') and has_schema_privilege(current_user, 'storage', 'USAGE')
        and has_schema_privilege(current_user, 'private', 'CREATE') and has_schema_privilege(current_user, 'public', 'CREATE')
        and exists (select 1 from pg_language where lanname = 'plpgsql') and has_language_privilege(current_user, 'plpgsql', 'USAGE')

@@ -1,8 +1,6 @@
-import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { APP_FNS, CRLF, LONE_CR, MIXED, PASS, edit, gate, git, migrations, stageCheckout, stop } from "./fingerprint-gates";
 import { DB_URL, NEW_VERSIONS, V35, psql, runbookV3, supabase } from "./release-helpers";
 
 // OPS-01B P1B: the function-body fingerprints of the release gates (preflight C05/C15, post-36 P03) hash a CANONICAL body,
@@ -20,49 +18,8 @@ const RULE = String.raw`regexp_replace(p.prosrc, E'\r\n?', E'\n', 'g')`;
 const PREFLIGHT = readFileSync("scripts/ops-01b-preflight.sql", "utf8");
 const POST36 = readFileSync("scripts/ops-01b-post36-verify.sql", "utf8");
 const RESTORE = readFileSync("scripts/ops-01b-post36-verify-restore.sql", "utf8");
-const git = (args: string[]) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 const OLD_PREFLIGHT = git(["show", `${PRE_P1B}:scripts/ops-01b-preflight.sql`]);
 const OLD_POST36 = git(["show", `${PRE_P1B}:scripts/ops-01b-post36-verify.sql`]);
-
-/** Every SQL/PL/pgSQL function of the application schemas (API RPCs, wrappers, trigger and guard functions). */
-const APP_FNS = "select p.oid::regprocedure from pg_proc p join pg_language l on l.oid = p.prolang where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.prokind = 'f' and l.lanname in ('plpgsql', 'sql')";
-/** Re-creates functions from their own definition with another line-ending representation (owner and grants survive). */
-const represent = (eol: "crlf" | "cr", where = "") => `do $rw$ declare f regprocedure; begin
-  for f in ${APP_FNS} ${where} loop
-    execute replace(replace(pg_get_functiondef(f), E'\\r\\n', E'\\n'), E'\\n', ${eol === "crlf" ? "E'\\r\\n'" : "E'\\r'"});
-  end loop; end $rw$;`;
-const CRLF = represent("crlf");
-const LONE_CR = represent("cr");
-const MIXED = represent("crlf", "and p.oid::bigint % 2 = 0"); // the production shape: some bodies CRLF, the rest LF
-/** Edits one function's definition text; raises if the text to change is not there (the drift must be real). */
-const edit = (fn: string, from: string, to: string, regex = false) => `do $ed$ declare d text := pg_get_functiondef('${fn}'::regprocedure); e text; begin
-  e := ${regex ? `regexp_replace(d, ${lit(from)}, ${lit(to)}, 'i')` : `replace(d, ${lit(from)}, ${lit(to)})`};
-  if e = d then raise exception 'drift text not found in ${fn}'; end if; execute e; end $ed$;`;
-function lit(s: string) { return `E'${s.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\t/g, "\\t")}'`; }
-const CR_BODIES = `select '{"cr_bodies":' || count(*) || '}' from (${APP_FNS}) f(oid) join pg_proc p on p.oid = f.oid where p.prosrc ~ E'\\r';`;
-
-/** Runs a gate after `setup` inside a rolled-back transaction: verdict, failing check ids, and the CR-body count. */
-async function gate(script: string, setup = "") {
-  const lines = (await psql(`begin;\n${setup}\n${CR_BODIES}\n${script}\nrollback;\n`)).split(/\r?\n/).filter((l) => l.startsWith("{"));
-  const result = JSON.parse(lines.at(-1)!);
-  return { verdict: result.verdict as string, failed: result.checks.filter((c: { ok: boolean }) => !c.ok).map((c: { id: string }) => c.id.split(" ")[0]) as string[], crBodies: JSON.parse(lines[0]).cr_bodies as number };
-}
-const PASS = { verdict: "PASS", failed: [] };
-const stop = (...failed: string[]) => ({ verdict: "STOP", failed });
-
-/** A workdir holding the migrations up to `last` exactly as committed, materialized with LF or CRLF line endings. */
-function stageCheckout(last: string, eol: "lf" | "crlf"): string {
-  const dir = mkdtempSync(join(tmpdir(), `ops01b-${eol}-`));
-  mkdirSync(join(dir, "supabase", "migrations"), { recursive: true });
-  writeFileSync(join(dir, "supabase", "config.toml"), readFileSync("supabase/config.toml"));
-  for (const file of git(["ls-tree", "--name-only", "HEAD", "supabase/migrations/"]).split("\n").filter(Boolean)) {
-    if (file.split("/").pop()!.split("_")[0] > last) continue;
-    const text = git(["show", `HEAD:${file}`]).replace(/\r\n/g, "\n");
-    writeFileSync(join(dir, file), eol === "crlf" ? text.replace(/\n/g, "\r\n") : text);
-  }
-  return dir;
-}
-const migrations = () => psql("select count(*) || ' ' || max(version) from supabase_migrations.schema_migrations");
 
 describe("OPS-01B release fingerprints are line-ending stable, and nothing else is", () => {
   it("states one canonicalization rule in every body-hashing gate", () => {
