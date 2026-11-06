@@ -20,11 +20,14 @@ const BEFORE_P1C = git(["show", "0503958dd52de8f131dd2e08f372665bb6b082c3:script
 // Functions migration 36 creates by name that P03 deliberately does not hash: immutable, SECURITY INVOKER, no API grant
 // (P05), reached only from the hashed control RPCs. Any OTHER function migration 36 adds must be in P03.
 const NOT_IN_P03 = ["private.maintenance_reason(jsonb)", "private.maintenance_state(private.system_maintenance)"];
+// P1D: the pre-36 authorization chain both control RPCs call, hashed by P03 too (and by preflight C23 at DB35).
+const PRE36_IN_P03 = ["private.assert_account_admin()", "private.is_owner()"];
+const P03_MD5 = "178bf849bb844cf50ff82a29fc2bf4b8"; // P1D, 12 functions; P1C (10): a90805db457c021474c8a0ad5e934dd3
 
 const inventory = (script: string) => {
-  const list = /guard_fns\(sig\) as \(values ([\s\S]*?)\),\nfns as/.exec(script.replace(/\r\n?/g, "\n"))?.[1];
+  const list = /guard_fns\(sig\) as \(values ([\s\S]*?)\nfns as/.exec(script.replace(/\r\n?/g, "\n"))?.[1];
   if (!list) throw new Error("P03 inventory not found");
-  return [...list.matchAll(/\('([^']+)'\)/g)].map((m) => m[1]);
+  return [...list.replace(/--[^\n]*/g, "").matchAll(/\('([^']+)'\)/g)].map((m) => m[1]);
 };
 const expectedMd5 = (script: string) => [...script.matchAll(/ = '([0-9a-f]{32})' from fns\)/g)].map((m) => m[1]);
 const p03 = (r: { checks: { id: string; got: unknown }[] }) => r.checks.find((c) => c.id.startsWith("P03"))!.got as { md5: string; missing: string[] };
@@ -58,12 +61,13 @@ describe("OPS-01B P1C: P03 protects the maintenance controller; canonical bodies
     expect(inventory(RESTORE)).toEqual(normal);
     expect(normal).toContain(CTL);
     expect(inventory(BEFORE_P1C), "the omission this closes").not.toContain(CTL);
-    expect(expectedMd5(POST36)).toEqual(["a90805db457c021474c8a0ad5e934dd3"]);
+    expect(expectedMd5(POST36)).toEqual([P03_MD5]);
     expect(expectedMd5(RESTORE)).toEqual(expectedMd5(POST36));
     // Every function migration 36 creates by name is hashed by P03 unless it is a reviewed exclusion.
     const created = [...readFileSync(MIGRATION_36, "utf8").matchAll(/^create function ([a-z_]+\.[a-z_]+)\(([^)]*)\)/gm)]
       .map((m) => `${m[1]}(${m[2].split(",").map((a) => a.trim().split(/\s+/).slice(1).join(" ")).filter(Boolean).join(",")})`)
-    expect(created.filter((s) => !NOT_IN_P03.includes(s)).sort()).toEqual([...normal].sort());
+    expect(created.filter((s) => !NOT_IN_P03.includes(s)).sort()).toEqual(normal.filter((s) => !PRE36_IN_P03.includes(s)).sort());
+    expect(normal.filter((s) => PRE36_IN_P03.includes(s)).sort(), "the pre-36 authorization chain").toEqual(PRE36_IN_P03);
     console.log(`[P1C P03 inventory] ${JSON.stringify(normal)}`);
   });
 
@@ -76,7 +80,9 @@ describe("OPS-01B P1C: P03 protects the maintenance controller; canonical bodies
       const c15 = await bodies(PREFLIGHT, "select distinct 'C15 ' || a.fn, regexp_replace(p.prosrc, E'\\r\\n?', E'\\n', 'g') from app_triggers a join pg_proc p on p.oid = to_regprocedure(a.fn)");
       expect(c05).toHaveLength(32);
       expect(c15.map((b) => b.sig.slice(4)).sort()).toEqual(["private.enforce_active_shop()", "private.enforce_open_business_date()", "private.enforce_open_expense_correction()", "reject_append_only_mutation()"]);
-      const pre = inspect([...c05, ...c15]);
+      const c23 = await bodies(PREFLIGHT, "select 'C23 ' || sig, prosrc from auth_deps"); // P1D: the authorization chain
+      expect(c23.map((b) => b.sig.slice(4))).toEqual(PRE36_IN_P03);
+      const pre = inspect([...c05, ...c15, ...c23]);
       expect(pre.line_break_literals).toEqual([]);
       expect(pre.escaped_cr).toEqual([]);
       expect(pre.chr13).toEqual([]);
@@ -115,7 +121,7 @@ describe("OPS-01B P1C: P03 protects the maintenance controller; canonical bodies
         const clean = await gate(script);
         expect(clean, `${label} clean`).toMatchObject(PASS);
         expect(clean.crBodies, `${label}: LF reference`).toBe(0);
-        expect(p03(clean)).toEqual({ md5: "a90805db457c021474c8a0ad5e934dd3", missing: [] });
+        expect(p03(clean)).toEqual({ md5: P03_MD5, missing: [] });
         // H: representation only.
         for (const [name, rep] of [["CRLF", CRLF], ["lone CR", LONE_CR], ["mixed", MIXED], ["controller-only CRLF", ctlCrlf + ctlHasCr],
           ["controller-only lone CR", represent("cr", `and p.oid = '${CTL}'::regprocedure`) + ctlHasCr]] as const) {
@@ -130,7 +136,7 @@ describe("OPS-01B P1C: P03 protects the maintenance controller; canonical bodies
           console.log(`[P1C ${label}] ${name}: ${r.verdict} ${JSON.stringify(r.failed)} p03=${p03(r).md5}`);
           expect(r.verdict, `${label} ${name}`).toBe("STOP");
           expect(r.failed, `${label} ${name}`).toContain("P03");
-          expect(p03(r).md5, `${label} ${name}: fingerprint moved`).not.toBe("a90805db457c021474c8a0ad5e934dd3");
+          expect(p03(r).md5, `${label} ${name}: fingerprint moved`).not.toBe(P03_MD5);
           expect(await gate(script), `${label} after ${name}: restored`).toMatchObject(PASS);
         }
       }

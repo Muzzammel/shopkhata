@@ -12,7 +12,7 @@
 -- Expected values are the reviewed state of production at migration 35 (20261031165915), captured from the local stack
 -- built from the same migrations. A hosted-only difference (extra object, drifted function body, extra grant) shows up as
 -- a STOP and must be understood by a human before the release is attempted.
--- LINE-ENDING CANONICALIZATION (C05, C15). One rule for every function-body fingerprint in the OPS-01B gates:
+-- LINE-ENDING CANONICALIZATION (C05, C15, C23). One rule for every function-body fingerprint in the OPS-01B gates:
 -- a body is hashed as regexp_replace(prosrc, E'\r\n?', E'\n', 'g'): CRLF -> LF, then any remaining lone CR -> LF.
 -- Nothing else is normalized: spaces, tabs, comments, case and every other character stay significant. PostgreSQL keeps
 -- prosrc byte-for-byte as the migration file was materialized by Git (core.autocrlf), so a raw hash differs between an LF
@@ -57,6 +57,19 @@ api_fns as (   -- every function in public that the signed-in API role can execu
   select p.oid, p.proname, p.oid::regprocedure::text as sig, p.provolatile, p.prosecdef, p.proconfig, p.proowner, regexp_replace(p.prosrc, E'\r\n?', E'\n', 'g') as prosrc   -- canonical body (C05)
   from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prokind = 'f' and has_function_privilege('authenticated', p.oid, 'EXECUTE')),
 objects_columns as (select jsonb_object_agg(attname, format_type(atttypid, atttypmod)) as cols from pg_attribute where attrelid = 'storage.objects'::regclass and attnum > 0 and not attisdropped),
+-- C23: the PRE-36 authorization helpers the maintenance controls of migration 36 call (set_maintenance* ->
+-- assert_maintenance_controller -> is_owner before the lock; assert_account_admin -> is_owner after it). Same attributes
+-- as P03 of the post-36 gate (signature, security definer, proconfig, owner, canonical body), plus the structure of the
+-- public.profiles columns is_owner() reads (a retyped or generated role/is_active/id column changes who is an owner).
+auth_deps as (
+  select d.sig, p.oid, p.prosecdef, p.proconfig, p.proowner, regexp_replace(p.prosrc, E'\r\n?', E'\n', 'g') as prosrc   -- canonical body (C23)
+  from (values ('private.assert_account_admin()'), ('private.is_owner()')) d(sig) left join pg_proc p on p.oid = to_regprocedure(d.sig)),
+auth_profiles as (
+  select c.relkind::text as relkind, count(a.attname) as n, md5(string_agg(concat_ws('|', a.attname, format_type(a.atttypid, a.atttypmod), a.attnotnull,
+    coalesce(nullif(a.attgenerated::text, ''), '-'), coalesce(nullif(a.attidentity::text, ''), '-'), coalesce(pg_get_expr(d.adbin, d.adrelid), '-')), E'\n' order by a.attname)) as md5
+  from pg_class c left join pg_attribute a on a.attrelid = c.oid and a.attname in ('id', 'role', 'is_active') and not a.attisdropped
+    left join pg_attrdef d on d.adrelid = a.attrelid and d.adnum = a.attnum
+  where c.oid = to_regclass('public.profiles') group by c.relkind),
 checks(id, ok, got) as (
   values
   ('C01 postgres major version is 17', (select current_setting('server_version_num')::int / 10000 = 17), (select to_jsonb(current_setting('server_version')))),
@@ -162,7 +175,13 @@ checks(id, ok, got) as (
     (select jsonb_build_object(
        'writable_without_rls', (select coalesce(jsonb_agg(c.relname), '[]') from pg_class c where c.relnamespace = 'storage'::regnamespace and c.relkind in ('r', 'p') and not c.relrowsecurity
           and (has_table_privilege('anon', c.oid, 'INSERT,UPDATE,DELETE') or has_table_privilege('authenticated', c.oid, 'INSERT,UPDATE,DELETE'))),
-       'other_policies', (select coalesce(jsonb_agg(tablename || '.' || policyname), '[]') from pg_policies where schemaname = 'storage' and tablename <> 'objects'))))
+       'other_policies', (select coalesce(jsonb_agg(tablename || '.' || policyname), '[]') from pg_policies where schemaname = 'storage' and tablename <> 'objects')))),
+  ('C23 the maintenance authorization dependencies are the reviewed ones: private.is_owner() and private.assert_account_admin() (signature, canonical body, security definer, owner, search_path/proconfig) and the public.profiles columns is_owner() reads (id, role, is_active: type, not null, generated, identity, default)',
+    (select bool_and(oid is not null) and md5(string_agg(sig || '|' || prosecdef::text || '|' || coalesce(proconfig::text, '') || '|' || pg_get_userbyid(proowner) || '|' || prosrc, E'\n' order by sig)) = '6676d9f5a8180efcb74c813ecab78c54' from auth_deps)
+      and (select bool_and(relkind = 'r' and n = 3 and md5 = '964a6b4f6c9be934f7f53be7a2f95eb2') from auth_profiles),
+    (select jsonb_build_object('missing', (select coalesce(jsonb_agg(sig), '[]') from auth_deps where oid is null),
+       'md5', md5(string_agg(sig || '|' || prosecdef::text || '|' || coalesce(proconfig::text, '') || '|' || pg_get_userbyid(proowner) || '|' || prosrc, E'\n' order by sig)),
+       'profiles', (select coalesce(jsonb_agg(jsonb_build_object('relkind', relkind, 'columns', n, 'md5', md5)), '[]') from auth_profiles)) from auth_deps))
 )
 select jsonb_build_object(
   'verdict', case when bool_and(coalesce(ok, false)) then 'PASS' else 'STOP' end,

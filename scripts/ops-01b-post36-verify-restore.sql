@@ -21,7 +21,8 @@ mode(expected) as (values ('restore')),
 guard_fns(sig) as (values ('private.storage_receipt_maintenance_guard()'), ('private.maintenance_admit(uuid)'),
   ('private.maintenance_allows(private.system_maintenance,uuid)'), ('private.assert_not_in_maintenance()'), ('private.maintenance_lock_exclusive()'),
   ('private.receipt_restore_open(text,text[],integer)'), ('private.receipt_restore_close(text)'),
-  ('private.assert_maintenance_controller()'), ('public.set_maintenance(jsonb)'), ('public.set_maintenance_bypass(jsonb)')),
+  ('private.assert_maintenance_controller()'), ('public.set_maintenance(jsonb)'), ('public.set_maintenance_bypass(jsonb)'),
+  ('private.is_owner()'), ('private.assert_account_admin()')),   -- pre-36 authorization chain (also preflight C23)
 fns as (select g.sig, p.oid, p.prosecdef, p.proconfig, p.proowner, regexp_replace(p.prosrc, E'\r\n?', E'\n', 'g') as prosrc from guard_fns g left join pg_proc p on p.oid = to_regprocedure(g.sig)),
 guard as (select t.oid, t.tgname, t.tgenabled::text as tgenabled, t.tgtype, t.tgfoid::regprocedure::text as fn, pg_get_triggerdef(t.oid) as def
   from pg_trigger t where t.tgrelid = 'storage.objects'::regclass and t.tgname = 'expense_receipts_maintenance_guard'),
@@ -44,8 +45,8 @@ checks(id, ok, got) as (
     (select count(*) = 1 and bool_and(tgenabled = 'O' and tgtype = 7 and fn = 'private.storage_receipt_maintenance_guard()'
        and def = 'CREATE TRIGGER expense_receipts_maintenance_guard BEFORE INSERT ON storage.objects FOR EACH ROW WHEN ((new.bucket_id = ''expense-receipts''::text)) EXECUTE FUNCTION private.storage_receipt_maintenance_guard()') from guard),
     (select coalesce(jsonb_agg(jsonb_build_object('enabled', tgenabled, 'tgtype', tgtype, 'function', fn, 'definition', def)), '[]') from guard)),
-  ('P03 the maintenance, restore-context, controller-authorization and control functions exist with the reviewed bodies, security-definer flags, search_path and owner',
-    (select bool_and(oid is not null) and md5(string_agg(sig || '|' || prosecdef::text || '|' || coalesce(proconfig::text, '') || '|' || pg_get_userbyid(proowner) || '|' || prosrc, E'\n' order by sig)) = 'a90805db457c021474c8a0ad5e934dd3' from fns),
+  ('P03 the maintenance, restore-context, controller-authorization, control and authorization-chain (is_owner, assert_account_admin) functions exist with the reviewed bodies, security-definer flags, search_path and owner',
+    (select bool_and(oid is not null) and md5(string_agg(sig || '|' || prosecdef::text || '|' || coalesce(proconfig::text, '') || '|' || pg_get_userbyid(proowner) || '|' || prosrc, E'\n' order by sig)) = '178bf849bb844cf50ff82a29fc2bf4b8' from fns),
     (select jsonb_build_object('missing', (select coalesce(jsonb_agg(sig), '[]') from fns where oid is null),
        'md5', md5(string_agg(sig || '|' || prosecdef::text || '|' || coalesce(proconfig::text, '') || '|' || pg_get_userbyid(proowner) || '|' || prosrc, E'\n' order by sig))) from fns)),
   ('P04 the trigger''s assumptions still hold: storage.objects.owner_id is text and bucket_id/name are text',
