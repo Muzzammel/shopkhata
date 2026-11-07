@@ -1,0 +1,10 @@
+# gate: 11-lint
+# command: pnpm.cmd run lint
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T20:14:25Z
+
+$ eslint
+
+# finished: 2026-11-04T20:14:40Z
+# exit: 0

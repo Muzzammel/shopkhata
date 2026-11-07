@@ -398,11 +398,11 @@ select throws_ok(
 reset role;
 
 select ok(
-  position('Asia/Qatar' in pg_get_functiondef('public.record_payment(jsonb)'::regprocedure)) > 0,
+  position('Asia/Qatar' in pg_get_functiondef('private.record_payment(jsonb)'::regprocedure)) > 0,
   'record_payment derives its authoritative business date in Qatar time'
 );
 select ok(
-  position('invoice_effective_balances' in pg_get_functiondef('public.record_payment(jsonb)'::regprocedure)) > 0,
+  position('invoice_effective_balances' in pg_get_functiondef('private.record_payment(jsonb)'::regprocedure)) > 0,
   'record_payment reads the same effective-balance projection as invoice lookup'
 );
 

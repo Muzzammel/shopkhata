@@ -9,7 +9,7 @@ import { qar } from "@/lib/dashboard-view";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
 import { paymentMethodLabel } from "@/lib/payment-method";
 import {
-  PAYMENT_SOURCES, REPORT_KINDS, REPORT_TITLES, SCREEN_ROW_LIMIT, emptyDailySummary, fetchCustomerDueReport,
+  PAYMENT_SOURCES, REPORT_KINDS, SALES_MOVEMENTS, REPORT_TITLES, SCREEN_ROW_LIMIT, emptyDailySummary, fetchCustomerDueReport,
   fetchDailySummary, fetchExpenseReport, fetchPaymentReport, fetchSalesReport, parseReportFilter, type ReportKind,
 } from "@/lib/reports";
 import { REPORT_PERIODS, activePeriod, periodRange } from "@/lib/report-view";
@@ -93,20 +93,21 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
   } else if (kind === "sales") {
     const { rows, totals } = await fetchSalesReport(supabase, shop.id, from, to, limit);
     body = <>
-      <p className="text-sm text-muted-foreground">Invoices whose business date is in the range, at their current effective values: approved corrections, later payments and applied credit are included, and a replaced invoice appears once under its current number.</p>
-      <Group title="Sales">
-        <Stat label="Invoices" value={totals.invoiceCount} total="invoiceCount" />
-        <Stat label="Effective invoice amount" value={qar(totals.totalDirham)} total="total" />
-        <Stat label="Delivered" value={totals.deliveredCount} />
-        <Stat label="Advance (not delivered)" value={totals.undeliveredCount} />
+      <p className="text-sm text-muted-foreground">What happened on each business date in the range: every invoice at its original amount on its own date, and every approved invoice correction or void as its own row on the date it was approved. A void never rewrites the original date. The Current columns show where each invoice stands now.</p>
+      <Group title="Sales on these dates">
+        <Stat label="Invoices entered" value={totals.invoiceCount} total="invoiceCount" />
+        <Stat label="Gross sales" value={qar(totals.grossSalesDirham)} total="gross" note="Original invoice amounts" />
+        <Stat label="Invoice corrections" value={qar(totals.salesCorrectionsDirham)} total="corrections" note="Corrections and voids dated here" />
+        <Stat label="Net sales" value={qar(totals.netSalesDirham)} total="net" />
       </Group>
-      <Group title="Collection">
+      <Group title="Current state of these invoices">
         <Stat label="Payments received" value={qar(totals.paidDirham)} total="paid" />
         <Stat label="Customer credit applied" value={qar(totals.creditAppliedDirham)} total="credit" note="Not a receipt" />
         <Stat label="Outstanding due now" value={qar(totals.dueDirham)} total="due" note="Current position" />
+        <Stat label="Delivered / advance" value={`${totals.deliveredCount} / ${totals.undeliveredCount}`} />
       </Group>
-      <Table num={[4, 5, 6, 7]} head={["Invoice", "Business date", "Recorded (Qatar)", "Customer", "Total", "Paid", "Credit applied", "Due", "Status"]} empty="No invoices in this range.">
-        {rows.map((row) => <tr key={row.invoiceId}><td><Link href={`/shops/${shop.id}/invoices/${row.invoiceId}`} className="font-semibold underline underline-offset-4">{row.invoiceNumber}</Link></td><td>{row.businessDate}</td><td>{qatarTime(row.recordedAt)}</td><td>{row.customerName || "—"}</td><td className={num}>{qar(row.totalDirham)}</td><td className={num}>{qar(row.paidDirham)}</td><td className={num}>{qar(row.creditAppliedDirham)}</td><td className={num}>{qar(row.dueDirham)}</td><td><span className={cn(ui.badge, row.delivered ? "bg-muted text-foreground" : "bg-warning-soft text-warning")}>{row.delivered ? "Delivered" : "Advance"}</span></td></tr>)}
+      <Table num={[5, 6, 7]} head={["Business date", "Movement", "Invoice", "Recorded (Qatar)", "Customer", "Amount", "Current total", "Current due", "Status"]} empty="No sales movements in this range.">
+        {rows.map((row) => <tr key={row.movementId} data-movement={row.movement}><td>{row.businessDate}</td><td>{SALES_MOVEMENTS[row.movement]}</td><td><Link href={`/shops/${shop.id}/invoices/${row.invoiceId}`} className="font-semibold underline underline-offset-4">{row.invoiceNumber}</Link></td><td>{qatarTime(row.recordedAt)}</td><td>{row.customerName || "—"}</td><td className={num} data-amount>{qar(row.amountDirham)}</td><td className={num}>{row.current ? qar(row.current.totalDirham) : "—"}</td><td className={num}>{row.current ? qar(row.current.dueDirham) : "—"}</td><td>{!row.current ? "—" : row.current.isVoid ? <span data-badge="void" className={cn(ui.badge, "bg-danger-soft text-destructive")}>Void</span> : <span className={cn(ui.badge, row.current.delivered ? "bg-muted text-foreground" : "bg-warning-soft text-warning")}>{row.current.delivered ? "Delivered" : "Advance"}</span>}</td></tr>)}
       </Table>
     </>;
   } else if (kind === "dues") {

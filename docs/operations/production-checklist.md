@@ -73,7 +73,7 @@ For each person: create the sign-in in the Supabase dashboard (Authentication â†
 - [ ] `pnpm backup:db` against production finished with `Backup complete` (variables in [backup-restore.md](backup-restore.md)).
 - [ ] The backup folder was copied to at least one place **outside** the Supabase and hosting accounts.
 - [ ] `pnpm backup:verify --from <that backup>` finished with `RESTORE VERIFIED` on the operator's computer.
-- [ ] **Once before go-live:** the hosted restore procedure (backup-restore.md, "Restoring production", steps 5â€“7) was rehearsed against a scratch Supabase project and the fingerprint matched. *This has not been done by the release verification; it is a manual check.*
+- [ ] **Once before go-live:** the hosted restore procedure (backup-restore.md, "Restoring production", step 5, `node scripts/backup.mjs restore`) was rehearsed against a scratch Supabase project and the fingerprint matched. *This has not been done by the release verification; it is a manual check.*
 - [ ] Someone is named as responsible for the daily backup, and a calendar reminder exists for the monthly restore rehearsal.
 
 ## 8. Domain, HTTPS, build and deploy

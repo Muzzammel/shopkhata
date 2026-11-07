@@ -1,0 +1,19 @@
+# gate: 04-int-payments
+# command: pnpm.cmd run test:integration:payments
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T18:08:20Z
+
+$ vitest run --config vitest.integration.payments.config.mts
+
+ RUN  v4.1.11 C:/Users/Reem/Desktop/shopkhata
+
+
+ Test Files  2 passed (2)
+      Tests  14 passed (14)
+   Start at  21:08:21
+   Duration  130.35s (transform 90ms, setup 0ms, import 230ms, tests 129.84s, environment 0ms)
+
+
+# finished: 2026-11-04T18:10:31Z
+# exit: 0

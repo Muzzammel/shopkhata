@@ -1,0 +1,37 @@
+# gate: 04-int-offline-excel
+# command: pnpm.cmd run test:integration:offline-excel
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T18:15:13Z
+
+$ vitest run --config vitest.integration.offline-excel.config.mts
+
+ RUN  v4.1.11 C:/Users/Reem/Desktop/shopkhata
+
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+Connecting to local database...
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+   Start at  21:15:14
+   Duration  71.18s (transform 84ms, setup 0ms, import 295ms, tests 70.59s, environment 0ms)
+
+
+# finished: 2026-11-04T18:16:25Z
+# exit: 0

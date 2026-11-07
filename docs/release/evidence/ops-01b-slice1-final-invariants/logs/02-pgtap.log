@@ -1,0 +1,56 @@
+# gate: 02-pgtap
+# command: pnpm.cmd exec supabase --agent no test db --local
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T18:06:49Z
+
+Connecting to local database...
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/account_administration.test.sql:2: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/account_administration.test.sql ....... ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/approve_overpayment.test.sql:6: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/approve_overpayment.test.sql .......... ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/backup_records.test.sql:2: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/backup_records.test.sql ............... ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/bank_payment_method.test.sql:4: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/bank_payment_method.test.sql .......... ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/correction_target_total.test.sql:2: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/correction_target_total.test.sql ...... ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/customer_expenses.test.sql:5: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/customer_expenses.test.sql ............ ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/daily_close_reports.test.sql:4: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/daily_close_reports.test.sql .......... ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/dashboard_top_customers.test.sql:3: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/dashboard_top_customers.test.sql ...... ok
+/Users/Reem/Desktop/shopkhata/supabase/tests/data_api_privileges.test.sql .......... ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/invoice_operations.test.sql:2: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/invoice_operations.test.sql ........... ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/invoice_void.test.sql:4: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/invoice_void.test.sql ................. ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/invoice_void_history.test.sql:4: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/invoice_void_history.test.sql ......... ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/maintenance.test.sql:3: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/maintenance.test.sql .................. ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/record_payment.test.sql:3: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/record_payment.test.sql ............... ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/release_hardening.test.sql:2: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/release_hardening.test.sql ............ ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/rls.test.sql:3: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/rls.test.sql .......................... ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/sales_totals_release_compat.test.sql:3: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/sales_totals_release_compat.test.sql .. ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/schema.test.sql:3: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/schema.test.sql ....................... ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/shop_management.test.sql:2: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/shop_management.test.sql .............. ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/status_controls.test.sql:4: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/status_controls.test.sql .............. ok
+psql:/Users/Reem/Desktop/shopkhata/supabase/tests/submit_batch.test.sql:3: NOTICE:  extension "pgtap" already exists, skipping
+/Users/Reem/Desktop/shopkhata/supabase/tests/submit_batch.test.sql ................. ok
+All tests successful.
+Files=21, Tests=1271,  4 wallclock secs ( 0.18 usr  0.03 sys +  0.20 cusr  0.14 csys =  0.55 CPU)
+Result: PASS
+A new version of Supabase CLI is available: v3.0.0 (currently installed v2.121.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+
+# finished: 2026-11-04T18:06:55Z
+# exit: 0

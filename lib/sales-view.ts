@@ -5,15 +5,18 @@ import { paymentMethodLabel } from "@/lib/payment-method";
 // View-only helpers for Sales, New Sale and Invoice Detail. Nothing here computes a balance:
 // every figure is passed in from effective_invoices or the server's own history rows.
 
-export type InvoiceBadge = "paid" | "due" | "delivered" | "corrected" | "replaced";
-export const BADGE_LABEL: Record<InvoiceBadge, string> = { paid: "Paid", due: "Due", delivered: "Delivered", corrected: "Corrected", replaced: "Replaced" };
+export type InvoiceBadge = "void" | "paid" | "due" | "delivered" | "corrected" | "replaced";
+export const BADGE_LABEL: Record<InvoiceBadge, string> = { void: "Void", paid: "Paid", due: "Due", delivered: "Delivered", corrected: "Corrected", replaced: "Replaced" };
 
-/** Derived display states only; none of them is stored. Paid/due follow the list's own "fully paid" rule (due ≤ 0). */
-export function invoiceBadges(invoice: { dueDirham: number; delivered: boolean; corrected: boolean; revision: number }): InvoiceBadge[] {
+/**
+ * Derived display states only; none of them is stored. Paid/due follow the list's own "fully paid" rule (due ≤ 0).
+ * A void invoice is neither paid nor corrected: it shows Void instead.
+ */
+export function invoiceBadges(invoice: { dueDirham: number; delivered: boolean; corrected: boolean; revision: number; isVoid?: boolean }): InvoiceBadge[] {
   return [
-    invoice.dueDirham > 0 ? "due" : "paid",
+    invoice.isVoid ? "void" : invoice.dueDirham > 0 ? "due" : "paid",
     ...(invoice.delivered ? ["delivered" as const] : []),
-    ...(invoice.corrected ? ["corrected" as const] : []),
+    ...(invoice.corrected && !invoice.isVoid ? ["corrected" as const] : []),
     ...(invoice.revision > 0 ? ["replaced" as const] : []),
   ];
 }
@@ -113,11 +116,15 @@ export function buildTimeline(detail: InvoiceDetail): TimelineEvent[] {
       });
     }
   }
-  // Approved corrections recorded without a request on this invoice (older records) still belong in the story.
+  // Approved corrections recorded without a request on this invoice (older records, and a void) still belong in the story.
+  const voided = detail.voided;
+  if (voided && !voided.correctionId) {
+    events.push({ id: voided.id, at: voided.createdAt, kind: "applied", title: "Invoice voided", actor: person(voided.actorId), reason: voided.reason, status: "approved", changes: [{ label: `Business date ${voided.businessDate}`, to: qar(0) }] });
+  }
   for (const correction of detail.corrections) {
     if (correction.requestId && requestIds.has(correction.requestId)) continue;
     events.push({
-      id: correction.id, at: correction.recordedAt, kind: "applied", title: correction.paymentId ? "Payment correction applied" : "Correction applied",
+      id: correction.id, at: correction.recordedAt, kind: "applied", title: correction.id === voided?.correctionId ? "Invoice voided" : correction.paymentId ? "Payment correction applied" : "Correction applied",
       actor: person(correction.actorId), reason: correction.reason, status: "approved", changes: [{ label: `Business date ${correction.businessDate}`, to: signedQar(correction.amountDeltaDirham) }],
     });
   }

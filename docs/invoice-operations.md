@@ -54,3 +54,19 @@ The database, not the screen, decides validity:
 A command must carry either a corrected total or a delta, never both. Payment corrections still carry a signed delta against one payment. The application's server action accepts only the corrected-total form for invoice totals; the delta form against an invoice total remains accepted by the RPC for existing callers and stays under the same approval rules. Idempotency, fingerprints, approval roles, the closed-date rule and the append-only ledger are unchanged; requests made before this migration keep both new columns null.
 
 The request form shows the current total, the corrected total, the calculated difference, current payments and the resulting due before submitting. Refusals appear in a persistent alert and on the field they concern; the save confirmation is a toast.
+
+## Invoice void (OPS-01B)
+
+`void_invoice` (owner or manager) never deletes or rewrites the invoice. It posts an approved `corrections` row of minus the current effective total, dated **today** (Qatar; today must be open, the invoice's own date may be closed), an append-only `invoice_voids` marker and an `invoice.void` audit row. Invoices with effective paid > 0 or applied customer credit are refused; reverse those first. An invoice already corrected to 0 is marked void with no correction row.
+
+Reporting follows the two read concepts in `docs/daily-close-reports.md` §5:
+
+- **Current effective state**: the invoice is VOID, effective total 0, due 0.
+- **Historical business-date movements**: the original sale stays on its own date; the void is a −total invoice correction on the void date. Invoice of QAR 100 on 1 Nov voided on 3 Nov: 1 Nov sales +100, 3 Nov invoice void −100, 1–3 Nov net 0. Daily Close, the Sales report, the Dashboard sales figures and the customer ledger all show it this way.
+
+Integrity rules (`20261103190000_ops_01b_void_remediation.sql`):
+
+- `invoice_voids (shop_id, invoice_id, correction_id)` references `corrections (shop_id, invoice_id, id)`, so a void marker can only point at a correction of the same shop and the same invoice.
+- The post-void guard checks every invoice a row names, `invoice_id` and the invoice of `payment_id` independently, so a correction naming both cannot pass by target order.
+- The reason is 10–2000 Unicode characters after trimming, counted as code points in the UI, the server action and PostgreSQL alike.
+- The unused PERF-04D `report_dashboard_snapshot` RPC, which read voided invoices as fully paid, was dropped.

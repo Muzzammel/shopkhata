@@ -90,9 +90,10 @@ test.describe("Reports", () => {
     await expect(page).toHaveURL(/from=\d{4}-\d{2}-\d{2}&to=\d{4}-\d{2}-\d{2}/);
     await expect(period.getByRole("link", { name: "7 days" })).toHaveAttribute("aria-current", "page");
     await expect(period.getByRole("link", { name: "30 days" })).not.toHaveAttribute("aria-current", "page");
-    await expect(page.getByRole("heading", { level: 2, name: "Sales by invoice date" })).toBeVisible();
-    await expect(page.getByRole("heading", { level: 3, name: "Sales" })).toBeVisible();
-    await expect(page.getByRole("heading", { level: 3, name: "Collection" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "Sales by business date" })).toBeVisible();
+    // Movements on the chosen dates, then the current state of the invoices dated there (two concepts, two groups).
+    await expect(page.getByRole("heading", { level: 3, name: "Sales on these dates", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 3, name: "Current state of these invoices", exact: true })).toBeVisible();
   });
 
   test("a custom range is validated and falls back to today with a reason", async ({ page }) => {

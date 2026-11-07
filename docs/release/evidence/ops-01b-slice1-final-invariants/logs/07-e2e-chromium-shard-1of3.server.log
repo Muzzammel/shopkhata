@@ -1,0 +1,810 @@
+$ next dev
+▲ Next.js 16.4.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.18.7:3000
+- Environments: .env.local
+✓ Ready in 543ms
+✓ Running next.config.ts took 44ms
+
+✓ Generated AGENTS.md for AI agents. Set `agentRules: false` in next.config to disable.
+ GET /login 200 in 1293ms (next.js: 769ms, proxy.ts: 225ms, application-code: 299ms)
+ GET /login?next=%2F 200 in 61ms (next.js: 4ms, proxy.ts: 7ms, application-code: 49ms)
+ GET /login 200 in 40ms (next.js: 3ms, proxy.ts: 5ms, application-code: 32ms)
+ GET /login 200 in 36ms (next.js: 3ms, proxy.ts: 4ms, application-code: 29ms)
+ GET /offline 200 in 271ms (next.js: 128ms, proxy.ts: 7ms, application-code: 137ms)
+ GET /login 200 in 51ms (next.js: 4ms, proxy.ts: 6ms, application-code: 41ms)
+ GET /offline 200 in 41ms (next.js: 4ms, proxy.ts: 7ms, application-code: 31ms)
+ GET /login 200 in 227ms (next.js: 41ms, proxy.ts: 31ms, application-code: 156ms)
+ GET / 200 in 403ms (next.js: 92ms, proxy.ts: 29ms, application-code: 283ms)
+ GET /login 200 in 36ms (next.js: 3ms, proxy.ts: 4ms, application-code: 29ms)
+ GET /offline 200 in 40ms (next.js: 5ms, proxy.ts: 3ms, application-code: 32ms)
+ GET /login 200 in 110ms (next.js: 4ms, proxy.ts: 14ms, application-code: 93ms)
+ GET / 200 in 224ms (next.js: 27ms, proxy.ts: 13ms, application-code: 184ms)
+ GET / 200 in 283ms (next.js: 5ms, proxy.ts: 7ms, application-code: 271ms)
+ GET /login 200 in 48ms (next.js: 4ms, proxy.ts: 4ms, application-code: 40ms)
+ GET /offline 200 in 40ms (next.js: 3ms, proxy.ts: 3ms, application-code: 33ms)
+ GET /login 200 in 89ms (next.js: 11ms, proxy.ts: 9ms, application-code: 69ms)
+ GET / 200 in 182ms (next.js: 26ms, proxy.ts: 8ms, application-code: 148ms)
+ GET /?shopId=10000000-0000-4000-8000-000000000002 200 in 205ms (next.js: 3ms, proxy.ts: 4ms, application-code: 198ms)
+ GET /login 200 in 46ms (next.js: 3ms, proxy.ts: 4ms, application-code: 39ms)
+ GET /offline 200 in 36ms (next.js: 3ms, proxy.ts: 5ms, application-code: 28ms)
+ GET /login 200 in 88ms (next.js: 5ms, proxy.ts: 9ms, application-code: 74ms)
+ GET / 200 in 187ms (next.js: 22ms, proxy.ts: 8ms, application-code: 157ms)
+ GET /admin 200 in 209ms (next.js: 96ms, proxy.ts: 4ms, application-code: 108ms)
+ GET /admin/backup 200 in 164ms (next.js: 80ms, proxy.ts: 5ms, application-code: 78ms)
+ GET /login 200 in 39ms (next.js: 6ms, proxy.ts: 5ms, application-code: 28ms)
+ GET /offline 200 in 42ms (next.js: 5ms, proxy.ts: 7ms, application-code: 30ms)
+ GET /login 200 in 107ms (next.js: 34ms, proxy.ts: 13ms, application-code: 60ms)
+ GET / 200 in 202ms (next.js: 7ms, proxy.ts: 12ms, application-code: 183ms)
+ GET /admin/backup 404 in 144ms (next.js: 2ms, proxy.ts: 4ms, application-code: 138ms)
+[browser] Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template). 
+ GET /login 200 in 33ms (next.js: 3ms, proxy.ts: 3ms, application-code: 27ms)
+ GET /offline 200 in 35ms (next.js: 4ms, proxy.ts: 4ms, application-code: 27ms)
+ GET /login 200 in 88ms (next.js: 4ms, proxy.ts: 9ms, application-code: 75ms)
+ GET / 200 in 183ms (next.js: 20ms, proxy.ts: 8ms, application-code: 155ms)
+ GET / 200 in 166ms (next.js: 4ms, proxy.ts: 4ms, application-code: 158ms)
+ GET /login 200 in 34ms (next.js: 3ms, proxy.ts: 5ms, application-code: 26ms)
+ GET /offline 200 in 34ms (next.js: 3ms, proxy.ts: 5ms, application-code: 26ms)
+ GET /login 200 in 91ms (next.js: 5ms, proxy.ts: 9ms, application-code: 77ms)
+ GET / 200 in 189ms (next.js: 25ms, proxy.ts: 8ms, application-code: 155ms)
+ GET /expenses?shop=10000000-0000-4000-8000-000000000002 200 in 299ms (next.js: 53ms, proxy.ts: 4ms, application-code: 242ms)
+ POST /expenses?shop=10000000-0000-4000-8000-000000000002 200 in 251ms (next.js: 3ms, proxy.ts: 5ms, application-code: 243ms)
+  └─ ƒ createExpense({"amount_dirham":1250,"backdated_reason":"entered late","business_date":"2014-06-07","...":"4 items not stringified"}) in 41ms app/(app)/customer-actions.ts
+ GET /expenses?shop=10000000-0000-4000-8000-000000000002 200 in 231ms (next.js: 21ms, proxy.ts: 60ms, application-code: 150ms)
+ GET /closing?shop=10000000-0000-4000-8000-000000000002 200 in 176ms (next.js: 45ms, proxy.ts: 5ms, application-code: 126ms)
+ GET /closing?shop=10000000-0000-4000-8000-000000000002&date=2026-11-04 200 in 202ms (next.js: 4ms, proxy.ts: 4ms, application-code: 193ms)
+ GET /closing?shop=10000000-0000-4000-8000-000000000002&date=2014-06-07 200 in 318ms (next.js: 4ms, proxy.ts: 26ms, application-code: 288ms)
+ POST /closing?shop=10000000-0000-4000-8000-000000000002&date=2014-06-07 200 in 297ms (next.js: 3ms, proxy.ts: 5ms, application-code: 289ms)
+  └─ ƒ closeBusinessDate({"business_date":"2014-06-07","note":"counted and checked","shop_id":"10000000-0000-4000-8000-000000000002"}) in 29ms app/(app)/closing/actions.ts
+ GET /closing?shop=10000000-0000-4000-8000-000000000002&date=2014-06-07 200 in 282ms (next.js: 9ms, proxy.ts: 108ms, application-code: 165ms)
+ GET /expenses?shop=10000000-0000-4000-8000-000000000002 200 in 200ms (next.js: 5ms, proxy.ts: 3ms, application-code: 192ms)
+{"at":"2026-11-04T19:34:12.970Z","requestId":"9b68fb97-1c06-44e1-8ed6-a1309d9bfc7a","app":"shopkhata","level":"warn","operation":"create_expense","code":"P0001","shopId":"10000000-0000-4000-8000-000000000002","actorId":"10000000-0000-4000-8000-000000000101"}
+ POST /expenses?shop=10000000-0000-4000-8000-000000000002 200 in 44ms (next.js: 5ms, proxy.ts: 4ms, application-code: 35ms)
+  └─ ƒ createExpense({"amount_dirham":300,"backdated_reason":"entered late","business_date":"2014-06-07","...":"4 items not stringified"}) in 29ms app/(app)/customer-actions.ts
+ GET /login 200 in 39ms (next.js: 5ms, proxy.ts: 5ms, application-code: 29ms)
+ GET /offline 200 in 47ms (next.js: 6ms, proxy.ts: 6ms, application-code: 35ms)
+ GET /login 200 in 122ms (next.js: 9ms, proxy.ts: 11ms, application-code: 102ms)
+ GET / 200 in 254ms (next.js: 36ms, proxy.ts: 11ms, application-code: 207ms)
+ GET /closing?shop=10000000-0000-4000-8000-000000000001&date=2026-11-04 200 in 271ms (next.js: 4ms, proxy.ts: 9ms, application-code: 258ms)
+ GET /closing?shop=10000000-0000-4000-8000-000000000002&date=2014-06-07 200 in 302ms (next.js: 4ms, proxy.ts: 7ms, application-code: 290ms)
+ GET /closing?shop=10000000-0000-4000-8000-000000000002&date=2014-06-07 200 in 285ms (next.js: 3ms, proxy.ts: 6ms, application-code: 275ms)
+ POST /closing?shop=10000000-0000-4000-8000-000000000002&date=2014-06-07 200 in 351ms (next.js: 6ms, proxy.ts: 6ms, application-code: 339ms)
+  └─ ƒ reopenBusinessDate({"business_date":"2014-06-07","reason":"one more receipt to record","shop_id":"10000000-0000-4000-8000-000000000002"}) in 31ms app/(app)/closing/actions.ts
+ GET /closing?shop=10000000-0000-4000-8000-000000000002&date=2014-06-07 200 in 266ms (next.js: 10ms, proxy.ts: 74ms, application-code: 181ms)
+ GET /expenses?shop=10000000-0000-4000-8000-000000000002 200 in 198ms (next.js: 2ms, proxy.ts: 4ms, application-code: 191ms)
+ POST /expenses?shop=10000000-0000-4000-8000-000000000002 200 in 201ms (next.js: 3ms, proxy.ts: 5ms, application-code: 193ms)
+  └─ ƒ createExpense({"amount_dirham":300,"backdated_reason":"entered late","business_date":"2014-06-07","...":"4 items not stringified"}) in 26ms app/(app)/customer-actions.ts
+ GET /expenses?shop=10000000-0000-4000-8000-000000000002 200 in 225ms (next.js: 7ms, proxy.ts: 49ms, application-code: 170ms)
+ GET /closing?shop=10000000-0000-4000-8000-000000000002&date=2014-06-07 200 in 219ms (next.js: 3ms, proxy.ts: 5ms, application-code: 211ms)
+ GET /login 200 in 31ms (next.js: 3ms, proxy.ts: 5ms, application-code: 23ms)
+ GET /offline 200 in 31ms (next.js: 3ms, proxy.ts: 4ms, application-code: 24ms)
+ GET /login 200 in 96ms (next.js: 6ms, proxy.ts: 9ms, application-code: 81ms)
+ GET / 200 in 209ms (next.js: 21ms, proxy.ts: 8ms, application-code: 180ms)
+ GET /expenses?shop=10000000-0000-4000-8000-000000000001 200 in 171ms (next.js: 3ms, proxy.ts: 4ms, application-code: 164ms)
+ GET /login 200 in 35ms (next.js: 3ms, proxy.ts: 4ms, application-code: 27ms)
+ GET /offline 200 in 32ms (next.js: 4ms, proxy.ts: 4ms, application-code: 24ms)
+ GET /login 200 in 109ms (next.js: 10ms, proxy.ts: 13ms, application-code: 86ms)
+ GET / 200 in 198ms (next.js: 30ms, proxy.ts: 14ms, application-code: 154ms)
+ GET /expenses?shop=10000000-0000-4000-8000-000000000002 200 in 160ms (next.js: 3ms, proxy.ts: 4ms, application-code: 154ms)
+ POST /expenses?shop=10000000-0000-4000-8000-000000000002 200 in 219ms (next.js: 4ms, proxy.ts: 4ms, application-code: 211ms)
+  └─ ƒ createExpense({"amount_dirham":4500,"backdated_reason":"receipt found during stock count","business_date":"2012-08-06","...":"4 items not stringified"}) in 22ms app/(app)/customer-actions.ts
+ GET /expenses?shop=10000000-0000-4000-8000-000000000002 200 in 221ms (next.js: 9ms, proxy.ts: 58ms, application-code: 154ms)
+ GET /closing?shop=10000000-0000-4000-8000-000000000002&date=2012-08-06 200 in 229ms (next.js: 2ms, proxy.ts: 5ms, application-code: 221ms)
+ GET /reports?shop=10000000-0000-4000-8000-000000000002&report=expenses&from=2012-08-06&to=2012-08-06 200 in 281ms (next.js: 74ms, proxy.ts: 4ms, application-code: 203ms)
+ GET /login 200 in 52ms (next.js: 5ms, proxy.ts: 5ms, application-code: 42ms)
+ GET /offline 200 in 42ms (next.js: 6ms, proxy.ts: 3ms, application-code: 33ms)
+ GET /login 200 in 87ms (next.js: 9ms, proxy.ts: 8ms, application-code: 69ms)
+ GET / 200 in 195ms (next.js: 29ms, proxy.ts: 9ms, application-code: 157ms)
+ GET /login 200 in 68ms (next.js: 38ms, proxy.ts: 3ms, application-code: 27ms)
+ GET /offline 200 in 45ms (next.js: 13ms, proxy.ts: 6ms, application-code: 26ms)
+ GET /login 200 in 276ms (next.js: 8ms, proxy.ts: 10ms, application-code: 258ms)
+ GET / 200 in 280ms (next.js: 47ms, proxy.ts: 10ms, application-code: 223ms)
+ GET /closing?shop=10000000-0000-4000-8000-000000000001&date=2007-01-10 200 in 251ms (next.js: 23ms, proxy.ts: 4ms, application-code: 224ms)
+ POST /closing?shop=10000000-0000-4000-8000-000000000001&date=2007-01-10 200 in 289ms (next.js: 5ms, proxy.ts: 5ms, application-code: 280ms)
+  └─ ƒ closeBusinessDate({"business_date":"2007-01-10","shop_id":"10000000-0000-4000-8000-000000000001"}) in 31ms app/(app)/closing/actions.ts
+ GET /closing?shop=10000000-0000-4000-8000-000000000001&date=2007-01-10 200 in 281ms (next.js: 20ms, proxy.ts: 84ms, application-code: 177ms)
+ POST / 200 in 45ms (next.js: 4ms, proxy.ts: 3ms, application-code: 38ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["close-off-1793820869829"]) in 32ms app/(app)/workspace-actions.ts
+{"at":"2026-11-04T19:34:36.911Z","requestId":"51a9f820-9157-498f-a6ad-52a5a7244d32","app":"shopkhata","level":"warn","operation":"submit_batch","code":"P0001","shopId":"10000000-0000-4000-8000-000000000001","actorId":"10000000-0000-4000-8000-000000000101"}
+ POST / 200 in 61ms (next.js: 3ms, proxy.ts: 4ms, application-code: 54ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"missed entry","businessDate":"2007-01-10","idempotencyKey":"2b4fa811-d63f-43eb-b637-8b52649a7eb1","...":"3 items not stringified"}) in 49ms app/(app)/invoice-actions.ts
+ POST / 200 in 35ms (next.js: 3ms, proxy.ts: 5ms, application-code: 27ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 22ms app/(app)/workspace-actions.ts
+ POST / 200 in 29ms (next.js: 3ms, proxy.ts: 3ms, application-code: 23ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["close-off-1793820869829"]) in 19ms app/(app)/workspace-actions.ts
+ GET /closing?shop=10000000-0000-4000-8000-000000000001&date=2007-01-10 200 in 221ms (next.js: 4ms, proxy.ts: 3ms, application-code: 214ms)
+ GET /login 200 in 37ms (next.js: 4ms, proxy.ts: 5ms, application-code: 28ms)
+ GET /offline 200 in 40ms (next.js: 4ms, proxy.ts: 4ms, application-code: 32ms)
+ GET /login 200 in 113ms (next.js: 7ms, proxy.ts: 8ms, application-code: 98ms)
+ GET / 200 in 234ms (next.js: 32ms, proxy.ts: 7ms, application-code: 194ms)
+ GET /closing?shop=10000000-0000-4000-8000-000000000001&date=2007-01-10 200 in 198ms (next.js: 3ms, proxy.ts: 3ms, application-code: 192ms)
+ POST /closing?shop=10000000-0000-4000-8000-000000000001&date=2007-01-10 200 in 220ms (next.js: 5ms, proxy.ts: 4ms, application-code: 211ms)
+  └─ ƒ reopenBusinessDate({"business_date":"2007-01-10","reason":"late batch from an offline device","shop_id":"10000000-0000-4000-8000-000000000001"}) in 19ms app/(app)/closing/actions.ts
+ GET /closing?shop=10000000-0000-4000-8000-000000000001&date=2007-01-10 200 in 258ms (next.js: 11ms, proxy.ts: 75ms, application-code: 172ms)
+ POST / 200 in 180ms (next.js: 3ms, proxy.ts: 4ms, application-code: 173ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"missed entry","businessDate":"2007-01-10","idempotencyKey":"836fd35a-1e59-414d-910c-ca4e4514f014","...":"3 items not stringified"}) in 50ms app/(app)/invoice-actions.ts
+ POST / 200 in 52ms (next.js: 4ms, proxy.ts: 14ms, application-code: 34ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 28ms app/(app)/workspace-actions.ts
+ GET /login 200 in 54ms (next.js: 4ms, proxy.ts: 4ms, application-code: 45ms)
+ GET /offline 200 in 37ms (next.js: 4ms, proxy.ts: 3ms, application-code: 30ms)
+ GET /login 200 in 117ms (next.js: 8ms, proxy.ts: 13ms, application-code: 95ms)
+ GET / 200 in 222ms (next.js: 39ms, proxy.ts: 11ms, application-code: 172ms)
+ GET /reports?shop=10000000-0000-4000-8000-000000000001 200 in 109ms (next.js: 21ms, proxy.ts: 4ms, application-code: 84ms)
+ GET /reports?shop=10000000-0000-4000-8000-000000000002&report=daily&date=2026-11-04 200 in 94ms (next.js: 3ms, proxy.ts: 4ms, application-code: 87ms)
+ GET /reports?shop=10000000-0000-4000-8000-000000000002&report=daily&date=2010-05-01 200 in 187ms (next.js: 3ms, proxy.ts: 4ms, application-code: 180ms)
+ GET /exports/report-daily?shop=10000000-0000-4000-8000-000000000002&from=2010-05-01&to=2010-05-01 200 in 841ms (next.js: 760ms, proxy.ts: 7ms, application-code: 74ms)
+ GET /reports?shop=10000000-0000-4000-8000-000000000002&report=sales&from=2010-05-01&to=2010-05-01 200 in 270ms (next.js: 7ms, proxy.ts: 8ms, application-code: 255ms)
+ GET /exports/report-sales?shop=10000000-0000-4000-8000-000000000002&from=2010-05-01&to=2010-05-01 200 in 65ms (next.js: 8ms, proxy.ts: 3ms, application-code: 53ms)
+ GET /reports?shop=10000000-0000-4000-8000-000000000002&report=sales&from=2026-11-04&to=2026-11-04 200 in 246ms (next.js: 3ms, proxy.ts: 3ms, application-code: 240ms)
+ GET /reports?shop=10000000-0000-4000-8000-000000000002&report=dues 200 in 229ms (next.js: 4ms, proxy.ts: 5ms, application-code: 221ms)
+ GET /exports/report-dues?shop=10000000-0000-4000-8000-000000000002 200 in 59ms (next.js: 8ms, proxy.ts: 3ms, application-code: 48ms)
+ GET /reports?shop=10000000-0000-4000-8000-000000000002&report=expenses&from=2010-05-01&to=2010-05-01 200 in 206ms (next.js: 3ms, proxy.ts: 3ms, application-code: 200ms)
+ GET /exports/report-expenses?shop=10000000-0000-4000-8000-000000000002&from=2010-05-01&to=2010-05-01 200 in 51ms (next.js: 9ms, proxy.ts: 3ms, application-code: 38ms)
+ GET /reports?shop=10000000-0000-4000-8000-000000000002&report=payments&from=2010-05-01&to=2010-05-01 200 in 218ms (next.js: 4ms, proxy.ts: 6ms, application-code: 209ms)
+ GET /exports/report-payments?shop=10000000-0000-4000-8000-000000000002&from=2010-05-01&to=2010-05-01 200 in 54ms (next.js: 8ms, proxy.ts: 3ms, application-code: 43ms)
+ GET /reports?shop=10000000-0000-4000-8000-000000000002&report=payments&from=2026-11-04&to=2026-11-04 200 in 215ms (next.js: 4ms, proxy.ts: 4ms, application-code: 207ms)
+ GET /login 200 in 64ms (next.js: 7ms, proxy.ts: 4ms, application-code: 53ms)
+ GET /login 200 in 105ms (next.js: 5ms, proxy.ts: 14ms, application-code: 87ms)
+ GET / 200 in 204ms (next.js: 24ms, proxy.ts: 14ms, application-code: 167ms)
+ GET /reports?shop=10000000-0000-4000-8000-000000000002&report=daily&date=2010-05-01 200 in 200ms (next.js: 5ms, proxy.ts: 5ms, application-code: 189ms)
+ GET /exports/report-daily?shop=10000000-0000-4000-8000-000000000002&from=2010-05-01&to=2010-05-01 403 in 43ms (next.js: 9ms, proxy.ts: 4ms, application-code: 29ms)
+ GET /exports/report-dues?shop=10000000-0000-4000-8000-000000000002 403 in 38ms (next.js: 5ms, proxy.ts: 5ms, application-code: 28ms)
+ GET /login 200 in 30ms (next.js: 3ms, proxy.ts: 3ms, application-code: 24ms)
+ GET /offline 200 in 34ms (next.js: 6ms, proxy.ts: 3ms, application-code: 25ms)
+ GET /login 200 in 93ms (next.js: 7ms, proxy.ts: 13ms, application-code: 72ms)
+ GET / 200 in 205ms (next.js: 25ms, proxy.ts: 13ms, application-code: 167ms)
+ GET /reports?shop=10000000-0000-4000-8000-000000000001&report=sales 200 in 184ms (next.js: 4ms, proxy.ts: 4ms, application-code: 176ms)
+ GET / 200 in 190ms (next.js: 5ms, proxy.ts: 7ms, application-code: 178ms)
+ POST / 200 in 42ms (next.js: 4ms, proxy.ts: 12ms, application-code: 26ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["xb-chromium-f4442e86"]) in 19ms app/(app)/workspace-actions.ts
+ POST / 200 in 167ms (next.js: 4ms, proxy.ts: 4ms, application-code: 159ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"5e1672d2-5b39-4e33-ac64-c70f8c1b3cdf","...":"3 items not stringified"}) in 29ms app/(app)/invoice-actions.ts
+ POST / 200 in 54ms (next.js: 5ms, proxy.ts: 15ms, application-code: 34ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 29ms app/(app)/workspace-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/232609d4-23b0-4bb4-b8a8-035b26ac2be0 200 in 696ms (next.js: 494ms, proxy.ts: 4ms, application-code: 198ms)
+ GET / 200 in 206ms (next.js: 6ms, proxy.ts: 4ms, application-code: 197ms)
+ POST / 200 in 53ms (next.js: 5ms, proxy.ts: 6ms, application-code: 42ms)
+  └─ ƒ lookupInvoiceForPayment({"invoiceNumber":"XB-chromium-f4442e86","shopId":"10000000-0000-4000-8000-000000000001"}) in 37ms app/(app)/payment-actions.ts
+ POST / 200 in 164ms (next.js: 3ms, proxy.ts: 5ms, application-code: 156ms)
+  └─ ƒ recordInvoicePayment({"amount_dirham":2000,"business_date":"2026-11-04","idempotency_key":"461a1d10-7a34-465a-bd51-b510446330ea","...":"3 items not stringified"}) in 22ms app/(app)/payment-actions.ts
+ GET /expenses?shop=10000000-0000-4000-8000-000000000001 200 in 257ms (next.js: 17ms, proxy.ts: 4ms, application-code: 237ms)
+ POST /expenses?shop=10000000-0000-4000-8000-000000000001 200 in 195ms (next.js: 4ms, proxy.ts: 4ms, application-code: 187ms)
+  └─ ƒ createExpense({"amount_dirham":725,"business_date":"2026-11-04","category":"other","...":"3 items not stringified"}) in 29ms app/(app)/customer-actions.ts
+ GET /expenses?shop=10000000-0000-4000-8000-000000000001 200 in 242ms (next.js: 11ms, proxy.ts: 68ms, application-code: 164ms)
+ GET /customers?shop=10000000-0000-4000-8000-000000000001 200 in 211ms (next.js: 53ms, proxy.ts: 4ms, application-code: 154ms)
+ GET /reports?shop=10000000-0000-4000-8000-000000000001&report=sales 200 in 236ms (next.js: 7ms, proxy.ts: 5ms, application-code: 223ms)
+ GET /closing?shop=10000000-0000-4000-8000-000000000001 200 in 229ms (next.js: 7ms, proxy.ts: 5ms, application-code: 217ms)
+ GET /login 200 in 27ms (next.js: 7ms, proxy.ts: 3ms, application-code: 16ms)
+ GET /login 200 in 34ms (next.js: 6ms, proxy.ts: 6ms, application-code: 22ms)
+ GET /login?next=%2Freports 200 in 32ms (next.js: 3ms, proxy.ts: 3ms, application-code: 26ms)
+ GET /login 200 in 34ms (next.js: 3ms, proxy.ts: 5ms, application-code: 26ms)
+ GET /offline 200 in 35ms (next.js: 7ms, proxy.ts: 4ms, application-code: 24ms)
+ GET /login 200 in 97ms (next.js: 5ms, proxy.ts: 14ms, application-code: 78ms)
+ GET / 200 in 189ms (next.js: 23ms, proxy.ts: 13ms, application-code: 153ms)
+ GET /customers?shop=10000000-0000-4000-8000-000000000001 200 in 162ms (next.js: 3ms, proxy.ts: 4ms, application-code: 154ms)
+ POST /customers?shop=10000000-0000-4000-8000-000000000001 200 in 166ms (next.js: 3ms, proxy.ts: 4ms, application-code: 159ms)
+  └─ ƒ createCustomer({"mobile":"700906522","name":"Ledger E2E 1793820906522","shop_id":"10000000-0000-4000-8000-000000000001"}) in 37ms app/(app)/customer-actions.ts
+ GET /customers/408d65ab-518c-49b7-9fa0-c89d5bbff100?shop=10000000-0000-4000-8000-000000000001 200 in 663ms (next.js: 463ms, proxy.ts: 6ms, application-code: 194ms)
+ GET /?shop=10000000-0000-4000-8000-000000000001 200 in 188ms (next.js: 7ms, proxy.ts: 5ms, application-code: 177ms)
+ POST /?shop=10000000-0000-4000-8000-000000000001 200 in 40ms (next.js: 4ms, proxy.ts: 4ms, application-code: 33ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ledger-a-1793820906522"]) in 27ms app/(app)/workspace-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000001 200 in 35ms (next.js: 3ms, proxy.ts: 3ms, application-code: 29ms)
+  └─ ƒ searchShopCustomers("10000000-0000-4000-8000-000000000001", "Ledger E2E 1793820906522") in 24ms app/(app)/workspace-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000001 200 in 335ms (next.js: 6ms, proxy.ts: 6ms, application-code: 323ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"e0553dff-48c9-4f83-8118-6ba0a52722a3","...":"3 items not stringified"}) in 175ms app/(app)/invoice-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000001 200 in 241ms (next.js: 15ms, proxy.ts: 21ms, application-code: 204ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 180ms app/(app)/workspace-actions.ts
+ GET /?shop=10000000-0000-4000-8000-000000000001 200 in 242ms (next.js: 15ms, proxy.ts: 29ms, application-code: 198ms)
+ POST /?shop=10000000-0000-4000-8000-000000000001 200 in 33ms (next.js: 4ms, proxy.ts: 6ms, application-code: 24ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ledger-b-1793820906522"]) in 19ms app/(app)/workspace-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000001 200 in 37ms (next.js: 3ms, proxy.ts: 5ms, application-code: 28ms)
+  └─ ƒ searchShopCustomers("10000000-0000-4000-8000-000000000001", "Ledger E2E 1793820906522") in 22ms app/(app)/workspace-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000001 200 in 163ms (next.js: 3ms, proxy.ts: 5ms, application-code: 155ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"56610f0d-31a3-4fdd-b21f-9acf6dc4526f","...":"3 items not stringified"}) in 39ms app/(app)/invoice-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000001 200 in 76ms (next.js: 12ms, proxy.ts: 12ms, application-code: 52ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 45ms app/(app)/workspace-actions.ts
+ GET /customers?shop=10000000-0000-4000-8000-000000000001&q=Ledger%20E2E%201793820906522 200 in 274ms (next.js: 7ms, proxy.ts: 7ms, application-code: 260ms)
+ GET /customers/408d65ab-518c-49b7-9fa0-c89d5bbff100?shop=10000000-0000-4000-8000-000000000001 200 in 231ms (next.js: 12ms, proxy.ts: 5ms, application-code: 214ms)
+ POST /customers/408d65ab-518c-49b7-9fa0-c89d5bbff100?shop=10000000-0000-4000-8000-000000000001 200 in 435ms (next.js: 49ms, proxy.ts: 5ms, application-code: 381ms)
+  └─ ƒ recordCustomerPayment({"amount_dirham":400,"business_date":"2026-11-04","customer_id":"408d65ab-518c-49b7-9fa0-c89d5bbff100","...":"3 items not stringified"}) in 28ms app/(app)/customer-actions.ts
+ GET /customers/408d65ab-518c-49b7-9fa0-c89d5bbff100?shop=10000000-0000-4000-8000-000000000001 200 in 407ms (next.js: 92ms, proxy.ts: 56ms, application-code: 259ms)
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/819dbe99-c9bb-475e-98f5-cc88c71cd82e 200 in 389ms (next.js: 27ms, proxy.ts: 6ms, application-code: 357ms)
+ GET /expenses?shop=10000000-0000-4000-8000-000000000001 200 in 263ms (next.js: 21ms, proxy.ts: 5ms, application-code: 236ms)
+ POST /expenses?shop=10000000-0000-4000-8000-000000000001 200 in 244ms (next.js: 5ms, proxy.ts: 5ms, application-code: 235ms)
+  └─ ƒ createExpense({"amount_dirham":125,"business_date":"2026-11-04","category":"other","...":"3 items not stringified"}) in 27ms app/(app)/customer-actions.ts
+ POST /expenses?shop=10000000-0000-4000-8000-000000000001 200 in 257ms (next.js: 5ms, proxy.ts: 57ms, application-code: 196ms)
+  └─ ƒ registerExpenseAttachment({"byte_size":68,"content_type":"image/png","expense_id":"40e03258-3aff-42f8-a7ff-f2816cc052f2","...":"4 items not stringified"}) in 22ms app/(app)/customer-actions.ts
+ GET /expenses?shop=10000000-0000-4000-8000-000000000001 200 in 245ms (next.js: 10ms, proxy.ts: 74ms, application-code: 161ms)
+ GET /expenses/40e03258-3aff-42f8-a7ff-f2816cc052f2?shop=10000000-0000-4000-8000-000000000001 200 in 748ms (next.js: 490ms, proxy.ts: 5ms, application-code: 253ms)
+ POST /expenses/40e03258-3aff-42f8-a7ff-f2816cc052f2?shop=10000000-0000-4000-8000-000000000001 200 in 603ms (next.js: 11ms, proxy.ts: 6ms, application-code: 586ms)
+  └─ ƒ requestExpenseCorrection({"amount_dirham":150,"category":"other","description":"Receipt expense 1793820906522","...":"4 items not stringified"}) in 39ms app/(app)/customer-actions.ts
+ GET /expenses/40e03258-3aff-42f8-a7ff-f2816cc052f2?shop=10000000-0000-4000-8000-000000000001 200 in 467ms (next.js: 58ms, proxy.ts: 82ms, application-code: 328ms)
+ GET /login 200 in 46ms (next.js: 12ms, proxy.ts: 4ms, application-code: 29ms)
+ GET /offline 200 in 52ms (next.js: 14ms, proxy.ts: 7ms, application-code: 32ms)
+ GET /login 200 in 122ms (next.js: 10ms, proxy.ts: 10ms, application-code: 102ms)
+ GET / 200 in 228ms (next.js: 39ms, proxy.ts: 11ms, application-code: 179ms)
+ GET /expenses/40e03258-3aff-42f8-a7ff-f2816cc052f2?shop=10000000-0000-4000-8000-000000000001 200 in 403ms (next.js: 8ms, proxy.ts: 13ms, application-code: 382ms)
+ POST /expenses/40e03258-3aff-42f8-a7ff-f2816cc052f2?shop=10000000-0000-4000-8000-000000000001 200 in 385ms (next.js: 14ms, proxy.ts: 8ms, application-code: 362ms)
+  └─ ƒ decideExpenseCorrection({"decision":"approved","idempotency_key":"96e47ac7-2bbd-4c05-b8f2-4fae66977f99","request_id":"b5311132-8178-4e4d-92f2-4db38f37dd81","...":"1 item not stringified"}) in 30ms app/(app)/customer-actions.ts
+ GET /expenses/40e03258-3aff-42f8-a7ff-f2816cc052f2?shop=10000000-0000-4000-8000-000000000001 200 in 360ms (next.js: 41ms, proxy.ts: 33ms, application-code: 286ms)
+ GET /customers/41614d8e-f393-4787-af10-bdcafd9ad0c2?shop=10000000-0000-4000-8000-000000000002 404 in 191ms (next.js: 14ms, proxy.ts: 3ms, application-code: 173ms)
+[browser] Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template). 
+ GET /login 200 in 44ms (next.js: 5ms, proxy.ts: 5ms, application-code: 33ms)
+ GET /offline 200 in 67ms (next.js: 5ms, proxy.ts: 6ms, application-code: 57ms)
+ GET /login 200 in 109ms (next.js: 9ms, proxy.ts: 11ms, application-code: 89ms)
+ GET / 200 in 225ms (next.js: 29ms, proxy.ts: 9ms, application-code: 187ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 788ms (next.js: 64ms, proxy.ts: 7ms, application-code: 717ms)
+ GET /login 200 in 48ms (next.js: 8ms, proxy.ts: 3ms, application-code: 37ms)
+ GET /offline 200 in 38ms (next.js: 7ms, proxy.ts: 5ms, application-code: 26ms)
+ GET /login 200 in 116ms (next.js: 5ms, proxy.ts: 9ms, application-code: 102ms)
+ GET / 200 in 229ms (next.js: 41ms, proxy.ts: 7ms, application-code: 181ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 536ms (next.js: 3ms, proxy.ts: 3ms, application-code: 530ms)
+ GET / 200 in 189ms (next.js: 4ms, proxy.ts: 4ms, application-code: 182ms)
+ POST / 200 in 44ms (next.js: 4ms, proxy.ts: 4ms, application-code: 37ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["dash-1793820932118"]) in 32ms app/(app)/workspace-actions.ts
+ POST / 200 in 398ms (next.js: 5ms, proxy.ts: 7ms, application-code: 386ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"faf57b4a-85a0-4245-8406-e6f67c6ae036","...":"3 items not stringified"}) in 62ms app/(app)/invoice-actions.ts
+ POST / 200 in 561ms (next.js: 64ms, proxy.ts: 26ms, application-code: 471ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 400ms app/(app)/workspace-actions.ts
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 589ms (next.js: 15ms, proxy.ts: 26ms, application-code: 548ms)
+ GET /login 200 in 50ms (next.js: 5ms, proxy.ts: 4ms, application-code: 41ms)
+ GET /offline 200 in 39ms (next.js: 4ms, proxy.ts: 3ms, application-code: 32ms)
+ GET /login 200 in 85ms (next.js: 6ms, proxy.ts: 12ms, application-code: 68ms)
+ GET / 200 in 196ms (next.js: 23ms, proxy.ts: 12ms, application-code: 161ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001&period=7d 200 in 563ms (next.js: 3ms, proxy.ts: 4ms, application-code: 556ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001&period=30d 200 in 552ms (next.js: 4ms, proxy.ts: 5ms, application-code: 543ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001&period=year 200 in 529ms (next.js: 3ms, proxy.ts: 4ms, application-code: 522ms)
+[browser] Encountered two children with the same key, `Nov`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `Nov`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `Nov`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001&period=custom&from=2026-10-03&to=2026-10-01 200 in 558ms (next.js: 4ms, proxy.ts: 5ms, application-code: 549ms)
+ GET /login 200 in 54ms (next.js: 4ms, proxy.ts: 3ms, application-code: 48ms)
+ GET /offline 200 in 31ms (next.js: 4ms, proxy.ts: 4ms, application-code: 24ms)
+ GET /login 200 in 111ms (next.js: 7ms, proxy.ts: 12ms, application-code: 91ms)
+ GET / 200 in 214ms (next.js: 23ms, proxy.ts: 11ms, application-code: 179ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001&period=7d 200 in 563ms (next.js: 4ms, proxy.ts: 5ms, application-code: 555ms)
+ GET /login 200 in 50ms (next.js: 4ms, proxy.ts: 4ms, application-code: 42ms)
+ GET /offline 200 in 32ms (next.js: 4ms, proxy.ts: 3ms, application-code: 26ms)
+ GET /login 200 in 129ms (next.js: 61ms, proxy.ts: 14ms, application-code: 54ms)
+ GET / 200 in 250ms (next.js: 9ms, proxy.ts: 13ms, application-code: 227ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001&period=custom&from=2019-01-01&to=2019-01-07 200 in 501ms (next.js: 3ms, proxy.ts: 3ms, application-code: 495ms)
+ GET /login 200 in 34ms (next.js: 4ms, proxy.ts: 3ms, application-code: 26ms)
+ GET /offline 200 in 51ms (next.js: 6ms, proxy.ts: 7ms, application-code: 39ms)
+ GET /login 200 in 122ms (next.js: 9ms, proxy.ts: 9ms, application-code: 104ms)
+ GET / 200 in 249ms (next.js: 34ms, proxy.ts: 10ms, application-code: 205ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 657ms (next.js: 4ms, proxy.ts: 3ms, application-code: 650ms)
+ GET /login 200 in 34ms (next.js: 3ms, proxy.ts: 3ms, application-code: 28ms)
+ GET /offline 200 in 67ms (next.js: 5ms, proxy.ts: 5ms, application-code: 56ms)
+ GET /login 200 in 95ms (next.js: 39ms, proxy.ts: 10ms, application-code: 46ms)
+ GET / 200 in 186ms (next.js: 8ms, proxy.ts: 9ms, application-code: 168ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 384ms (next.js: 3ms, proxy.ts: 4ms, application-code: 377ms)
+ GET /login 200 in 35ms (next.js: 4ms, proxy.ts: 3ms, application-code: 29ms)
+ GET /offline 200 in 31ms (next.js: 4ms, proxy.ts: 3ms, application-code: 24ms)
+ GET /login 200 in 86ms (next.js: 4ms, proxy.ts: 6ms, application-code: 77ms)
+ GET / 200 in 165ms (next.js: 20ms, proxy.ts: 5ms, application-code: 139ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 485ms (next.js: 3ms, proxy.ts: 3ms, application-code: 479ms)
+ GET /login 200 in 36ms (next.js: 4ms, proxy.ts: 3ms, application-code: 29ms)
+ GET /offline 200 in 33ms (next.js: 4ms, proxy.ts: 4ms, application-code: 25ms)
+ GET /login 200 in 90ms (next.js: 5ms, proxy.ts: 9ms, application-code: 75ms)
+ GET / 200 in 179ms (next.js: 31ms, proxy.ts: 9ms, application-code: 139ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 495ms (next.js: 4ms, proxy.ts: 4ms, application-code: 488ms)
+ GET /login 200 in 33ms (next.js: 3ms, proxy.ts: 3ms, application-code: 28ms)
+ GET /offline 200 in 37ms (next.js: 5ms, proxy.ts: 4ms, application-code: 28ms)
+ GET /login 200 in 72ms (next.js: 5ms, proxy.ts: 6ms, application-code: 62ms)
+ GET / 200 in 157ms (next.js: 21ms, proxy.ts: 5ms, application-code: 130ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 461ms (next.js: 3ms, proxy.ts: 3ms, application-code: 454ms)
+ GET /login 200 in 35ms (next.js: 3ms, proxy.ts: 3ms, application-code: 29ms)
+ GET /offline 200 in 44ms (next.js: 5ms, proxy.ts: 4ms, application-code: 35ms)
+ GET /login 200 in 79ms (next.js: 6ms, proxy.ts: 8ms, application-code: 65ms)
+ GET / 200 in 179ms (next.js: 22ms, proxy.ts: 7ms, application-code: 151ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 481ms (next.js: 4ms, proxy.ts: 4ms, application-code: 473ms)
+ GET /login 200 in 33ms (next.js: 3ms, proxy.ts: 3ms, application-code: 27ms)
+ GET /offline 200 in 42ms (next.js: 5ms, proxy.ts: 3ms, application-code: 34ms)
+ GET /login 200 in 81ms (next.js: 7ms, proxy.ts: 5ms, application-code: 68ms)
+ GET / 200 in 167ms (next.js: 26ms, proxy.ts: 5ms, application-code: 137ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 478ms (next.js: 3ms, proxy.ts: 6ms, application-code: 469ms)
+ GET /login 200 in 33ms (next.js: 3ms, proxy.ts: 3ms, application-code: 27ms)
+ GET /offline 200 in 43ms (next.js: 15ms, proxy.ts: 4ms, application-code: 25ms)
+ GET /login 200 in 78ms (next.js: 6ms, proxy.ts: 9ms, application-code: 64ms)
+ GET / 200 in 172ms (next.js: 22ms, proxy.ts: 8ms, application-code: 141ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 448ms (next.js: 4ms, proxy.ts: 4ms, application-code: 440ms)
+ GET /login 200 in 32ms (next.js: 3ms, proxy.ts: 3ms, application-code: 26ms)
+ GET /offline 200 in 37ms (next.js: 4ms, proxy.ts: 3ms, application-code: 30ms)
+ GET /login 200 in 80ms (next.js: 6ms, proxy.ts: 8ms, application-code: 66ms)
+ GET / 200 in 170ms (next.js: 24ms, proxy.ts: 8ms, application-code: 138ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 499ms (next.js: 3ms, proxy.ts: 5ms, application-code: 491ms)
+ GET /login 200 in 34ms (next.js: 3ms, proxy.ts: 3ms, application-code: 28ms)
+ GET /offline 200 in 44ms (next.js: 4ms, proxy.ts: 4ms, application-code: 37ms)
+ GET /login 200 in 78ms (next.js: 30ms, proxy.ts: 6ms, application-code: 42ms)
+ GET / 200 in 162ms (next.js: 5ms, proxy.ts: 6ms, application-code: 151ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 464ms (next.js: 3ms, proxy.ts: 5ms, application-code: 456ms)
+ GET /login 200 in 32ms (next.js: 3ms, proxy.ts: 3ms, application-code: 26ms)
+ GET /offline 200 in 35ms (next.js: 4ms, proxy.ts: 4ms, application-code: 28ms)
+ GET /login 200 in 80ms (next.js: 6ms, proxy.ts: 7ms, application-code: 66ms)
+ GET / 200 in 173ms (next.js: 23ms, proxy.ts: 7ms, application-code: 142ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 468ms (next.js: 3ms, proxy.ts: 4ms, application-code: 461ms)
+ GET /login 200 in 45ms (next.js: 3ms, proxy.ts: 3ms, application-code: 38ms)
+ GET /offline 200 in 44ms (next.js: 8ms, proxy.ts: 5ms, application-code: 31ms)
+ GET /login 200 in 90ms (next.js: 4ms, proxy.ts: 11ms, application-code: 75ms)
+ GET / 200 in 179ms (next.js: 22ms, proxy.ts: 10ms, application-code: 147ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 477ms (next.js: 4ms, proxy.ts: 4ms, application-code: 469ms)
+ GET /login 200 in 41ms (next.js: 4ms, proxy.ts: 3ms, application-code: 34ms)
+ GET /offline 200 in 34ms (next.js: 6ms, proxy.ts: 4ms, application-code: 25ms)
+ GET /login 200 in 80ms (next.js: 7ms, proxy.ts: 10ms, application-code: 63ms)
+ GET / 200 in 164ms (next.js: 23ms, proxy.ts: 9ms, application-code: 132ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 487ms (next.js: 3ms, proxy.ts: 5ms, application-code: 478ms)
+ GET /login 200 in 31ms (next.js: 3ms, proxy.ts: 3ms, application-code: 26ms)
+ GET /offline 200 in 45ms (next.js: 4ms, proxy.ts: 3ms, application-code: 38ms)
+ GET /login 200 in 83ms (next.js: 7ms, proxy.ts: 6ms, application-code: 70ms)
+ GET / 200 in 175ms (next.js: 25ms, proxy.ts: 6ms, application-code: 144ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 705ms (next.js: 4ms, proxy.ts: 5ms, application-code: 697ms)
+ GET /login 200 in 50ms (next.js: 4ms, proxy.ts: 5ms, application-code: 41ms)
+ GET /offline 200 in 52ms (next.js: 5ms, proxy.ts: 5ms, application-code: 42ms)
+ GET /login 200 in 121ms (next.js: 8ms, proxy.ts: 13ms, application-code: 100ms)
+ GET / 200 in 227ms (next.js: 33ms, proxy.ts: 11ms, application-code: 183ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 762ms (next.js: 3ms, proxy.ts: 6ms, application-code: 753ms)
+ GET /login 200 in 122ms (next.js: 5ms, proxy.ts: 7ms, application-code: 110ms)
+ GET /offline 200 in 63ms (next.js: 5ms, proxy.ts: 4ms, application-code: 55ms)
+ GET /login 200 in 123ms (next.js: 11ms, proxy.ts: 9ms, application-code: 102ms)
+ GET / 200 in 272ms (next.js: 40ms, proxy.ts: 9ms, application-code: 223ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 567ms (next.js: 4ms, proxy.ts: 6ms, application-code: 557ms)
+ GET /login 200 in 34ms (next.js: 4ms, proxy.ts: 3ms, application-code: 28ms)
+ GET /offline 200 in 33ms (next.js: 4ms, proxy.ts: 4ms, application-code: 26ms)
+ GET /login 200 in 56ms (next.js: 5ms, proxy.ts: 7ms, application-code: 43ms)
+ GET / 200 in 167ms (next.js: 24ms, proxy.ts: 7ms, application-code: 136ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 483ms (next.js: 4ms, proxy.ts: 5ms, application-code: 474ms)
+ GET /login 200 in 33ms (next.js: 3ms, proxy.ts: 3ms, application-code: 27ms)
+ GET /offline 200 in 43ms (next.js: 5ms, proxy.ts: 3ms, application-code: 35ms)
+ GET /login 200 in 79ms (next.js: 5ms, proxy.ts: 7ms, application-code: 67ms)
+ GET / 200 in 175ms (next.js: 26ms, proxy.ts: 5ms, application-code: 144ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 504ms (next.js: 4ms, proxy.ts: 4ms, application-code: 496ms)
+ GET /login 200 in 36ms (next.js: 4ms, proxy.ts: 3ms, application-code: 29ms)
+ GET /offline 200 in 44ms (next.js: 4ms, proxy.ts: 3ms, application-code: 37ms)
+ GET /login 200 in 76ms (next.js: 4ms, proxy.ts: 8ms, application-code: 63ms)
+ GET / 200 in 183ms (next.js: 21ms, proxy.ts: 8ms, application-code: 154ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 494ms (next.js: 3ms, proxy.ts: 6ms, application-code: 485ms)
+ GET /login 200 in 34ms (next.js: 4ms, proxy.ts: 4ms, application-code: 26ms)
+ GET /offline 200 in 42ms (next.js: 4ms, proxy.ts: 3ms, application-code: 35ms)
+ GET /login 200 in 83ms (next.js: 5ms, proxy.ts: 8ms, application-code: 70ms)
+ GET / 200 in 179ms (next.js: 22ms, proxy.ts: 8ms, application-code: 149ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 522ms (next.js: 4ms, proxy.ts: 4ms, application-code: 514ms)
+ GET /login 200 in 37ms (next.js: 3ms, proxy.ts: 4ms, application-code: 30ms)
+ GET /offline 200 in 35ms (next.js: 5ms, proxy.ts: 3ms, application-code: 27ms)
+ GET /login 200 in 87ms (next.js: 6ms, proxy.ts: 10ms, application-code: 70ms)
+ GET / 200 in 193ms (next.js: 23ms, proxy.ts: 10ms, application-code: 159ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 543ms (next.js: 4ms, proxy.ts: 4ms, application-code: 535ms)
+ GET /login 200 in 33ms (next.js: 3ms, proxy.ts: 3ms, application-code: 26ms)
+ GET /offline 200 in 49ms (next.js: 5ms, proxy.ts: 5ms, application-code: 39ms)
+ GET /login 200 in 87ms (next.js: 5ms, proxy.ts: 7ms, application-code: 76ms)
+ GET / 200 in 184ms (next.js: 28ms, proxy.ts: 6ms, application-code: 150ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 474ms (next.js: 4ms, proxy.ts: 4ms, application-code: 466ms)
+ GET /login 200 in 32ms (next.js: 3ms, proxy.ts: 3ms, application-code: 26ms)
+ GET /offline 200 in 40ms (next.js: 4ms, proxy.ts: 3ms, application-code: 34ms)
+ GET /login 200 in 81ms (next.js: 6ms, proxy.ts: 5ms, application-code: 70ms)
+ GET / 200 in 173ms (next.js: 26ms, proxy.ts: 5ms, application-code: 143ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 504ms (next.js: 4ms, proxy.ts: 4ms, application-code: 496ms)
+ GET /login 200 in 30ms (next.js: 3ms, proxy.ts: 2ms, application-code: 25ms)
+ GET /offline 200 in 38ms (next.js: 4ms, proxy.ts: 3ms, application-code: 32ms)
+ GET /login 200 in 52ms (next.js: 5ms, proxy.ts: 6ms, application-code: 41ms)
+ GET / 200 in 168ms (next.js: 22ms, proxy.ts: 5ms, application-code: 141ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 510ms (next.js: 3ms, proxy.ts: 4ms, application-code: 502ms)
+ GET /login 200 in 32ms (next.js: 3ms, proxy.ts: 3ms, application-code: 26ms)
+ GET /offline 200 in 36ms (next.js: 4ms, proxy.ts: 4ms, application-code: 29ms)
+ GET /login 200 in 81ms (next.js: 29ms, proxy.ts: 8ms, application-code: 44ms)
+ GET / 200 in 165ms (next.js: 4ms, proxy.ts: 7ms, application-code: 154ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 456ms (next.js: 3ms, proxy.ts: 4ms, application-code: 449ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 483ms (next.js: 3ms, proxy.ts: 5ms, application-code: 475ms)
+ GET /dashboard?shop=10000000-0000-4000-8000-000000000001 200 in 470ms (next.js: 3ms, proxy.ts: 4ms, application-code: 462ms)
+ GET /login 200 in 34ms (next.js: 3ms, proxy.ts: 3ms, application-code: 28ms)
+ GET /offline 200 in 34ms (next.js: 4ms, proxy.ts: 3ms, application-code: 27ms)
+ GET /login 200 in 79ms (next.js: 6ms, proxy.ts: 6ms, application-code: 67ms)
+ GET / 200 in 178ms (next.js: 22ms, proxy.ts: 6ms, application-code: 150ms)
+ GET / 200 in 173ms (next.js: 4ms, proxy.ts: 3ms, application-code: 165ms)
+ GET /login 200 in 34ms (next.js: 3ms, proxy.ts: 3ms, application-code: 27ms)
+ GET /offline 200 in 40ms (next.js: 4ms, proxy.ts: 3ms, application-code: 33ms)
+ GET /login 200 in 83ms (next.js: 9ms, proxy.ts: 7ms, application-code: 67ms)
+ GET / 200 in 185ms (next.js: 27ms, proxy.ts: 7ms, application-code: 151ms)
+ GET / 200 in 170ms (next.js: 5ms, proxy.ts: 4ms, application-code: 161ms)
+ GET /login 200 in 31ms (next.js: 3ms, proxy.ts: 2ms, application-code: 26ms)
+ GET /offline 200 in 39ms (next.js: 4ms, proxy.ts: 3ms, application-code: 32ms)
+ GET /login 200 in 94ms (next.js: 5ms, proxy.ts: 12ms, application-code: 78ms)
+ GET / 200 in 181ms (next.js: 27ms, proxy.ts: 10ms, application-code: 144ms)
+ POST / 200 in 53ms (next.js: 4ms, proxy.ts: 5ms, application-code: 44ms)
+  └─ ƒ searchShopCustomers("10000000-0000-4000-8000-000000000001", "List customer 1793820992414") in 37ms app/(app)/workspace-actions.ts
+ POST / 200 in 36ms (next.js: 4ms, proxy.ts: 4ms, application-code: 28ms)
+  └─ ƒ searchShopCustomers("10000000-0000-4000-8000-000000000001", "List customer 1793820992414", 20) in 23ms app/(app)/workspace-actions.ts
+ POST / 200 in 54ms (next.js: 4ms, proxy.ts: 4ms, application-code: 46ms)
+  └─ ƒ searchShopCustomers("10000000-0000-4000-8000-000000000001", "ZZZ Beyond 200 1793820992414") in 39ms app/(app)/workspace-actions.ts
+ POST / 200 in 29ms (next.js: 4ms, proxy.ts: 4ms, application-code: 21ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["customer-due-1793820992414"]) in 17ms app/(app)/workspace-actions.ts
+ POST / 200 in 182ms (next.js: 4ms, proxy.ts: 4ms, application-code: 175ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"af6b4096-f3f0-4f26-97cc-70eda72850a1","...":"3 items not stringified"}) in 39ms app/(app)/invoice-actions.ts
+ POST / 200 in 84ms (next.js: 4ms, proxy.ts: 41ms, application-code: 40ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 35ms app/(app)/workspace-actions.ts
+ GET /login 200 in 33ms (next.js: 3ms, proxy.ts: 3ms, application-code: 27ms)
+ GET /offline 200 in 37ms (next.js: 4ms, proxy.ts: 3ms, application-code: 29ms)
+ GET /login 200 in 84ms (next.js: 8ms, proxy.ts: 8ms, application-code: 68ms)
+ GET / 200 in 194ms (next.js: 27ms, proxy.ts: 8ms, application-code: 159ms)
+ POST / 200 in 51ms (next.js: 4ms, proxy.ts: 3ms, application-code: 43ms)
+  └─ ƒ searchShopCustomers("10000000-0000-4000-8000-000000000001", "Same customer 1793820997160") in 36ms app/(app)/workspace-actions.ts
+ POST / 200 in 35ms (next.js: 3ms, proxy.ts: 3ms, application-code: 28ms)
+  └─ ƒ searchShopCustomers("10000000-0000-4000-8000-000000000001", "CUS-DUP-B-1793820997160") in 24ms app/(app)/workspace-actions.ts
+ POST / 200 in 36ms (next.js: 3ms, proxy.ts: 3ms, application-code: 30ms)
+  └─ ƒ searchShopCustomers("10000000-0000-4000-8000-000000000001", "7221793820997160") in 25ms app/(app)/workspace-actions.ts
+ POST / 200 in 37ms (next.js: 4ms, proxy.ts: 5ms, application-code: 28ms)
+  └─ ƒ searchShopCustomers("10000000-0000-4000-8000-000000000001", "No such customer 1793820997160") in 23ms app/(app)/workspace-actions.ts
+ GET /login 200 in 28ms (next.js: 3ms, proxy.ts: 2ms, application-code: 23ms)
+ GET /offline 200 in 37ms (next.js: 4ms, proxy.ts: 3ms, application-code: 30ms)
+ GET /login 200 in 56ms (next.js: 6ms, proxy.ts: 8ms, application-code: 42ms)
+ GET / 200 in 190ms (next.js: 22ms, proxy.ts: 8ms, application-code: 160ms)
+ POST / 200 in 44ms (next.js: 5ms, proxy.ts: 3ms, application-code: 36ms)
+  └─ ƒ searchShopCustomers("10000000-0000-4000-8000-000000000001", "Slow customer 1793821000164") in 32ms app/(app)/workspace-actions.ts
+ POST / 200 in 33ms (next.js: 3ms, proxy.ts: 4ms, application-code: 25ms)
+  └─ ƒ searchShopCustomers("10000000-0000-4000-8000-000000000001", "Fast customer 1793821000164") in 21ms app/(app)/workspace-actions.ts
+ GET /login 200 in 31ms (next.js: 3ms, proxy.ts: 3ms, application-code: 25ms)
+ GET /offline 200 in 41ms (next.js: 4ms, proxy.ts: 4ms, application-code: 34ms)
+ GET /login 200 in 71ms (next.js: 4ms, proxy.ts: 7ms, application-code: 60ms)
+ GET / 200 in 156ms (next.js: 20ms, proxy.ts: 6ms, application-code: 129ms)
+ POST / 200 in 28ms (next.js: 3ms, proxy.ts: 4ms, application-code: 21ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ui-1793821002406-paid"]) in 17ms app/(app)/workspace-actions.ts
+ POST / 200 in 31ms (next.js: 3ms, proxy.ts: 4ms, application-code: 24ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ui-1793821002406-due"]) in 19ms app/(app)/workspace-actions.ts
+ POST / 200 in 31ms (next.js: 3ms, proxy.ts: 3ms, application-code: 24ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ui-1793821002406-adv"]) in 19ms app/(app)/workspace-actions.ts
+ POST / 200 in 278ms (next.js: 11ms, proxy.ts: 6ms, application-code: 261ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"b1dd901f-b484-4b22-854d-8aeb03395b02","...":"3 items not stringified"}) in 58ms app/(app)/invoice-actions.ts
+ POST / 200 in 220ms (next.js: 5ms, proxy.ts: 44ms, application-code: 171ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 112ms app/(app)/workspace-actions.ts
+ GET / 200 in 217ms (next.js: 8ms, proxy.ts: 40ms, application-code: 169ms)
+ GET /login 200 in 30ms (next.js: 3ms, proxy.ts: 3ms, application-code: 24ms)
+ GET /offline 200 in 32ms (next.js: 4ms, proxy.ts: 3ms, application-code: 25ms)
+ GET /login 200 in 83ms (next.js: 36ms, proxy.ts: 8ms, application-code: 38ms)
+ GET / 200 in 169ms (next.js: 5ms, proxy.ts: 16ms, application-code: 148ms)
+ POST / 200 in 37ms (next.js: 4ms, proxy.ts: 4ms, application-code: 30ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["detail-1793821005741"]) in 25ms app/(app)/workspace-actions.ts
+ POST / 200 in 221ms (next.js: 3ms, proxy.ts: 4ms, application-code: 214ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"dfe472f5-13d9-4aea-93cb-c85c87df6887","...":"3 items not stringified"}) in 31ms app/(app)/invoice-actions.ts
+ POST / 200 in 48ms (next.js: 10ms, proxy.ts: 6ms, application-code: 33ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 28ms app/(app)/workspace-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/5800b9f1-be84-4813-95a7-9232389b8913 200 in 229ms (next.js: 56ms, proxy.ts: 5ms, application-code: 168ms)
+ GET /login 200 in 40ms (next.js: 12ms, proxy.ts: 3ms, application-code: 25ms)
+ GET /offline 200 in 38ms (next.js: 12ms, proxy.ts: 3ms, application-code: 24ms)
+ GET /login 200 in 78ms (next.js: 7ms, proxy.ts: 8ms, application-code: 63ms)
+ GET / 200 in 178ms (next.js: 25ms, proxy.ts: 8ms, application-code: 146ms)
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa 404 in 172ms (next.js: 9ms, proxy.ts: 4ms, application-code: 159ms)
+[browser] Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template). 
+ GET /shops/10000000-0000-4000-8000-000000000002/invoices/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa 404 in 165ms (next.js: 8ms, proxy.ts: 4ms, application-code: 154ms)
+[browser] Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template). 
+ GET /login 200 in 32ms (next.js: 3ms, proxy.ts: 3ms, application-code: 26ms)
+ GET /offline 200 in 38ms (next.js: 5ms, proxy.ts: 4ms, application-code: 29ms)
+ GET /login 200 in 80ms (next.js: 5ms, proxy.ts: 9ms, application-code: 65ms)
+ GET / 200 in 184ms (next.js: 23ms, proxy.ts: 8ms, application-code: 152ms)
+ POST / 200 in 30ms (next.js: 4ms, proxy.ts: 4ms, application-code: 22ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["detail-empty-1793821012400"]) in 18ms app/(app)/workspace-actions.ts
+ POST / 200 in 162ms (next.js: 3ms, proxy.ts: 5ms, application-code: 154ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"8a4f2865-139a-4512-b172-cc66833f1eb6","...":"3 items not stringified"}) in 43ms app/(app)/invoice-actions.ts
+ POST / 200 in 78ms (next.js: 4ms, proxy.ts: 35ms, application-code: 39ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 32ms app/(app)/workspace-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/cc6ea8b4-92d4-4502-a452-2b65f871a11f 200 in 168ms (next.js: 11ms, proxy.ts: 4ms, application-code: 152ms)
+ GET /login 200 in 49ms (next.js: 4ms, proxy.ts: 3ms, application-code: 43ms)
+ GET /offline 200 in 34ms (next.js: 4ms, proxy.ts: 3ms, application-code: 27ms)
+ GET /login 200 in 85ms (next.js: 31ms, proxy.ts: 5ms, application-code: 48ms)
+ GET / 200 in 186ms (next.js: 5ms, proxy.ts: 5ms, application-code: 176ms)
+ POST / 200 in 41ms (next.js: 4ms, proxy.ts: 4ms, application-code: 33ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["detail-switch-1793821015963"]) in 28ms app/(app)/workspace-actions.ts
+ POST / 200 in 157ms (next.js: 3ms, proxy.ts: 4ms, application-code: 150ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"66b03ca7-f7b4-4939-9489-de4977eb9b05","...":"3 items not stringified"}) in 28ms app/(app)/invoice-actions.ts
+ POST / 200 in 52ms (next.js: 4ms, proxy.ts: 14ms, application-code: 34ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 29ms app/(app)/workspace-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/83f6a3dc-4302-4f74-b91a-22e076374f1f 200 in 173ms (next.js: 11ms, proxy.ts: 3ms, application-code: 159ms)
+ GET / 200 in 191ms (next.js: 3ms, proxy.ts: 3ms, application-code: 184ms)
+ POST / 200 in 41ms (next.js: 4ms, proxy.ts: 5ms, application-code: 32ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000002") in 27ms app/(app)/workspace-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000002 200 in 37ms (next.js: 4ms, proxy.ts: 4ms, application-code: 29ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000002", ["detail-shop2-1793821018196"]) in 25ms app/(app)/workspace-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000002 200 in 147ms (next.js: 4ms, proxy.ts: 4ms, application-code: 139ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"b47ebdb2-f0ae-4bee-8cf3-83eb27abcd62","...":"3 items not stringified"}) in 34ms app/(app)/invoice-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000002 200 in 69ms (next.js: 9ms, proxy.ts: 32ms, application-code: 28ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000002") in 23ms app/(app)/workspace-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000002/invoices/fa47240f-5850-4a6b-a93a-2c1e3398af5e 200 in 168ms (next.js: 9ms, proxy.ts: 3ms, application-code: 156ms)
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/fa47240f-5850-4a6b-a93a-2c1e3398af5e 404 in 166ms (next.js: 8ms, proxy.ts: 3ms, application-code: 155ms)
+[browser] Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template). 
+ GET /login 200 in 38ms (next.js: 4ms, proxy.ts: 3ms, application-code: 31ms)
+ GET /offline 200 in 32ms (next.js: 4ms, proxy.ts: 4ms, application-code: 25ms)
+ GET /login 200 in 79ms (next.js: 5ms, proxy.ts: 6ms, application-code: 69ms)
+ GET / 200 in 164ms (next.js: 29ms, proxy.ts: 5ms, application-code: 131ms)
+ POST / 200 in 27ms (next.js: 3ms, proxy.ts: 4ms, application-code: 20ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ui-old-1793821021054-first"]) in 15ms app/(app)/workspace-actions.ts
+ POST / 200 in 158ms (next.js: 4ms, proxy.ts: 4ms, application-code: 150ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"af65529c-28d1-4f9d-a654-3a12b7bcd7f2","...":"3 items not stringified"}) in 34ms app/(app)/invoice-actions.ts
+ POST / 200 in 76ms (next.js: 4ms, proxy.ts: 35ms, application-code: 38ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 32ms app/(app)/workspace-actions.ts
+ POST / 200 in 41ms (next.js: 5ms, proxy.ts: 4ms, application-code: 32ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ui-old-1793821021054-later-0","ui-old-1793821021054-later-1","ui-old-1793821021054-later-2","... 7 items not stringified"]) in 26ms app/(app)/workspace-actions.ts
+ POST / 200 in 49ms (next.js: 5ms, proxy.ts: 6ms, application-code: 38ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ui-old-1793821021054-later-11","ui-old-1793821021054-later-12","ui-old-1793821021054-later-13","... 3 items not stringified"]) in 31ms app/(app)/workspace-actions.ts
+ POST / 200 in 51ms (next.js: 5ms, proxy.ts: 5ms, application-code: 40ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ui-old-1793821021054-later-18","ui-old-1793821021054-later-19","ui-old-1793821021054-later-20","... 3 items not stringified"]) in 34ms app/(app)/workspace-actions.ts
+ POST / 200 in 35ms (next.js: 3ms, proxy.ts: 3ms, application-code: 28ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ui-old-1793821021054-later-25","ui-old-1793821021054-later-26","ui-old-1793821021054-later-27","... 1 item not stringified"]) in 24ms app/(app)/workspace-actions.ts
+ POST / 200 in 203ms (next.js: 3ms, proxy.ts: 3ms, application-code: 196ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"c29a6b6f-df22-494e-8aa2-9e30a91c81a5","...":"3 items not stringified"}) in 42ms app/(app)/invoice-actions.ts
+ POST / 200 in 185ms (next.js: 11ms, proxy.ts: 5ms, application-code: 169ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 104ms app/(app)/workspace-actions.ts
+ GET / 200 in 186ms (next.js: 20ms, proxy.ts: 5ms, application-code: 161ms)
+ POST / 200 in 31ms (next.js: 3ms, proxy.ts: 4ms, application-code: 23ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ui-old-1793821021054-first"]) in 17ms app/(app)/workspace-actions.ts
+ GET /login 200 in 31ms (next.js: 3ms, proxy.ts: 3ms, application-code: 25ms)
+ GET /offline 200 in 30ms (next.js: 4ms, proxy.ts: 3ms, application-code: 24ms)
+ GET /login 200 in 73ms (next.js: 4ms, proxy.ts: 6ms, application-code: 64ms)
+ GET / 200 in 180ms (next.js: 21ms, proxy.ts: 5ms, application-code: 154ms)
+ POST / 200 in 41ms (next.js: 4ms, proxy.ts: 5ms, application-code: 32ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000002") in 27ms app/(app)/workspace-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000002 200 in 32ms (next.js: 3ms, proxy.ts: 3ms, application-code: 25ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000002", ["ui-dup-1793821028699-s2"]) in 21ms app/(app)/workspace-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000002 200 in 159ms (next.js: 4ms, proxy.ts: 5ms, application-code: 149ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"195c1a7f-d3e6-4cf1-8efd-fcdac44fd446","...":"3 items not stringified"}) in 35ms app/(app)/invoice-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000002 200 in 102ms (next.js: 14ms, proxy.ts: 43ms, application-code: 45ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000002") in 37ms app/(app)/workspace-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000002 200 in 50ms (next.js: 6ms, proxy.ts: 5ms, application-code: 39ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 34ms app/(app)/workspace-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000001 200 in 41ms (next.js: 4ms, proxy.ts: 3ms, application-code: 34ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ui-dup-1793821028699-s1"]) in 29ms app/(app)/workspace-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000001 200 in 147ms (next.js: 3ms, proxy.ts: 5ms, application-code: 139ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"0eeb2783-6ddd-41f2-92d5-804318680cbe","...":"3 items not stringified"}) in 30ms app/(app)/invoice-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000001 200 in 88ms (next.js: 4ms, proxy.ts: 47ms, application-code: 37ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 32ms app/(app)/workspace-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000001 200 in 47ms (next.js: 4ms, proxy.ts: 4ms, application-code: 39ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ui-dup-1793821028699-s2"]) in 35ms app/(app)/workspace-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000001 200 in 29ms (next.js: 3ms, proxy.ts: 4ms, application-code: 22ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ui-dup-1793821028699-s1"]) in 18ms app/(app)/workspace-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000001 200 in 40ms (next.js: 4ms, proxy.ts: 4ms, application-code: 33ms)
+  └─ ƒ lookupInvoiceForPayment({"invoiceNumber":"  UI-DUP-1793821028699-s1  ","shopId":"10000000-0000-4000-8000-000000000001"}) in 28ms app/(app)/payment-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000001 200 in 38ms (next.js: 3ms, proxy.ts: 3ms, application-code: 31ms)
+  └─ ƒ lookupInvoiceForPayment({"invoiceNumber":"  UI-DUP-1793821028699-s1  ","shopId":"10000000-0000-4000-8000-000000000001"}) in 27ms app/(app)/payment-actions.ts
+ GET /login 200 in 33ms (next.js: 3ms, proxy.ts: 3ms, application-code: 27ms)
+ GET /offline 200 in 30ms (next.js: 4ms, proxy.ts: 3ms, application-code: 24ms)
+ GET /login 200 in 68ms (next.js: 5ms, proxy.ts: 8ms, application-code: 56ms)
+ GET / 200 in 161ms (next.js: 21ms, proxy.ts: 7ms, application-code: 133ms)
+ POST / 200 in 28ms (next.js: 3ms, proxy.ts: 4ms, application-code: 21ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ui-corrected-1793821033862"]) in 16ms app/(app)/workspace-actions.ts
+ POST / 200 in 169ms (next.js: 3ms, proxy.ts: 4ms, application-code: 162ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"dc36d8c7-c649-4dde-a8c7-f0a5a2c04d16","...":"3 items not stringified"}) in 45ms app/(app)/invoice-actions.ts
+ POST / 200 in 108ms (next.js: 11ms, proxy.ts: 48ms, application-code: 49ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 44ms app/(app)/workspace-actions.ts
+ GET / 200 in 158ms (next.js: 3ms, proxy.ts: 3ms, application-code: 151ms)
+ GET /login 200 in 30ms (next.js: 3ms, proxy.ts: 2ms, application-code: 24ms)
+ GET /offline 200 in 30ms (next.js: 3ms, proxy.ts: 3ms, application-code: 24ms)
+ GET /login 200 in 79ms (next.js: 4ms, proxy.ts: 7ms, application-code: 67ms)
+ GET / 200 in 169ms (next.js: 28ms, proxy.ts: 7ms, application-code: 134ms)
+ POST / 200 in 42ms (next.js: 4ms, proxy.ts: 3ms, application-code: 35ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ui-pay-1793821037924"]) in 29ms app/(app)/workspace-actions.ts
+ POST / 200 in 147ms (next.js: 3ms, proxy.ts: 4ms, application-code: 140ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"ce9d77c2-1952-4a91-b35b-cb690d31792b","...":"3 items not stringified"}) in 29ms app/(app)/invoice-actions.ts
+ POST / 200 in 54ms (next.js: 4ms, proxy.ts: 14ms, application-code: 36ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 31ms app/(app)/workspace-actions.ts
+ POST / 200 in 48ms (next.js: 5ms, proxy.ts: 4ms, application-code: 39ms)
+  └─ ƒ lookupInvoiceForPayment({"invoiceNumber":"UI-PAY-1793821037924","shopId":"10000000-0000-4000-8000-000000000001"}) in 35ms app/(app)/payment-actions.ts
+ POST / 200 in 147ms (next.js: 4ms, proxy.ts: 4ms, application-code: 138ms)
+  └─ ƒ recordInvoicePayment({"amount_dirham":2000,"business_date":"2026-11-04","idempotency_key":"bd0980ec-4fe9-4188-acd6-f662fc74fd8c","...":"3 items not stringified"}) in 31ms app/(app)/payment-actions.ts
+ POST / 200 in 126ms (next.js: 4ms, proxy.ts: 4ms, application-code: 118ms)
+  └─ ƒ recordInvoicePayment({"amount_dirham":3000,"business_date":"2026-11-04","idempotency_key":"e0eb3e60-60fc-400a-b892-fee8081b4fd3","...":"3 items not stringified"}) in 32ms app/(app)/payment-actions.ts
+ GET /login 200 in 29ms (next.js: 3ms, proxy.ts: 3ms, application-code: 24ms)
+ GET /offline 200 in 33ms (next.js: 4ms, proxy.ts: 3ms, application-code: 26ms)
+ GET /login 200 in 91ms (next.js: 32ms, proxy.ts: 18ms, application-code: 41ms)
+ GET / 200 in 181ms (next.js: 4ms, proxy.ts: 17ms, application-code: 159ms)
+ POST / 200 in 29ms (next.js: 3ms, proxy.ts: 4ms, application-code: 22ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ui-pay-corrected-1793821040684"]) in 18ms app/(app)/workspace-actions.ts
+ POST / 200 in 164ms (next.js: 3ms, proxy.ts: 4ms, application-code: 157ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"c1124fc4-0aa7-448d-a768-4e59909dea13","...":"3 items not stringified"}) in 37ms app/(app)/invoice-actions.ts
+ POST / 200 in 87ms (next.js: 4ms, proxy.ts: 42ms, application-code: 41ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 35ms app/(app)/workspace-actions.ts
+ POST / 200 in 60ms (next.js: 4ms, proxy.ts: 15ms, application-code: 41ms)
+  └─ ƒ lookupInvoiceForPayment({"invoiceNumber":"UI-PAY-CORRECTED-1793821040684","shopId":"10000000-0000-4000-8000-000000000001"}) in 36ms app/(app)/payment-actions.ts
+ POST / 200 in 133ms (next.js: 6ms, proxy.ts: 4ms, application-code: 124ms)
+  └─ ƒ recordInvoicePayment({"amount_dirham":6000,"business_date":"2026-11-04","idempotency_key":"5e395e06-914d-417f-8e22-9dbe349b4901","...":"3 items not stringified"}) in 28ms app/(app)/payment-actions.ts
+ GET /login 200 in 30ms (next.js: 3ms, proxy.ts: 3ms, application-code: 24ms)
+ GET /offline 200 in 30ms (next.js: 4ms, proxy.ts: 3ms, application-code: 23ms)
+ GET /login 200 in 87ms (next.js: 5ms, proxy.ts: 7ms, application-code: 75ms)
+ GET / 200 in 185ms (next.js: 23ms, proxy.ts: 7ms, application-code: 156ms)
+ POST / 200 in 30ms (next.js: 3ms, proxy.ts: 3ms, application-code: 23ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["inv-42-1793821044547"]) in 18ms app/(app)/workspace-actions.ts
+ POST / 200 in 161ms (next.js: 3ms, proxy.ts: 4ms, application-code: 154ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"145a1da5-0ed7-46e8-b4be-657abd912488","...":"3 items not stringified"}) in 37ms app/(app)/invoice-actions.ts
+ POST / 200 in 57ms (next.js: 4ms, proxy.ts: 17ms, application-code: 36ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 31ms app/(app)/workspace-actions.ts
+ POST / 200 in 44ms (next.js: 5ms, proxy.ts: 4ms, application-code: 35ms)
+  └─ ƒ lookupInvoiceForPayment({"invoiceNumber":" inv-42-1793821044547 ","shopId":"10000000-0000-4000-8000-000000000001"}) in 30ms app/(app)/payment-actions.ts
+ POST / 200 in 42ms (next.js: 4ms, proxy.ts: 4ms, application-code: 34ms)
+  └─ ƒ lookupInvoiceForPayment({"invoiceNumber":"old-inv-42-1793821044547","shopId":"10000000-0000-4000-8000-000000000001"}) in 29ms app/(app)/payment-actions.ts
+ GET /login 200 in 32ms (next.js: 3ms, proxy.ts: 3ms, application-code: 26ms)
+ GET /offline 200 in 36ms (next.js: 4ms, proxy.ts: 3ms, application-code: 29ms)
+ GET /login 200 in 81ms (next.js: 4ms, proxy.ts: 8ms, application-code: 69ms)
+ GET / 200 in 180ms (next.js: 21ms, proxy.ts: 8ms, application-code: 151ms)
+ POST / 200 in 29ms (next.js: 4ms, proxy.ts: 4ms, application-code: 20ms)
+  └─ ƒ lookupInvoiceForPayment({"invoiceNumber":"UI-SHOP2-1793821047756","shopId":"10000000-0000-4000-8000-000000000001"}) in 15ms app/(app)/payment-actions.ts
+ POST / 200 in 44ms (next.js: 3ms, proxy.ts: 4ms, application-code: 37ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["ui-pay-lost-1793821051743"]) in 29ms app/(app)/workspace-actions.ts
+ POST / 200 in 210ms (next.js: 4ms, proxy.ts: 7ms, application-code: 199ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"c49e8ff5-12fb-4ab8-873f-34dd8882a77b","...":"3 items not stringified"}) in 32ms app/(app)/invoice-actions.ts
+ POST / 200 in 92ms (next.js: 6ms, proxy.ts: 40ms, application-code: 46ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 38ms app/(app)/workspace-actions.ts
+ POST / 200 in 58ms (next.js: 5ms, proxy.ts: 7ms, application-code: 47ms)
+  └─ ƒ lookupInvoiceForPayment({"invoiceNumber":"UI-PAY-LOST-1793821051743","shopId":"10000000-0000-4000-8000-000000000001"}) in 39ms app/(app)/payment-actions.ts
+ POST / 200 in 147ms (next.js: 4ms, proxy.ts: 4ms, application-code: 139ms)
+  └─ ƒ recordInvoicePayment({"amount_dirham":1200,"business_date":"2026-11-04","idempotency_key":"9f79bce9-9f1a-440c-b187-bbd1259e6479","...":"3 items not stringified"}) in 26ms app/(app)/payment-actions.ts
+ POST / 200 in 45ms (next.js: 5ms, proxy.ts: 4ms, application-code: 36ms)
+  └─ ƒ lookupInvoiceForPayment({"invoiceNumber":"UI-PAY-LOST-1793821051743","shopId":"10000000-0000-4000-8000-000000000001"}) in 31ms app/(app)/payment-actions.ts
+ POST / 200 in 174ms (next.js: 3ms, proxy.ts: 6ms, application-code: 164ms)
+  └─ ƒ recordInvoicePayment({"amount_dirham":1200,"business_date":"2026-11-04","idempotency_key":"9f79bce9-9f1a-440c-b187-bbd1259e6479","...":"3 items not stringified"}) in 21ms app/(app)/payment-actions.ts
+ GET /login 200 in 54ms (next.js: 4ms, proxy.ts: 3ms, application-code: 48ms)
+ GET /offline 200 in 33ms (next.js: 4ms, proxy.ts: 3ms, application-code: 26ms)
+ GET /login 200 in 91ms (next.js: 4ms, proxy.ts: 13ms, application-code: 73ms)
+ GET / 200 in 200ms (next.js: 22ms, proxy.ts: 10ms, application-code: 168ms)
+ POST / 200 in 38ms (next.js: 4ms, proxy.ts: 5ms, application-code: 29ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["date-6a0f57b1"]) in 24ms app/(app)/workspace-actions.ts
+ POST / 200 in 204ms (next.js: 4ms, proxy.ts: 4ms, application-code: 196ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"a97079cf-5927-423c-839d-ab4e633c705b","...":"3 items not stringified"}) in 45ms app/(app)/invoice-actions.ts
+ POST / 200 in 73ms (next.js: 7ms, proxy.ts: 23ms, application-code: 43ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 36ms app/(app)/workspace-actions.ts
+ GET /login 200 in 36ms (next.js: 5ms, proxy.ts: 4ms, application-code: 27ms)
+ GET /offline 200 in 35ms (next.js: 5ms, proxy.ts: 3ms, application-code: 26ms)
+ GET /login 200 in 105ms (next.js: 5ms, proxy.ts: 9ms, application-code: 91ms)
+ GET / 200 in 204ms (next.js: 27ms, proxy.ts: 8ms, application-code: 169ms)
+ POST / 200 in 42ms (next.js: 4ms, proxy.ts: 5ms, application-code: 34ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["retry-cd57f46b"]) in 29ms app/(app)/workspace-actions.ts
+ POST / 200 in 183ms (next.js: 4ms, proxy.ts: 4ms, application-code: 175ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"611f127c-004b-45dd-979e-20ff3862c1ce","...":"3 items not stringified"}) in 42ms app/(app)/invoice-actions.ts
+ POST / 200 in 206ms (next.js: 5ms, proxy.ts: 5ms, application-code: 197ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"611f127c-004b-45dd-979e-20ff3862c1ce","...":"3 items not stringified"}) in 43ms app/(app)/invoice-actions.ts
+ POST / 200 in 81ms (next.js: 13ms, proxy.ts: 27ms, application-code: 41ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 35ms app/(app)/workspace-actions.ts
+ GET /login 200 in 38ms (next.js: 5ms, proxy.ts: 4ms, application-code: 29ms)
+ GET /offline 200 in 34ms (next.js: 4ms, proxy.ts: 4ms, application-code: 26ms)
+ GET /login 200 in 96ms (next.js: 6ms, proxy.ts: 12ms, application-code: 78ms)
+ GET / 200 in 193ms (next.js: 25ms, proxy.ts: 9ms, application-code: 159ms)
+ POST / 200 in 27ms (next.js: 3ms, proxy.ts: 3ms, application-code: 20ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["backdate-fec8b4ba"]) in 16ms app/(app)/workspace-actions.ts
+ POST / 200 in 177ms (next.js: 5ms, proxy.ts: 3ms, application-code: 170ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"  month-end catch-up  ","businessDate":"2026-11-03","idempotencyKey":"04c130fe-b0c8-41f0-869b-cd9ab1f759d7","...":"3 items not stringified"}) in 39ms app/(app)/invoice-actions.ts
+ POST / 200 in 188ms (next.js: 3ms, proxy.ts: 3ms, application-code: 182ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"  month-end catch-up  ","businessDate":"2026-11-03","idempotencyKey":"04c130fe-b0c8-41f0-869b-cd9ab1f759d7","...":"3 items not stringified"}) in 52ms app/(app)/invoice-actions.ts
+ POST / 200 in 64ms (next.js: 12ms, proxy.ts: 19ms, application-code: 33ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 27ms app/(app)/workspace-actions.ts
+ GET /login 200 in 35ms (next.js: 4ms, proxy.ts: 5ms, application-code: 26ms)
+ GET /offline 200 in 33ms (next.js: 4ms, proxy.ts: 4ms, application-code: 25ms)
+ GET /login 200 in 97ms (next.js: 8ms, proxy.ts: 7ms, application-code: 81ms)
+ GET / 200 in 230ms (next.js: 25ms, proxy.ts: 7ms, application-code: 199ms)
+ GET /login 200 in 32ms (next.js: 3ms, proxy.ts: 2ms, application-code: 26ms)
+ GET /offline 200 in 36ms (next.js: 5ms, proxy.ts: 3ms, application-code: 28ms)
+ GET /login 200 in 90ms (next.js: 5ms, proxy.ts: 7ms, application-code: 78ms)
+ GET / 200 in 199ms (next.js: 25ms, proxy.ts: 7ms, application-code: 167ms)
+ POST / 200 in 31ms (next.js: 3ms, proxy.ts: 4ms, application-code: 23ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["lifecycle-5457cf9b-2ae3-425f-b47f-6bd3aa8844de"]) in 16ms app/(app)/workspace-actions.ts
+ POST / 200 in 192ms (next.js: 3ms, proxy.ts: 5ms, application-code: 184ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"b75231b8-fd15-4633-b7bb-8bf24cac9f44","...":"3 items not stringified"}) in 38ms app/(app)/invoice-actions.ts
+ POST / 200 in 84ms (next.js: 5ms, proxy.ts: 26ms, application-code: 53ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 46ms app/(app)/workspace-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 233ms (next.js: 11ms, proxy.ts: 7ms, application-code: 215ms)
+ POST /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 507ms (next.js: 12ms, proxy.ts: 4ms, application-code: 490ms)
+  └─ ƒ recordInvoicePayment({"amount_dirham":2000,"business_date":"2026-11-04","idempotency_key":"c283feed-edae-4b5a-ab23-73755ec4c38e","...":"3 items not stringified"}) in 49ms app/(app)/payment-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 382ms (next.js: 7ms, proxy.ts: 48ms, application-code: 327ms)
+ POST /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 587ms (next.js: 18ms, proxy.ts: 7ms, application-code: 563ms)
+  └─ ƒ runInvoiceOperation("request_invoice_correction", {"corrected_total_dirham":9000,"expected_total_dirham":10000,"idempotency_key":"393209a4-657b-4770-ad3e-e3975c0904d4","...":"4 items not stringified"}, "f0e23f77-bdfc-4318-908d-7579063e79b9") in 28ms app/(app)/invoice-operation-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 468ms (next.js: 7ms, proxy.ts: 53ms, application-code: 408ms)
+ GET /login 200 in 36ms (next.js: 3ms, proxy.ts: 3ms, application-code: 30ms)
+ GET /offline 200 in 35ms (next.js: 4ms, proxy.ts: 3ms, application-code: 28ms)
+ GET /login 200 in 93ms (next.js: 5ms, proxy.ts: 9ms, application-code: 78ms)
+ GET / 200 in 202ms (next.js: 24ms, proxy.ts: 9ms, application-code: 169ms)
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 424ms (next.js: 14ms, proxy.ts: 4ms, application-code: 407ms)
+ POST /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 551ms (next.js: 11ms, proxy.ts: 5ms, application-code: 535ms)
+  └─ ƒ runInvoiceOperation("decide_invoice_correction", {"decision":"approved","expected_revision":0,"idempotency_key":"4e65ed36-83b4-4d47-93a9-d37eaab6e51d","...":"3 items not stringified"}, "f0e23f77-bdfc-4318-908d-7579063e79b9") in 48ms app/(app)/invoice-operation-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 414ms (next.js: 37ms, proxy.ts: 47ms, application-code: 330ms)
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 563ms (next.js: 14ms, proxy.ts: 8ms, application-code: 541ms)
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 546ms (next.js: 13ms, proxy.ts: 6ms, application-code: 527ms)
+ POST /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 64ms (next.js: 12ms, proxy.ts: 4ms, application-code: 48ms)
+  └─ ƒ searchShopCustomers("10000000-0000-4000-8000-000000000001", "Replacement customer 5457cf9b-2ae3-425f-b47f-6bd3aa8844de") in 39ms app/(app)/workspace-actions.ts
+ POST /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 642ms (next.js: 7ms, proxy.ts: 7ms, application-code: 628ms)
+  └─ ƒ runInvoiceOperation("request_invoice_replacement", {"customer_id":"4d777ab4-4331-4a8c-bbeb-39be01165e1d","delivered":true,"expected_revision":0,"...":"5 items not stringified"}, "f0e23f77-bdfc-4318-908d-7579063e79b9") in 46ms app/(app)/invoice-operation-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 515ms (next.js: 50ms, proxy.ts: 49ms, application-code: 416ms)
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 495ms (next.js: 11ms, proxy.ts: 3ms, application-code: 481ms)
+ POST /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 691ms (next.js: 11ms, proxy.ts: 6ms, application-code: 674ms)
+  └─ ƒ runInvoiceOperation("decide_invoice_replacement", {"decision":"approved","expected_revision":0,"idempotency_key":"bae1f39e-6060-4ed3-a089-5234b93a728b","...":"3 items not stringified"}, "f0e23f77-bdfc-4318-908d-7579063e79b9") in 55ms app/(app)/invoice-operation-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 558ms (next.js: 43ms, proxy.ts: 60ms, application-code: 455ms)
+ GET / 200 in 232ms (next.js: 6ms, proxy.ts: 7ms, application-code: 218ms)
+ POST / 200 in 39ms (next.js: 5ms, proxy.ts: 4ms, application-code: 30ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["lifecycle-5457cf9b-2ae3-425f-b47f-6bd3aa8844de"]) in 22ms app/(app)/workspace-actions.ts
+ POST / 200 in 44ms (next.js: 4ms, proxy.ts: 4ms, application-code: 35ms)
+  └─ ƒ lookupInvoiceForPayment({"invoiceNumber":"LIFECYCLE-5457cf9b-2ae3-425f-b47f-6bd3aa8844de","shopId":"10000000-0000-4000-8000-000000000001"}) in 31ms app/(app)/payment-actions.ts
+ POST / 200 in 40ms (next.js: 4ms, proxy.ts: 6ms, application-code: 30ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["replaced-5457cf9b-2ae3-425f-b47f-6bd3aa8844de"]) in 24ms app/(app)/workspace-actions.ts
+ POST / 200 in 37ms (next.js: 3ms, proxy.ts: 3ms, application-code: 31ms)
+  └─ ƒ lookupInvoiceForPayment({"invoiceNumber":"REPLACED-5457cf9b-2ae3-425f-b47f-6bd3aa8844de","shopId":"10000000-0000-4000-8000-000000000001"}) in 26ms app/(app)/payment-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/f0e23f77-bdfc-4318-908d-7579063e79b9 200 in 324ms (next.js: 16ms, proxy.ts: 9ms, application-code: 299ms)
+ GET /?shop=10000000-0000-4000-8000-000000000002 200 in 259ms (next.js: 5ms, proxy.ts: 8ms, application-code: 245ms)
+ POST /?shop=10000000-0000-4000-8000-000000000002 200 in 46ms (next.js: 4ms, proxy.ts: 6ms, application-code: 37ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000002", ["replaced-5457cf9b-2ae3-425f-b47f-6bd3aa8844de"]) in 31ms app/(app)/workspace-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000002 200 in 215ms (next.js: 4ms, proxy.ts: 4ms, application-code: 207ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"d1282a18-46bf-4951-9f5a-fba070642865","...":"3 items not stringified"}) in 45ms app/(app)/invoice-actions.ts
+ POST /?shop=10000000-0000-4000-8000-000000000002 200 in 75ms (next.js: 14ms, proxy.ts: 29ms, application-code: 32ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000002") in 26ms app/(app)/workspace-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000002/invoices/4362ddbd-777d-4828-b189-20ad117b05fb 200 in 225ms (next.js: 10ms, proxy.ts: 3ms, application-code: 211ms)
+ GET /shops/10000000-0000-4000-8000-000000000002/invoices/4362ddbd-777d-4828-b189-20ad117b05fb 404 in 309ms (next.js: 6ms, proxy.ts: 5ms, application-code: 297ms)
+[browser] Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template). 
+ GET /login 200 in 41ms (next.js: 5ms, proxy.ts: 4ms, application-code: 31ms)
+ GET /offline 200 in 37ms (next.js: 4ms, proxy.ts: 4ms, application-code: 28ms)
+ GET /login 200 in 95ms (next.js: 5ms, proxy.ts: 6ms, application-code: 84ms)
+ GET / 200 in 260ms (next.js: 24ms, proxy.ts: 6ms, application-code: 230ms)
+ POST / 200 in 49ms (next.js: 6ms, proxy.ts: 8ms, application-code: 35ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["target-4fb84159-9245-4aa5-aa51-c780a5903098"]) in 28ms app/(app)/workspace-actions.ts
+ POST / 200 in 195ms (next.js: 4ms, proxy.ts: 9ms, application-code: 181ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"4fb5be91-3019-4763-b1cb-914f25c81bf5","...":"3 items not stringified"}) in 31ms app/(app)/invoice-actions.ts
+ POST / 200 in 86ms (next.js: 5ms, proxy.ts: 26ms, application-code: 55ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 49ms app/(app)/workspace-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/e1a0b1b8-bd82-40d7-8c41-5c52e73c1cb8 200 in 259ms (next.js: 14ms, proxy.ts: 7ms, application-code: 238ms)
+ POST /shops/10000000-0000-4000-8000-000000000001/invoices/e1a0b1b8-bd82-40d7-8c41-5c52e73c1cb8 200 in 622ms (next.js: 13ms, proxy.ts: 7ms, application-code: 602ms)
+  └─ ƒ runInvoiceOperation("request_invoice_correction", {"corrected_total_dirham":150000,"expected_total_dirham":100000,"idempotency_key":"54acac5f-7c12-44b3-8b39-28b861c64055","...":"4 items not stringified"}, "e1a0b1b8-bd82-40d7-8c41-5c52e73c1cb8") in 32ms app/(app)/invoice-operation-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/e1a0b1b8-bd82-40d7-8c41-5c52e73c1cb8 200 in 501ms (next.js: 7ms, proxy.ts: 63ms, application-code: 430ms)
+ GET /login 200 in 49ms (next.js: 5ms, proxy.ts: 4ms, application-code: 40ms)
+ GET /offline 200 in 83ms (next.js: 6ms, proxy.ts: 7ms, application-code: 71ms)
+ GET /login 200 in 115ms (next.js: 5ms, proxy.ts: 7ms, application-code: 103ms)
+ GET / 200 in 249ms (next.js: 32ms, proxy.ts: 6ms, application-code: 210ms)
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/e1a0b1b8-bd82-40d7-8c41-5c52e73c1cb8 200 in 589ms (next.js: 13ms, proxy.ts: 5ms, application-code: 572ms)
+ POST /shops/10000000-0000-4000-8000-000000000001/invoices/e1a0b1b8-bd82-40d7-8c41-5c52e73c1cb8 200 in 569ms (next.js: 13ms, proxy.ts: 7ms, application-code: 550ms)
+  └─ ƒ runInvoiceOperation("decide_invoice_correction", {"decision":"approved","expected_revision":0,"idempotency_key":"3a423bb1-33ff-4deb-82eb-7991b3e5cbc6","...":"3 items not stringified"}, "e1a0b1b8-bd82-40d7-8c41-5c52e73c1cb8") in 26ms app/(app)/invoice-operation-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/e1a0b1b8-bd82-40d7-8c41-5c52e73c1cb8 200 in 499ms (next.js: 46ms, proxy.ts: 60ms, application-code: 393ms)
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/e1a0b1b8-bd82-40d7-8c41-5c52e73c1cb8 200 in 415ms (next.js: 9ms, proxy.ts: 3ms, application-code: 403ms)
+ GET /login 200 in 53ms (next.js: 4ms, proxy.ts: 5ms, application-code: 43ms)
+ GET /offline 200 in 38ms (next.js: 5ms, proxy.ts: 3ms, application-code: 30ms)
+ GET /login 200 in 117ms (next.js: 7ms, proxy.ts: 15ms, application-code: 94ms)
+ GET / 200 in 304ms (next.js: 35ms, proxy.ts: 16ms, application-code: 254ms)
+ POST / 200 in 50ms (next.js: 6ms, proxy.ts: 7ms, application-code: 37ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["uncertain-detail-c640953b-c9b8-495f-8868-e05bb9979964"]) in 27ms app/(app)/workspace-actions.ts
+ POST / 200 in 252ms (next.js: 5ms, proxy.ts: 6ms, application-code: 241ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"ec00a538-9382-4a69-828c-8c9e913fe989","...":"3 items not stringified"}) in 53ms app/(app)/invoice-actions.ts
+ POST / 200 in 147ms (next.js: 4ms, proxy.ts: 62ms, application-code: 80ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 68ms app/(app)/workspace-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/5102013e-c101-4579-90ae-9a5648da7d6c 200 in 342ms (next.js: 15ms, proxy.ts: 7ms, application-code: 320ms)
+ POST /shops/10000000-0000-4000-8000-000000000001/invoices/5102013e-c101-4579-90ae-9a5648da7d6c 200 in 393ms (next.js: 19ms, proxy.ts: 8ms, application-code: 367ms)
+  └─ ƒ recordInvoicePayment({"amount_dirham":2000,"business_date":"2026-11-04","idempotency_key":"f8fa74a9-c929-4cf6-85ae-ffb6b6f9ad51","...":"3 items not stringified"}) in 42ms app/(app)/payment-actions.ts
+ POST /shops/10000000-0000-4000-8000-000000000001/invoices/5102013e-c101-4579-90ae-9a5648da7d6c 200 in 660ms (next.js: 17ms, proxy.ts: 7ms, application-code: 635ms)
+  └─ ƒ recordInvoicePayment({"amount_dirham":2000,"business_date":"2026-11-04","idempotency_key":"f8fa74a9-c929-4cf6-85ae-ffb6b6f9ad51","...":"3 items not stringified"}) in 33ms app/(app)/payment-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/5102013e-c101-4579-90ae-9a5648da7d6c 200 in 518ms (next.js: 18ms, proxy.ts: 45ms, application-code: 454ms)
+ GET /login 200 in 60ms (next.js: 5ms, proxy.ts: 5ms, application-code: 51ms)
+ GET /offline 200 in 54ms (next.js: 4ms, proxy.ts: 4ms, application-code: 45ms)
+ GET /login 200 in 104ms (next.js: 8ms, proxy.ts: 11ms, application-code: 85ms)
+ GET / 200 in 257ms (next.js: 30ms, proxy.ts: 11ms, application-code: 215ms)
+ POST / 200 in 51ms (next.js: 6ms, proxy.ts: 8ms, application-code: 37ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["fully-paid-2b25211c-0a30-499a-a44d-76aac1026ef3"]) in 30ms app/(app)/workspace-actions.ts
+ POST / 200 in 181ms (next.js: 4ms, proxy.ts: 4ms, application-code: 173ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"c24124bf-52e8-4393-9acb-746783130eb0","...":"3 items not stringified"}) in 43ms app/(app)/invoice-actions.ts
+ POST / 200 in 86ms (next.js: 5ms, proxy.ts: 38ms, application-code: 43ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 37ms app/(app)/workspace-actions.ts
+ POST / 200 in 34ms (next.js: 4ms, proxy.ts: 4ms, application-code: 27ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["fully-paid-2b25211c-0a30-499a-a44d-76aac1026ef3"]) in 20ms app/(app)/workspace-actions.ts
+ POST / 200 in 40ms (next.js: 3ms, proxy.ts: 3ms, application-code: 33ms)
+  └─ ƒ lookupInvoiceForPayment({"invoiceNumber":"FULLY-PAID-2b25211c-0a30-499a-a44d-76aac1026ef3","shopId":"10000000-0000-4000-8000-000000000001"}) in 29ms app/(app)/payment-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/10b1b6d1-6bc7-4666-9d7e-4f1e567dd9a2 200 in 251ms (next.js: 14ms, proxy.ts: 4ms, application-code: 232ms)
+ GET /login 200 in 42ms (next.js: 5ms, proxy.ts: 5ms, application-code: 32ms)
+ GET /offline 200 in 42ms (next.js: 5ms, proxy.ts: 5ms, application-code: 33ms)
+ GET /login 200 in 95ms (next.js: 5ms, proxy.ts: 5ms, application-code: 85ms)
+ GET / 200 in 219ms (next.js: 28ms, proxy.ts: 5ms, application-code: 186ms)
+ POST / 200 in 41ms (next.js: 3ms, proxy.ts: 4ms, application-code: 34ms)
+  └─ ƒ findTakenInvoiceNumbers("10000000-0000-4000-8000-000000000001", ["void-e2e-4aee7957-2f84-489b-96af-b38469d7d129"]) in 28ms app/(app)/workspace-actions.ts
+ POST / 200 in 304ms (next.js: 4ms, proxy.ts: 6ms, application-code: 294ms)
+  └─ ƒ saveInvoiceBatch({"backdatedReason":"","businessDate":"2026-11-04","idempotencyKey":"d4aec784-db67-4dfd-917a-5464dc19c675","...":"3 items not stringified"}) in 49ms app/(app)/invoice-actions.ts
+ POST / 200 in 87ms (next.js: 18ms, proxy.ts: 28ms, application-code: 42ms)
+  └─ ƒ loadShopWorkspace("10000000-0000-4000-8000-000000000001") in 32ms app/(app)/workspace-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/94264496-a8c2-43e7-b5ab-0fe996bf9368 200 in 237ms (next.js: 14ms, proxy.ts: 6ms, application-code: 216ms)
+ GET /login 200 in 40ms (next.js: 4ms, proxy.ts: 4ms, application-code: 32ms)
+ GET /offline 200 in 41ms (next.js: 4ms, proxy.ts: 4ms, application-code: 33ms)
+ GET /login 200 in 104ms (next.js: 6ms, proxy.ts: 12ms, application-code: 86ms)
+ GET / 200 in 237ms (next.js: 27ms, proxy.ts: 12ms, application-code: 198ms)
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/94264496-a8c2-43e7-b5ab-0fe996bf9368 200 in 385ms (next.js: 8ms, proxy.ts: 3ms, application-code: 373ms)
+ POST /shops/10000000-0000-4000-8000-000000000001/invoices/94264496-a8c2-43e7-b5ab-0fe996bf9368 200 in 690ms (next.js: 14ms, proxy.ts: 6ms, application-code: 670ms)
+  └─ ƒ voidInvoice({"idempotency_key":"53105616-96f6-4afd-9a5f-3f2aa804b0c7","invoice_id":"94264496-a8c2-43e7-b5ab-0fe996bf9368","reason":"Customer cancelled before delivery","...":"1 item not stringified"}) in 42ms app/(app)/invoice-operation-actions.ts
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/94264496-a8c2-43e7-b5ab-0fe996bf9368 200 in 509ms (next.js: 9ms, proxy.ts: 63ms, application-code: 437ms)
+ GET /shops/10000000-0000-4000-8000-000000000001/invoices/94264496-a8c2-43e7-b5ab-0fe996bf9368 200 in 402ms (next.js: 10ms, proxy.ts: 5ms, application-code: 388ms)
+ GET /invoices?shop=10000000-0000-4000-8000-000000000001 200 in 387ms (next.js: 137ms, proxy.ts: 6ms, application-code: 245ms)
+ GET /exports/invoices?shop=10000000-0000-4000-8000-000000000001 200 in 176ms (next.js: 72ms, proxy.ts: 6ms, application-code: 98ms)
+ GET / 200 in 427ms (next.js: 10ms, proxy.ts: 6ms, application-code: 411ms)

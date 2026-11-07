@@ -1,0 +1,19 @@
+# gate: 04-int-overpayment
+# command: pnpm.cmd run test:integration:overpayment
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T18:12:46Z
+
+$ vitest run --config vitest.integration.overpayment.config.mts
+
+ RUN  v4.1.11 C:/Users/Reem/Desktop/shopkhata
+
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  21:12:48
+   Duration  68.07s (transform 61ms, setup 0ms, import 116ms, tests 67.78s, environment 0ms)
+
+
+# finished: 2026-11-04T18:13:56Z
+# exit: 0

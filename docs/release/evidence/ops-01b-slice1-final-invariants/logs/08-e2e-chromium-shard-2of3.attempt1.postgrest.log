@@ -1,0 +1,84 @@
+2026-11-04T19:38:52.241244396Z FATAL:  terminating connection due to unexpected postmaster exit
+2026-11-04T19:38:52.241815067Z 04/Nov/2026:19:38:52 +0000: Failed listening for database notifications on the "pgrst" channel. server closed the connection unexpectedly This probably means the server terminated abnormally before or while processing the request.
+2026-11-04T19:38:52.241831738Z 04/Nov/2026:19:38:52 +0000: Retrying listening for database notifications in 2 seconds...
+2026-11-04T19:38:54.245351016Z 04/Nov/2026:19:38:54 +0000: Failed listening for database notifications on the "pgrst" channel. connection to server at "supabase_db_shopkhata" (172.19.0.2), port 5432 failed: Connection refused Is the server running on that host and accepting TCP/IP connections?
+2026-11-04T19:38:54.245365698Z 04/Nov/2026:19:38:54 +0000: Failed listening for database notifications on the "pgrst" channel. ExitFailure 1
+2026-11-04T19:38:54.245367271Z 04/Nov/2026:19:38:54 +0000: Retrying listening for database notifications in 4 seconds...
+2026-11-04T19:38:58.252797014Z 04/Nov/2026:19:38:58 +0000: Listener connected to PostgreSQL 17.11 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit on "supabase_db_shopkhata:5432" and listening for database notifications on the "pgrst" channel
+2026-11-04T19:38:58.252821075Z 04/Nov/2026:19:38:58 +0000: {"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:38:58.252930872Z 04/Nov/2026:19:38:58 +0000: Failed to query the PostgreSQL version. {"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:38:58.253068207Z 04/Nov/2026:19:38:58 +0000: {"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:38:58.253073445Z 04/Nov/2026:19:38:58 +0000: Failed to query database settings for the config parameters.{"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:38:58.253235581Z 04/Nov/2026:19:38:58 +0000: {"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:38:58.253242434Z 04/Nov/2026:19:38:58 +0000: Failed to query the role settings. {"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:38:58.253746414Z 04/Nov/2026:19:38:58 +0000: Config reloaded
+2026-11-04T19:38:58.253818112Z 04/Nov/2026:19:38:58 +0000: {"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:38:58.253865829Z 04/Nov/2026:19:38:58 +0000: Failed to load the schema cache using db-schemas=public,graphql_public and db-extra-search-path=public,extensions. {"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:38:59.255593793Z 04/Nov/2026:19:38:59 +0000: Attempting to reconnect to the database in 1 seconds...
+2026-11-04T19:38:59.255738434Z 04/Nov/2026:19:38:59 +0000: {"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:38:59.255744944Z 04/Nov/2026:19:38:59 +0000: Failed to query the PostgreSQL version. {"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:38:59.255991045Z 04/Nov/2026:19:38:59 +0000: {"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:38:59.256003351Z 04/Nov/2026:19:38:59 +0000: Failed to query database settings for the config parameters.{"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:38:59.256223501Z 04/Nov/2026:19:38:59 +0000: {"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:38:59.256233389Z 04/Nov/2026:19:38:59 +0000: Failed to query the role settings. {"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:38:59.256403976Z 04/Nov/2026:19:38:59 +0000: Config reloaded
+2026-11-04T19:38:59.256509639Z 04/Nov/2026:19:38:59 +0000: {"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:38:59.256516317Z 04/Nov/2026:19:38:59 +0000: Failed to load the schema cache using db-schemas=public,graphql_public and db-extra-search-path=public,extensions. {"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:39:01.258777828Z 04/Nov/2026:19:39:01 +0000: Attempting to reconnect to the database in 2 seconds...
+2026-11-04T19:39:01.259247357Z 04/Nov/2026:19:39:01 +0000: Failed to query the PostgreSQL version. {"code":"","details":null,"hint":null,"message":""}
+2026-11-04T19:39:01.259262109Z 04/Nov/2026:19:39:01 +0000: {"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:39:01.259265959Z 04/Nov/2026:19:39:01 +0000: Failed to query database settings for the config parameters.{"code":"57P01","details":null,"hint":null,"message":"terminating connection due to unexpected postmaster exit"}
+2026-11-04T19:39:01.259522862Z 04/Nov/2026:19:39:01 +0000: {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:01.259546224Z 04/Nov/2026:19:39:01 +0000: Failed to query the role settings. {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:01.259962588Z 04/Nov/2026:19:39:01 +0000: Config reloaded
+2026-11-04T19:39:01.260045052Z 04/Nov/2026:19:39:01 +0000: {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:01.260296004Z 04/Nov/2026:19:39:01 +0000: Failed to load the schema cache using db-schemas=public,graphql_public and db-extra-search-path=public,extensions. {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:05.260967883Z 04/Nov/2026:19:39:05 +0000: Attempting to reconnect to the database in 4 seconds...
+2026-11-04T19:39:05.260997061Z 04/Nov/2026:19:39:05 +0000: {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:05.260999223Z 04/Nov/2026:19:39:05 +0000: Failed to query the PostgreSQL version. {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:05.261035064Z 04/Nov/2026:19:39:05 +0000: {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:05.261043611Z 04/Nov/2026:19:39:05 +0000: Failed to query database settings for the config parameters.{"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:05.261098464Z 04/Nov/2026:19:39:05 +0000: {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:05.261220543Z 04/Nov/2026:19:39:05 +0000: Failed to query the role settings. {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:05.261301487Z 04/Nov/2026:19:39:05 +0000: Config reloaded
+2026-11-04T19:39:05.261423337Z 04/Nov/2026:19:39:05 +0000: {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:05.261442203Z 04/Nov/2026:19:39:05 +0000: Failed to load the schema cache using db-schemas=public,graphql_public and db-extra-search-path=public,extensions. {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:13.263156787Z 04/Nov/2026:19:39:13 +0000: Attempting to reconnect to the database in 8 seconds...
+2026-11-04T19:39:13.263373138Z 04/Nov/2026:19:39:13 +0000: {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:13.263384626Z 04/Nov/2026:19:39:13 +0000: Failed to query the PostgreSQL version. {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:13.263612961Z 04/Nov/2026:19:39:13 +0000: {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:13.263623300Z 04/Nov/2026:19:39:13 +0000: Failed to query database settings for the config parameters.{"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:13.263947897Z 04/Nov/2026:19:39:13 +0000: {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:13.263966412Z 04/Nov/2026:19:39:13 +0000: Failed to query the role settings. {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:13.264296610Z 04/Nov/2026:19:39:13 +0000: Config reloaded
+2026-11-04T19:39:13.264513038Z 04/Nov/2026:19:39:13 +0000: {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:13.264521330Z 04/Nov/2026:19:39:13 +0000: Failed to load the schema cache using db-schemas=public,graphql_public and db-extra-search-path=public,extensions. {"code":"PGRST001","details":"no connection to the server\n","hint":null,"message":"Database client error. Retrying the connection."}
+2026-11-04T19:39:28.303831767Z 04/Nov/2026:19:39:28 +0000: {"code":"PGRST002","details":null,"hint":null,"message":"Could not query the database for the schema cache. Retrying."}
+2026-11-04T19:39:28.306344330Z 172.19.0.3 - authenticated [04/Nov/2026:19:39:28 +0000] "GET /profiles?select=id%2Crole%2Cis_active&id=eq.10000000-0000-4000-8000-000000000101 HTTP/1.1" 503 119 "" "node"
+2026-11-04T19:39:28.314728178Z 04/Nov/2026:19:39:28 +0000: {"code":"PGRST002","details":null,"hint":null,"message":"Could not query the database for the schema cache. Retrying."}
+2026-11-04T19:39:28.314791227Z 172.19.0.3 - authenticated [04/Nov/2026:19:39:28 +0000] "GET /user_shop_assignments?select=shop_id&user_id=eq.10000000-0000-4000-8000-000000000101 HTTP/1.1" 503 119 "" "node"
+2026-11-04T19:39:28.330499844Z 172.19.0.3 - authenticated [04/Nov/2026:19:39:28 +0000] "GET /profiles?select=id%2Crole%2Cis_active&id=eq.10000000-0000-4000-8000-000000000101 HTTP/1.1" 503 119 "" "node"
+2026-11-04T19:39:28.330507630Z 04/Nov/2026:19:39:28 +0000: {"code":"PGRST002","details":null,"hint":null,"message":"Could not query the database for the schema cache. Retrying."}
+2026-11-04T19:39:28.341005103Z 172.19.0.3 - authenticated [04/Nov/2026:19:39:28 +0000] "GET /user_shop_assignments?select=shop_id&user_id=eq.10000000-0000-4000-8000-000000000101 HTTP/1.1" 503 119 "" "node"
+2026-11-04T19:39:28.341040216Z 04/Nov/2026:19:39:28 +0000: {"code":"PGRST002","details":null,"hint":null,"message":"Could not query the database for the schema cache. Retrying."}
+2026-11-04T19:39:28.361764242Z 04/Nov/2026:19:39:28 +0000: {"code":"PGRST002","details":null,"hint":null,"message":"Could not query the database for the schema cache. Retrying."}
+2026-11-04T19:39:28.361800811Z 172.19.0.3 - authenticated [04/Nov/2026:19:39:28 +0000] "GET /profiles?select=id%2Crole%2Cis_active&id=eq.10000000-0000-4000-8000-000000000101 HTTP/1.1" 503 119 "" "node"
+2026-11-04T19:39:28.392043324Z 172.19.0.3 - authenticated [04/Nov/2026:19:39:28 +0000] "GET /user_shop_assignments?select=shop_id&user_id=eq.10000000-0000-4000-8000-000000000101 HTTP/1.1" 503 119 "" "node"
+2026-11-04T19:39:28.392083805Z 04/Nov/2026:19:39:28 +0000: {"code":"PGRST002","details":null,"hint":null,"message":"Could not query the database for the schema cache. Retrying."}
+2026-11-04T19:39:28.407178149Z 04/Nov/2026:19:39:28 +0000: {"code":"PGRST002","details":null,"hint":null,"message":"Could not query the database for the schema cache. Retrying."}
+2026-11-04T19:39:28.407286097Z 172.19.0.3 - authenticated [04/Nov/2026:19:39:28 +0000] "GET /profiles?select=id%2Crole%2Cis_active&id=eq.10000000-0000-4000-8000-000000000101 HTTP/1.1" 503 119 "" "node"
+2026-11-04T19:39:28.423629111Z 04/Nov/2026:19:39:28 +0000: {"code":"PGRST002","details":null,"hint":null,"message":"Could not query the database for the schema cache. Retrying."}
+2026-11-04T19:39:28.423763499Z 172.19.0.3 - authenticated [04/Nov/2026:19:39:28 +0000] "GET /user_shop_assignments?select=shop_id&user_id=eq.10000000-0000-4000-8000-000000000101 HTTP/1.1" 503 119 "" "node"
+2026-11-04T19:39:29.264794025Z 04/Nov/2026:19:39:29 +0000: Attempting to reconnect to the database in 16 seconds...
+2026-11-04T19:39:29.275421845Z 04/Nov/2026:19:39:29 +0000: Successfully connected to PostgreSQL 17.11 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
+2026-11-04T19:39:29.275444053Z 04/Nov/2026:19:39:29 +0000: Connection Pool initialized with a maximum size of 10 connections
+2026-11-04T19:39:29.280722742Z 04/Nov/2026:19:39:29 +0000: Config reloaded
+2026-11-04T19:39:29.360048665Z 04/Nov/2026:19:39:29 +0000: Schema cache queried in 79.0 milliseconds
+2026-11-04T19:39:29.360534692Z 04/Nov/2026:19:39:29 +0000: Schema cache loaded 32 Relations, 29 Relationships, 35 RPCs, 0 Domain Representations, 4 Media Type Handlers, 598 Timezones
+2026-11-04T19:39:29.360543673Z 04/Nov/2026:19:39:29 +0000: Schema cache loaded in 0.7 milliseconds
+2026-11-04T19:39:29.468914563Z 04/Nov/2026:19:39:29 +0000: Successfully connected to PostgreSQL 17.11 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
+2026-11-04T19:39:29.468931456Z 04/Nov/2026:19:39:29 +0000: Connection Pool initialized with a maximum size of 10 connections
+2026-11-04T19:39:29.477129639Z 04/Nov/2026:19:39:29 +0000: Config reloaded
+2026-11-04T19:39:29.551303671Z 04/Nov/2026:19:39:29 +0000: Schema cache queried in 74.1 milliseconds
+2026-11-04T19:39:29.552396079Z 04/Nov/2026:19:39:29 +0000: Schema cache loaded 32 Relations, 29 Relationships, 35 RPCs, 0 Domain Representations, 4 Media Type Handlers, 598 Timezones
+2026-11-04T19:39:29.552409297Z 04/Nov/2026:19:39:29 +0000: Schema cache loaded in 1.0 milliseconds

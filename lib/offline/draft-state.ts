@@ -132,7 +132,9 @@ export function classifySaveResult(result: { ok: boolean; uncertain?: boolean; c
     case "UNAUTHORIZED_SHOP":
     case "SHOP_INACTIVE":
     case "INSUFFICIENT_ROLE": return { kind: "blocked", reason: "authorization" };
-    case "UNAVAILABLE": return { kind: "blocked", reason: "unavailable" };
+    case "UNAVAILABLE":
+    // Release maintenance: nothing was evaluated, so the draft stays queued for a later retry.
+    case "MAINTENANCE_ACTIVE": return { kind: "blocked", reason: "unavailable" };
     case "CLOSED_DATE": return { kind: "rejected", conflict: "closed_date" };
     case "STALE_DATE": return { kind: "rejected", conflict: "date_changed" };
     case "IDEMPOTENCY_CONFLICT": return { kind: "rejected", conflict: "idempotency" };

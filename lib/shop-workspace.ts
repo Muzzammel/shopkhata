@@ -18,6 +18,7 @@ export type WorkspaceInvoice = {
   effective_due_dirham: number;
   delivered: boolean;
   customer_id: string | null;
+  is_void: boolean;
 };
 export type ShopWorkspace = {
   shop: { id: string; name: string };
@@ -40,13 +41,17 @@ export async function readShopWorkspace(actor: Actor, shopId: string): Promise<S
     .limit(RECENT_INVOICE_PREVIEW_SIZE);
   if (invoiceError || !invoices) throw new Error("INVOICE_WORKSPACE_UNAVAILABLE");
   // No invoice-number registry here: New Sale looks up only the numbers typed (findTakenInvoiceNumbers).
-  const recentInvoices = invoices.map((invoice) => ({
-    id: invoice.canonical_invoice_id!, invoice_id: invoice.effective_invoice_number!, business_date: invoice.business_date!,
-    effective_total_dirham: invoice.effective_total_dirham!, effective_due_dirham: invoice.effective_due_dirham!,
-    delivered: invoice.effective_delivered!, customer_id: invoice.effective_customer_id,
-  }));
   return {
     shop: { id: shop.id, name: shop.name },
-    invoices: recentInvoices,
+    invoices: invoices.map(workspaceInvoice),
+  };
+}
+
+/** A voided invoice keeps is_void, so the preview shows VOID rather than Paid (its due is 0). */
+export function workspaceInvoice(invoice: { canonical_invoice_id: string | null; effective_invoice_number: string | null; business_date: string | null; effective_total_dirham: number | null; effective_due_dirham: number | null; effective_delivered: boolean | null; effective_customer_id: string | null; is_void: boolean | null }): WorkspaceInvoice {
+  return {
+    id: invoice.canonical_invoice_id!, invoice_id: invoice.effective_invoice_number!, business_date: invoice.business_date!,
+    effective_total_dirham: invoice.effective_total_dirham!, effective_due_dirham: invoice.effective_due_dirham!,
+    delivered: invoice.effective_delivered!, customer_id: invoice.effective_customer_id, is_void: invoice.is_void === true,
   };
 }

@@ -14,6 +14,7 @@ export type Permission =
   | "reports.view_all"
   | "payment.override_excess"
   | "correction.approve"
+  | "invoice.void"
   | "date.close"
   | "date.reopen"
   | "users.manage"
@@ -41,6 +42,7 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "payment.override_excess",
     "invoice.replacement.approve",
     "correction.approve",
+    "invoice.void",
     "date.close",
     "date.reopen",
     "users.manage",
@@ -59,6 +61,7 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "payment.override_excess",
     "invoice.replacement.approve",
     "correction.approve",
+    "invoice.void",
     "date.close",
     "date.reopen",
     "records.export",
@@ -89,6 +92,7 @@ const SCOPED_PERMISSIONS = new Set<Permission>([
   "payment.override_excess",
   "invoice.replacement.approve",
   "correction.approve",
+  "invoice.void",
   "date.close",
   "date.reopen",
   "records.export",
@@ -106,6 +110,7 @@ const MUTATION_PERMISSIONS = new Set<Permission>([
   "payment.override_excess",
   "invoice.replacement.approve",
   "correction.approve",
+  "invoice.void",
   "date.close",
   "date.reopen",
   "users.manage",

@@ -144,15 +144,27 @@ Screen: `/reports?shop=…&report=daily|sales|dues|expenses|payments`. Anyone wh
 | Report | Filter | Rows | Totals |
 | --- | --- | --- | --- |
 | Daily summary | shop, business date | — | `report_daily_summary` |
-| Sales by invoice date | shop, date range | `effective_invoices` whose `business_date` is in range | `report_sales_totals`: count, Σ effective total, Σ effective paid, Σ credit applied, Σ effective due, delivered / not delivered counts |
+| Sales by business date | shop, date range | `sales_movements` in range: one **Sale** row per invoice (original total, on the invoice's date) and one **Invoice correction** / **Invoice void** row per approved invoice-total correction (signed, on the correction's date); sale rows also carry the invoice's current total, due and status | `report_sales_totals`: invoices entered, gross sales, invoice corrections, net sales (movements); Σ paid, Σ credit applied, Σ due, delivered / not delivered counts of the invoices dated in range (current state) |
 | Customer dues | shop | `customer_financial_balances` with due > 0 or credit > 0, with customer name, mobile, invoice count, latest activity date | `report_customer_due_totals`: customers with due, Σ outstanding due, Σ available credit, due on invoices without a customer |
 | Expenses | shop, date range | `effective_expenses` in range with category, creator, recorded time, backdate reason, and whether a correction was applied | `report_expense_totals`: per category and overall |
 | Payments | shop, date range | `report_payments` in range | `report_payment_totals`: per type, total cash, total bank, total credit applied |
 
-Two reports answer different questions and are not expected to show the same number:
+### Current effective state vs historical business-date movements
 
-- The **daily summary** is what was recorded *for a day*. It does not change once the day is closed.
-- **Sales by invoice date** is the *current* position of the invoices dated in a range: later payments, credit and approved corrections are included, whatever day they happened on. A replaced invoice is one row under its current number, with its original number beside it.
+Two read concepts exist, and no single figure mixes them (owner ruling, OPS-01B):
+
+1. **Current effective state** — where an invoice or customer stands *now*: `effective_invoices`, `invoice_effective_balances`, `customer_financial_balances`, the Customer dues report, invoice detail and lists, the invoice records export, and the Dashboard's invoice health, unpaid invoices, dues and credit.
+2. **Historical business-date movements** — what happened *on* each business date, immutable once recorded: `report_daily_summary` (Daily Close), `customer_ledger`, `report_payments`, `sales_movements` and everything built on it (Sales report, the Dashboard's Sales KPI, trend, top customers and shop comparison).
+
+An invoice's original total belongs to its own business date; every approved invoice-total correction, a void included, belongs to the correction's business date. A later correction never rewrites an earlier date. Example — an invoice of QAR 100 on 1 Nov, voided on 3 Nov:
+
+| | 1 Nov | 3 Nov | 1–3 Nov |
+| --- | --- | --- | --- |
+| Sales report / Daily Close | Sale +100 (gross 100, net 100) | Invoice void −100 (corrections −100) | net 0 |
+| Customer ledger | invoice debit 100 | invoice_void credit 100 | balance 0 |
+| Current state | — | — | invoice VOID, effective total 0, due 0 |
+
+So the **Sales report** for a range equals the daily summary's *Gross invoice amount* + *Invoice corrections* summed over the same dates, and over any range that contains all of an invoice's movements it equals the invoice's current effective total. Its paid, credit applied, due and delivery figures are labelled as the current state of the invoices dated in the range. A replaced invoice is one Sale row under its current number. Before OPS-01B the Sales report showed invoices dated in a range at their current effective total, so any later correction silently restated the earlier date; that applied to ordinary corrections as well as voids and is fixed for both.
 
 `report_payments` has one row per source record:
 
@@ -173,7 +185,7 @@ Each of these is asserted in `supabase/tests/daily_close_reports.test.sql` and a
 
 1. Customer due report total = Σ `customer_financial_balances.outstanding_due_dirham` for the shop.
 2. Customer due total + due on invoices without a customer = Σ `effective_invoices.effective_due_dirham` for the shop.
-3. Sales report totals = the same sums over `effective_invoices` for the same shop and date range.
+3. Sales report gross sales and invoice corrections = the daily summary's gross invoice amount and invoice corrections summed over the same dates (`invoice_void_history.test.sql`, `ops-01b-void-upgrade.test.ts`); its paid, credit applied and due = the same sums over `effective_invoices` for the same shop and date range.
 4. Expense report total = Σ `effective_expenses.amount_dirham` for the same filter = Σ of its category totals = "Expenses" in the daily summary.
 5. Cash rows of the payment report for a date = "Cash received" in the daily summary; bank rows = "Bank received"; credit rows = "Customer credit applied". Cash + bank = "Total received".
 6. For one invoice, its payment and payment-correction rows across all dates add up to its `effective_paid_dirham`.
@@ -204,7 +216,7 @@ A draft on a device is never server state.
 | Sheet | Columns | Closing rows |
 | --- | --- | --- |
 | Daily summary | Business Date, then one column per metric in section 4 order | one row per date |
-| Sales | the invoice export columns | Total |
+| Sales | Business Date, Movement (Sale / Invoice correction / Invoice void), Invoice Number, Amount (signed movement), Customer, Recorded At (Qatar), Current Total, Current Paid, Current Credit Applied, Current Due, Delivered, Status (ACTIVE / VOID), Invoice Reference. The Current columns are filled on Sale rows only | Gross sales; Invoice corrections; Net sales; Current state of these invoices |
 | Customer dues | Customer ID, Customer, Mobile, Outstanding Due, Available Credit, Invoices, Last Activity | Total; Due on invoices without a customer |
 | Expenses | Business Date, Category, Description, Amount, Correction State, Created By, Recorded At (Qatar), Backdate Reason, Expense Reference | one total per category; Total |
 | Payments | Business Date, Recorded At (Qatar), Type, Method, Amount, Invoice Number, Customer, Reference | one total per type; Total cash received; Total bank received; Total received (cash + bank); Total customer credit applied |

@@ -258,7 +258,7 @@ select throws_ok($$select public.admin_set_account_status(pg_temp.acct_cmd('1000
 select throws_ok($$select public.admin_set_shop_status(pg_temp.shop_cmd(pg_temp.s1(), false, 'revenge'))$$, '42501', 'INSUFFICIENT_ROLE', 'nor shop authority');
 reset role;
 select is((select count(*)::int from public.profiles where role = 'owner' and is_active), 1, 'exactly one active owner remains');
-select ok((select prosrc from pg_proc where oid = 'public.admin_set_account_status(jsonb)'::regprocedure) ~ 'LAST_ACTIVE_OWNER', 'the zero-active-owner rule is also stated in the database');
+select ok((select prosrc from pg_proc where oid = 'private.admin_set_account_status(jsonb)'::regprocedure) ~ 'LAST_ACTIVE_OWNER', 'the zero-active-owner rule is also stated in the database');
 
 select * from finish();
 rollback;

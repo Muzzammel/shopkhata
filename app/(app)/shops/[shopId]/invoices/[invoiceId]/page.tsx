@@ -28,14 +28,14 @@ export default async function InvoiceDetailPage({ params }: PageProps<"/shops/[s
   if (!detail) notFound();
 
   const corrected = detail.corrections.length > 0;
-  const badges = invoiceBadges({ dueDirham: detail.effectiveDueDirham, delivered: detail.delivered, corrected, revision: detail.revision });
+  const badges = invoiceBadges({ dueDirham: detail.effectiveDueDirham, delivered: detail.delivered, corrected, revision: detail.revision, isVoid: detail.voided != null });
   const customerHref = detail.customer ? `/customers/${detail.customer.id}?shop=${shopId}` : null;
   const figure = "grid content-start gap-1 rounded-2xl p-4";
 
   return <main className="mx-auto grid w-full max-w-[1100px] grid-cols-1 content-start gap-4 px-4 pt-5 pb-10 sm:gap-5 sm:px-6 print:max-w-none print:p-0">
     <Link href={`/invoices?shop=${shopId}`} data-print="hide" className="inline-flex min-h-9 items-center gap-1.5 justify-self-start rounded-full px-1 text-[13px] font-semibold text-muted-foreground no-underline hover:text-foreground"><ArrowLeftIcon aria-hidden className="size-4" />Sales</Link>
 
-    <InvoiceOperations detail={detail} permissions={{ payment: can(actor, "payment.record", shopId), requestCorrection: can(actor, "correction.request", shopId), requestReplacement: can(actor, "invoice.replacement.request", shopId), approveCorrection: can(actor, "correction.approve", shopId), approveReplacement: can(actor, "invoice.replacement.approve", shopId) }} />
+    <InvoiceOperations detail={detail} permissions={{ payment: can(actor, "payment.record", shopId), requestCorrection: can(actor, "correction.request", shopId), requestReplacement: can(actor, "invoice.replacement.request", shopId), approveCorrection: can(actor, "correction.approve", shopId), approveReplacement: can(actor, "invoice.replacement.approve", shopId), voidInvoice: can(actor, "invoice.void", shopId) }} />
 
     <section aria-labelledby="invoice-heading" data-print="document" className="grid gap-6 rounded-3xl border border-border bg-card p-5 sk-enter sm:p-8 print:border-0 print:p-0">
       <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
@@ -49,6 +49,13 @@ export default async function InvoiceDetailPage({ params }: PageProps<"/shops/[s
           <div><dt className="text-xs text-muted-foreground">Recorded (Qatar)</dt><dd className="font-semibold">{qatarDateTime(detail.recordedAt)}</dd></div>
         </dl>
       </header>
+
+      {detail.voided && <div role="note" data-slot="void-banner" className="grid gap-1 rounded-2xl border border-destructive/40 bg-danger-soft p-4 text-sm">
+        <strong className="text-destructive">VOID — this invoice no longer counts.</strong>
+        <span>Voided on business date {longDate(detail.voided.businessDate)} by {personLabel(detail.people, detail.voided.actorId)} · {qatarDateTime(detail.voided.createdAt)}</span>
+        <span><span className="text-muted-foreground">Reason: </span>{detail.voided.reason}</span>
+        <span className="text-xs text-muted-foreground">The original invoice below is kept unchanged; its effective total is now {qar(detail.effectiveTotalDirham)}.</span>
+      </div>}
 
       <div className="grid grid-cols-2 gap-3 tabular-nums lg:grid-cols-4" aria-label="Financial summary" role="group">
         <div className={cn(figure, "bg-ink text-ink-foreground print:bg-transparent print:text-foreground print:ring-1 print:ring-border")}>

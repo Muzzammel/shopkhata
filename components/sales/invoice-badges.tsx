@@ -3,6 +3,7 @@ import { ui } from "@/components/sales/ui";
 import { cn } from "@/lib/utils";
 
 const TONE: Record<InvoiceBadge, string> = {
+  void: "bg-danger-soft text-destructive ring-1 ring-destructive/40 ring-inset",
   paid: "bg-success-soft text-success",
   due: "bg-warning-soft text-warning",
   delivered: "bg-muted text-foreground",

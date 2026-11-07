@@ -9,6 +9,24 @@ select jsonb_build_object(
       'select count(*) || '':'' || coalesce(md5(string_agg(r::text, ''|'' order by r::text)), '''') v from public.%I r', t.table_name), false, true, '')))[1]::text)
     from information_schema.tables t where t.table_schema = 'public' and t.table_type = 'BASE TABLE'),
   'auth_users', (select count(*) || ':' || coalesce(md5(string_agg(u.id || u.email || coalesce(u.encrypted_password, ''), '|' order by u.id)), '') from auth.users u),
+  -- EVERY Storage table (enumerated from the catalog, so a table added by a Storage upgrade is covered too): row count
+  -- and row hash, keyed "storage.<table>". A restore skips empty COPY sections only when the source count here is 0, and
+  -- the restored fingerprint must equal this one, which proves the target is empty too.
+  --   storage.objects   stable projection (bucket, name, uploader, size, type, eTag, user metadata): re-uploading the bytes
+  --                     legitimately rewrites id-independent bookkeeping (version, updated_at, last_accessed_at).
+  --   storage.migrations EXCLUDED: the Storage service's own schema history, created by the platform per project; it is
+  --                     not in the data dump at all (supabase db dump --data-only omits it), so nothing restores it.
+  --   not readable      recorded as "unreadable"; a restore STOPs if such a table's section would need to be skipped.
+  'storage', (
+    select coalesce(jsonb_object_agg('storage.' || c.relname, case
+      when not has_table_privilege(c.oid, 'SELECT') then 'unreadable'
+      when c.relname = 'objects' then (xpath('/row/v/text()', query_to_xml(
+        'select count(*) || '':'' || coalesce(md5(string_agg(concat_ws(''|'', o.bucket_id, o.name, o.owner_id, o.metadata ->> ''size'', o.metadata ->> ''mimetype'', o.metadata ->> ''eTag'', o.user_metadata::text), E''\n'' order by o.bucket_id, o.name)), '''') v from storage.objects o',
+        false, true, '')))[1]::text
+      else (xpath('/row/v/text()', query_to_xml(format(
+        'select count(*) || '':'' || coalesce(md5(string_agg(r::text, ''|'' order by r::text)), '''') v from storage.%I r', c.relname), false, true, '')))[1]::text
+    end), '{}')
+    from pg_class c where c.relnamespace = 'storage'::regnamespace and c.relkind in ('r', 'p') and c.relname <> 'migrations'),
   'receipt_objects', (select count(*) || ':' || coalesce(md5(string_agg(o.name || ':' || coalesce(o.metadata ->> 'size', ''), '|' order by o.name)), '') from storage.objects o where o.bucket_id = 'expense-receipts'),
   -- The projections the application reports from, per shop.
   'shops', (

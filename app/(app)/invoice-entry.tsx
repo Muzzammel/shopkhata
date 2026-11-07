@@ -808,7 +808,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
           <Link href={`/shops/${currentShop.id}/invoices/${invoice.id}`} aria-label={`View invoice ${invoice.invoice_id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-xl px-2 py-2.5 text-foreground no-underline transition-colors duration-150 hover:bg-muted">
             <strong className="truncate font-semibold">{invoice.invoice_id}</strong>
             <span className="text-right text-sm font-semibold tabular-nums">{qar(invoice.effective_total_dirham)}</span>
-            <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">{invoice.business_date}<InvoiceBadges badges={invoiceBadges({ dueDirham: invoice.effective_due_dirham, delivered: invoice.delivered, corrected: false, revision: 0 })} /></span>
+            <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">{invoice.business_date}<InvoiceBadges badges={invoiceBadges({ dueDirham: invoice.effective_due_dirham, delivered: invoice.delivered, corrected: false, revision: 0, isVoid: invoice.is_void })} /></span>
             <span className={cn("text-right text-xs tabular-nums", invoice.effective_due_dirham > 0 ? "font-semibold text-warning" : "text-muted-foreground")}>Due {qar(invoice.effective_due_dirham)}</span>
           </Link>
         </li>)}</ul>}

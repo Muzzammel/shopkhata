@@ -1,0 +1,25 @@
+# gate: 05-migration-upgrade
+# command: pnpm.cmd exec vitest run --config vitest.integration.config.mts --reporter=verbose
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T19:25:07Z
+
+
+ RUN  v4.1.11 C:/Users/Reem/Desktop/shopkhata
+
+ ✓ tests/integration/migration/invoice-number-registry-backfill.test.ts > invoice-number registry backfill > registers every pre-existing invoice number with no gaps 37906ms
+ ✓ tests/integration/migration/invoice-number-registry-backfill.test.ts > invoice-number registry backfill > refuses to backfill when two pre-existing invoices in the same shop collide after normalization 40398ms
+ ✓ tests/integration/migration/invoice-number-registry-backfill.test.ts > invoice-number registry backfill > refuses to backfill when a pre-existing invoice has a null-equivalent (blank-after-trim) invoice_id 38265ms
+ ✓ tests/integration/migration/upgrade-path.test.ts > daily-close legacy migration upgrade path > fails with the intended preflight diagnostic when legacy daily-close rows contain malformed reopen data 37009ms
+ ✓ tests/integration/migration/upgrade-path.test.ts > daily-close legacy migration upgrade path > preserves valid legacy close and reopen history and orders them deterministically 34594ms
+ ✓ tests/integration/migration/ops-01b-void-upgrade.test.ts > OPS-01B migrations 36-39 on a populated database (35 -> 39) > 35 -> 39 applies exactly migrations 36-39, keeps every existing figure, then a void preserves history and nets to zero 33764ms
+ ✓ tests/integration/migration/ops-01b-void-upgrade.test.ts > OPS-01B migrations 36-39 on a populated database (35 -> 39) > a void made on 37 survives 38 and 39: composite FK validates and the void reports on its own date 33359ms
+
+ Test Files  3 passed (3)
+      Tests  7 passed (7)
+   Start at  22:25:08
+   Duration  353.06s (transform 52ms, setup 0ms, import 87ms, tests 352.53s, environment 0ms)
+
+
+# finished: 2026-11-04T19:31:01Z
+# exit: 0

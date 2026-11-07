@@ -287,20 +287,32 @@ test("reports show reconciled values for invoices, payments, dues, credit, expen
   await expect(page.getByRole("cell", { name: /profit/i })).toHaveText(/This is not profit/);
   expect(await exportReport()).toEqual([DAILY_SUMMARY_HEADERS, [date, 3, 18, 9, 9, 6, 0, 0, 0, 0.5, 0, 2, 2.3, 15.5, 0, 15.5, 13.2, 3]]);
 
-  // Sales: current effective values of the invoices dated that day.
+  // Sales on the fixture date: original amounts. C's -0.30 correction is dated today, so it does not rewrite this date.
   await page.goto(`/reports?shop=${SHOP_2}&report=sales&from=${date}&to=${date}`);
   await expect(total(page, "invoiceCount")).toHaveText("3");
-  await expect(total(page, "total")).toHaveText("QAR 17.70");
+  await expect(total(page, "gross")).toHaveText("QAR 18.00");
+  await expect(total(page, "corrections")).toHaveText("QAR 0.00");
+  await expect(total(page, "net")).toHaveText("QAR 18.00");
+  // Current state of those invoices.
   await expect(total(page, "paid")).toHaveText("QAR 15.20");
   await expect(total(page, "credit")).toHaveText("QAR 0.50");
   await expect(total(page, "due")).toHaveText("QAR 2.00");
   const rowC = page.getByRole("row").filter({ hasText: c });
-  for (const text of [customerName, "QAR 2.70", "QAR 0.20", "QAR 0.50", "QAR 2.00", "Delivered"]) await expect(rowC).toContainText(text);
+  await expect(rowC).toHaveCount(1);
+  for (const text of ["Sale", customerName, "QAR 3.00", "QAR 2.70", "QAR 2.00", "Delivered"]) await expect(rowC).toContainText(text);
   await expect(page.getByRole("row").filter({ hasText: b })).toContainText("Advance");
   const sales = await exportReport();
-  expect(sales).toHaveLength(5);
-  expect(sales.at(-1)?.slice(0, 7)).toEqual(["Total", "3 invoices", 17.7, 15.2, 0.5, 2, "2 delivered, 1 not delivered"]);
-  expect(sales.find((item) => item[0] === c)?.slice(1, 7)).toEqual([date, 2.7, 0.2, 0.5, 2, "Yes"]);
+  expect(sales).toHaveLength(8);
+  expect(sales.slice(-4).map((item) => [item[0], item[3]])).toEqual([["Gross sales", 18], ["Invoice corrections", 0], ["Net sales", 18], ["Current state of these invoices", null]]);
+  expect(sales.at(-1)?.slice(7, 11)).toEqual([15.2, 0.5, 2, "2 delivered, 1 not delivered"]);
+  expect(sales.find((item) => item[2] === c)?.slice(0, 4)).toEqual([date, "Sale", c, 3]);
+  expect(sales.find((item) => item[2] === c)?.slice(6, 12)).toEqual([2.7, 0.2, 0.5, 2, "Yes", "ACTIVE"]);
+  // The correction appears on its own business date, today; the range from the fixture date to today nets to the current total.
+  await page.goto(`/reports?shop=${SHOP_2}&report=sales&from=${now}&to=${now}`);
+  const correctionC = page.locator("tr[data-movement=invoice_correction]").filter({ hasText: c });
+  await expect(correctionC).toHaveCount(1);
+  await expect(correctionC.locator("[data-amount]")).toHaveText("QAR -0.30");
+  await expect(page.locator("tr[data-movement=sale]").filter({ hasText: c })).toHaveCount(0);
 
   // Customer dues: the customer's due equals the due left on the invoices above.
   await page.goto(`/reports?shop=${SHOP_2}&report=dues`);

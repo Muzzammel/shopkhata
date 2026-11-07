@@ -2,7 +2,7 @@ begin;
 -- current_date below must be the Qatar operating date the RPCs enforce.
 set local timezone = 'Asia/Qatar';
 create extension if not exists pgtap with schema extensions;
-select plan(121);
+select plan(122);
 
 -- Helpers -------------------------------------------------------------------
 create function pg_temp.act(who text) returns void language sql as $$
@@ -109,11 +109,16 @@ select is((select sum(effective_due_dirham)::bigint from public.effective_invoic
 select is((select outstanding_due_dirham from public.customer_financial_balances where shop_id = pg_temp.s1() and customer_id = 'c4000000-0000-4000-8000-000000000001'), 230::bigint, 'customer due equals the due on that customer''s invoices');
 select is((select outstanding_due_dirham from public.report_customer_due_totals(pg_temp.s1())), (select coalesce(sum(outstanding_due_dirham), 0)::bigint from public.customer_financial_balances where shop_id = pg_temp.s1()), 'customer due report total equals the customer balance projection');
 select is((select outstanding_due_dirham + unassigned_due_dirham from public.report_customer_due_totals(pg_temp.s1())), (select coalesce(sum(effective_due_dirham), 0)::bigint from public.effective_invoices where shop_id = pg_temp.s1()), 'customer due plus unassigned due equals all effective invoice due');
-select is((select to_jsonb(t) from public.report_sales_totals(pg_temp.s1(), current_date, current_date) t),
-  (select jsonb_build_object('invoice_count', count(*), 'effective_total_dirham', coalesce(sum(effective_total_dirham), 0), 'effective_paid_dirham', coalesce(sum(effective_paid_dirham), 0),
+-- Sales are business-date movements (gross + invoice corrections, as the daily summary); paid/credit/due/delivery are the
+-- current state of the invoices dated in the range (the effective projection).
+select is((select to_jsonb(t) - array['gross_sales_dirham', 'sales_corrections_dirham', 'net_sales_dirham', 'effective_total_dirham'] from public.report_sales_totals(pg_temp.s1(), current_date, current_date) t),
+  (select jsonb_build_object('invoice_count', count(*), 'effective_paid_dirham', coalesce(sum(effective_paid_dirham), 0),
     'credit_applied_dirham', coalesce(sum(effective_credit_applied_dirham), 0), 'effective_due_dirham', coalesce(sum(effective_due_dirham), 0),
     'delivered_count', count(*) filter (where effective_delivered), 'undelivered_count', count(*) filter (where not effective_delivered))
-   from public.effective_invoices where shop_id = pg_temp.s1() and business_date = current_date), 'sales report totals equal the effective invoice projection for the same filter');
+   from public.effective_invoices where shop_id = pg_temp.s1() and business_date = current_date), 'sales report current-state totals equal the effective invoice projection for the same filter');
+select is((select array[gross_sales_dirham, sales_corrections_dirham, net_sales_dirham] from public.report_sales_totals(pg_temp.s1(), current_date, current_date)),
+  (select array[gross_invoice_dirham, invoice_corrections_dirham, gross_invoice_dirham + invoice_corrections_dirham] from public.report_daily_summary(pg_temp.s1(), current_date, current_date)),
+  'sales report gross / corrections / net equal the daily summary''s gross invoice amount and invoice corrections');
 select is((select array_agg(effective_invoice_number order by effective_invoice_number) from public.effective_invoices where shop_id = pg_temp.s1() and original_invoice_number = 'DC4-B'), array['DC4-B2'], 'a replaced invoice is one report row under its current number');
 select is((select amount_dirham from public.report_expense_totals(pg_temp.s1(), current_date, current_date) where category is null), (select sum(amount_dirham)::bigint from public.effective_expenses where shop_id = pg_temp.s1() and business_date = current_date), 'expense report total equals the effective expense projection');
 select is((select sum(amount_dirham)::bigint from public.report_expense_totals(pg_temp.s1(), current_date, current_date) where category is not null), (select amount_dirham from public.report_expense_totals(pg_temp.s1(), current_date, current_date) where category is null), 'expense categories add up to the expense total');

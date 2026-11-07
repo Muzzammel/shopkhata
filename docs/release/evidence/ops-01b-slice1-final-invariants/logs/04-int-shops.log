@@ -1,0 +1,19 @@
+# gate: 04-int-shops
+# command: pnpm.cmd run test:integration:shops
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T18:10:31Z
+
+$ vitest run --config vitest.integration.shops.config.mts
+
+ RUN  v4.1.11 C:/Users/Reem/Desktop/shopkhata
+
+
+ Test Files  2 passed (2)
+      Tests  9 passed (9)
+   Start at  21:10:32
+   Duration  133.98s (transform 99ms, setup 0ms, import 265ms, tests 133.40s, environment 0ms)
+
+
+# finished: 2026-11-04T18:12:46Z
+# exit: 0

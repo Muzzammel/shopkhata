@@ -1,0 +1,19 @@
+# gate: 04-int-acceptance
+# command: pnpm.cmd run test:integration:acceptance
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T18:17:41Z
+
+$ vitest run --config vitest.integration.acceptance.config.mts
+
+ RUN  v4.1.11 C:/Users/Reem/Desktop/shopkhata
+
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  21:17:42
+   Duration  113.62s (transform 89ms, setup 0ms, import 235ms, tests 113.23s, environment 0ms)
+
+
+# finished: 2026-11-04T18:19:36Z
+# exit: 0

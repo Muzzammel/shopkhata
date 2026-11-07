@@ -10,7 +10,7 @@ import { classifySaveResult, draftStatusLabel, newSubmission, nextSubmission } f
 import {
   CUSTOMER_DUE_HEADERS, DAILY_METRICS, DAILY_SUMMARY_HEADERS, EXPENSE_REPORT_HEADERS, PAYMENT_REPORT_HEADERS, REPORT_TITLES,
   customerDueSheet, dailySummarySheet, emptyDailySummary, expenseReportSheet, mapDailySummary, mapExpenseTotals, mapPaymentTotals,
-  parseReportFilter, paymentReportSheet, salesReportSheet,
+  parseReportFilter, paymentReportSheet, salesReportSheet, SALES_REPORT_HEADERS,
 } from "@/lib/reports";
 
 const SHOP = "10000000-0000-4000-8000-000000000001";
@@ -188,14 +188,19 @@ describe("report Excel exports", () => {
     expect(data[1]).toEqual(["2026-10-04", 3, 1800, 900, 900, 400, 200, -10, -30, 50, 50, 2, 230, 1300, 240, 1540, 1310, 230]);
     expect((await roundTrip(dailySummarySheet([])))).toEqual([DAILY_SUMMARY_HEADERS]);
   });
-  it("round-trips the sales report with the database totals as its last row", async () => {
-    const data = await roundTrip(salesReportSheet([{
-      invoiceNumber: "S-1", businessDate: "2026-10-04", totalDirham: 100000, paidDirham: 99000, creditAppliedDirham: 0, dueDirham: 1000, delivered: true,
-      customerName: "Mary", customerMobile: "555", recordedAt: "2026-10-03T21:30:00.000Z", originalNumber: "S-1", invoiceId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-    }], { invoiceCount: 3, totalDirham: 177000, paidDirham: 149000, creditAppliedDirham: 5000, dueDirham: 23000, deliveredCount: 2, undeliveredCount: 1 }));
-    // Recorded at 00:30 Qatar time on the 4th, which is still the 3rd in UTC.
-    expect(data[1].slice(0, 10)).toEqual(["S-1", "2026-10-04", 1000, 990, 0, 10, "Yes", "Mary", "555", "2026-10-04 00:30:00"]);
-    expect(data[2].slice(0, 7)).toEqual(["Total", "3 invoices", 1770, 1490, 50, 230, "2 delivered, 1 not delivered"]);
+  it("round-trips the sales report as business-date movements with gross, corrections, net and current-state totals", async () => {
+    const invoiceId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const data = await roundTrip(salesReportSheet([
+      { movementId: invoiceId, movement: "sale", businessDate: "2026-10-04", recordedAt: "2026-10-03T21:30:00.000Z", amountDirham: 100000, invoiceId, invoiceNumber: "S-1", customerName: "Mary",
+        current: { totalDirham: 0, paidDirham: 0, creditAppliedDirham: 0, dueDirham: 0, delivered: true, isVoid: true } },
+      { movementId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", movement: "invoice_void", businessDate: "2026-10-06", recordedAt: null, amountDirham: -100000, invoiceId, invoiceNumber: "S-1", customerName: "Mary", current: null },
+    ], { invoiceCount: 1, grossSalesDirham: 100000, salesCorrectionsDirham: -100000, netSalesDirham: 0, paidDirham: 0, creditAppliedDirham: 0, dueDirham: 0, deliveredCount: 1, undeliveredCount: 0 }));
+    expect(data[0]).toEqual(SALES_REPORT_HEADERS);
+    // Recorded at 00:30 Qatar time on the 4th, which is still the 3rd in UTC. The original sale keeps its amount; Status is current.
+    expect(data[1]).toEqual(["2026-10-04", "Sale", "S-1", 1000, "Mary", "2026-10-04 00:30:00", 0, 0, 0, 0, "Yes", "VOID", invoiceId]);
+    expect(data[2].slice(0, 4)).toEqual(["2026-10-06", "Invoice void", "S-1", -1000]);
+    expect(data[2].slice(6, 12)).toEqual([null, null, null, null, null, null]);
+    expect(data.slice(3).map((row) => [row[0], row[3]])).toEqual([["Gross sales", 1000], ["Invoice corrections", -1000], ["Net sales", 0], ["Current state of these invoices", null]]);
   });
   it("round-trips customer dues, expenses and payments with their totals", async () => {
     const dues = await roundTrip(customerDueSheet(

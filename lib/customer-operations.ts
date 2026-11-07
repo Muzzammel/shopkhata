@@ -43,7 +43,7 @@ export type CustomerLedgerSource = {
   recordedAt: string;
   sequenceId: string;
   invoiceId: string;
-  type: "invoice" | "payment" | "invoice_correction" | "payment_correction" | "credit_application";
+  type: "invoice" | "payment" | "invoice_correction" | "invoice_void" | "payment_correction" | "credit_application";
   reference: string;
   invoiceNumber: string | null;
   actorName: string | null;

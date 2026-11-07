@@ -32,7 +32,7 @@ const PERIODS: { key: DashboardPeriod; label: string; title: string }[] = [
   { key: "year", label: "Year", title: "Last 12 months" }, { key: "custom", label: "Custom", title: "Custom range" },
 ];
 const METRICS = {
-  sales: { label: "Sales", description: "Gross invoiced per day, before corrections", color: "var(--text)", pick: (d: TrendPoint) => d.salesDirham },
+  sales: { label: "Sales", description: "Net sales per day: invoices entered plus corrections and voids dated that day", color: "var(--text)", pick: (d: TrendPoint) => d.salesDirham },
   cash: { label: "Cash", description: "Cash received per day", color: "var(--series-income)", pick: (d: TrendPoint) => d.paymentsDirham },
   expenses: { label: "Expenses", description: "Expenses per day", color: "var(--series-expense)", pick: (d: TrendPoint) => d.expensesDirham },
 } as const;
@@ -91,7 +91,7 @@ export function DashboardOverview({ shopId, range, today, kpi, days, lastDay }: 
       <KpiCard
         tone="ink" size="xl" icon={TrendingUpIcon} label="Sales" kind="money" value={kpi.salesDirham} onClick={() => emphasize("sales")} pressed={emphasized && metric === "sales"}
         className="col-span-2 order-0 lg:col-span-5 lg:row-span-2" index={0}
-        caption={<span className="flex flex-wrap items-center gap-x-2 gap-y-1"><span>Effective sales · {caption}</span></span>}
+        caption={<span className="flex flex-wrap items-center gap-x-2 gap-y-1"><span>Net sales by business date · {caption}</span></span>}
       >
         <span className="flex flex-wrap gap-2">
           <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium">{kpi.invoiceCount} invoice{kpi.invoiceCount === 1 ? "" : "s"}</span>

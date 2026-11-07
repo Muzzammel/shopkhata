@@ -1,0 +1,23 @@
+# gate: 12-diff-check
+# command: git diff --check
+# cwd: /c/Users/Reem/Desktop/shopkhata
+# tree: c47b5238e96c14f1654b6ec17f2031762e38b59d
+# started: 2026-11-04T20:14:40Z
+
+warning: in the working copy of 'docs/operations/backup-restore.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/operations/ops-01b-slice1-release-runbook.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/backup-fingerprint.sql', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/backup.mjs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/ops-01b-post36-verify.sql', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/ops-01b-smoke-declaration.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/window-compare.mjs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'supabase/migrations/20261103140000_ops_01b_maintenance_guard.sql', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'supabase/tests/maintenance.test.sql', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/integration/operations/locked-restore.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/integration/operations/maintenance.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/integration/operations/preflight-drifts.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/integration/operations/release-window-rehearsal.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/unit/window-compare.test.ts', LF will be replaced by CRLF the next time Git touches it
+
+# finished: 2026-11-04T20:14:40Z
+# exit: 0
