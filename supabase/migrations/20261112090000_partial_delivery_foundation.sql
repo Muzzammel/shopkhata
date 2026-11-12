@@ -162,6 +162,8 @@ grant execute on function public.record_invoice_delivery(jsonb) to authenticated
 -- 6. submit_batch: optional ordered_pieces + delivered_pieces -----------------------------------------------------------
 -- Re-created from the stored definitions with exact-once substitutions (as 20261021090000), so every other line stays as
 -- deployed. The migration stops if an anchor is not found exactly once.
+-- One session may apply every migration (supabase start): drop a helper left by an earlier one (20261021090000).
+drop function if exists pg_temp.redefine(text, text[]);
 create function pg_temp.redefine(p_signature text, p_edits text[]) returns void
 language plpgsql as $redefine$
 declare
@@ -236,3 +238,5 @@ select pg_temp.redefine('private.submit_batch(jsonb)', array[
 
   insert into public.audit_events (shop_id, actor_id, action, entity_type, entity_id, metadata)$b$
 ]);
+
+drop function pg_temp.redefine(text, text[]);

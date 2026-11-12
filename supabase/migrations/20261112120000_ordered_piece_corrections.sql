@@ -155,6 +155,8 @@ cross join lateral (select coalesce((select c.ordered_after from public.invoice_
 where i.ordered_pieces is not null;
 
 -- 4. Delivery RPCs read the effective ordered quantity -----------------------------------------------------------------
+-- One session may apply every migration (supabase start): drop a helper left by an earlier one.
+drop function if exists pg_temp.redefine(text, text[]);
 create function pg_temp.redefine(p_signature text, p_edits text[]) returns void
 language plpgsql as $redefine$
 declare
@@ -183,3 +185,5 @@ select pg_temp.redefine('public.reverse_invoice_delivery(jsonb)', array[
   $a$'ordered_pieces', inv.ordered_pieces,$a$,
   $b$'ordered_pieces', private.effective_ordered_pieces(sid, iid),$b$
 ]);
+
+drop function pg_temp.redefine(text, text[]);

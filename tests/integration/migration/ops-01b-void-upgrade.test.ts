@@ -17,6 +17,8 @@ const V36_GUARD = "20261103140000";
 const V37_VOID = "20261103150000";
 const V38_REMEDIATION = "20261103190000";
 const V39_COMPAT = "20261103203806";
+// Partial delivery (40-43) follows OPS-01B, so "migration up" from 35 or 37 also applies these.
+const PARTIAL_DELIVERY = ["20261112090000", "20261112100000", "20261112110000", "20261112120000"];
 // The e4f4cfe application's report_sales_totals contract (that app stays in production while 36-39 are applied).
 const LEGACY = ["invoice_count", "effective_total_dirham", "effective_paid_dirham", "credit_applied_dirham", "effective_due_dirham", "delivered_count", "undelivered_count"];
 const legacy = (from: string, to: string) => `select concat_ws('|', ${LEGACY.map((k) => `s.${k}`).join(", ")}) from public.report_sales_totals('${SHOP}', ${from}, ${to}) s;`;
@@ -66,16 +68,16 @@ describe("OPS-01B migrations 36-39 on a populated database (35 -> 39)", () => {
   beforeAll(() => { supabase(["migration", "list", "--local"]); }, 60_000);
   afterAll(() => { supabase(["db", "reset", "--local"]); }, RESET_TIMEOUT);
 
-  it("35 -> 39 applies exactly migrations 36-39, keeps every existing figure, then a void preserves history and nets to zero", () => {
+  it("35 -> 43 applies exactly migrations 36-43, keeps every existing figure, then a void preserves history and nets to zero", () => {
     supabase(["db", "reset", "--local", "--version", V35]);
     sql(POPULATE);
     const before = sql(STATE);
     const legacyRange = sql(legacy("current_date - 3", "current_date"));
     const legacyToday = sql(legacy("current_date", "current_date"));
     supabase(["migration", "up", "--local"]);
-    // All four new versions, in order, and nothing else after 35.
-    expect(sql(`select string_agg(version, ',' order by version) from supabase_migrations.schema_migrations where version > '${V35}'`)).toBe([V36_GUARD, V37_VOID, V38_REMEDIATION, V39_COMPAT].join(","));
-    expect(sql("select count(*) from supabase_migrations.schema_migrations")).toBe("39");
+    // The four OPS-01B versions then the four partial-delivery versions, in order, and nothing else after 35.
+    expect(sql(`select string_agg(version, ',' order by version) from supabase_migrations.schema_migrations where version > '${V35}'`)).toBe([V36_GUARD, V37_VOID, V38_REMEDIATION, V39_COMPAT, ...PARTIAL_DELIVERY].join(","));
+    expect(sql("select count(*) from supabase_migrations.schema_migrations")).toBe("43");
     // 36 installed the guard OFF: upgrading a populated database does not put it into maintenance or write audit rows.
     expect(sql("select enabled::text || ':' || (select count(*) from public.audit_events where entity_type = 'system_maintenance') from private.system_maintenance")).toBe("false:0");
     expect(sql(STATE)).toBe(before);
@@ -105,7 +107,7 @@ describe("OPS-01B migrations 36-39 on a populated database (35 -> 39)", () => {
     sql(`${asOwner}select public.void_invoice('{"shop_id":"${SHOP}","invoice_id":"a9100000-0000-4000-8000-000000000003","reason":"Voided before the remediation","idempotency_key":"upg-void-37"}');`);
     const before = sql(STATE);
     supabase(["migration", "up", "--local"]);
-    expect(sql(`select string_agg(version, ',' order by version) from supabase_migrations.schema_migrations where version > '${V37_VOID}'`)).toBe([V38_REMEDIATION, V39_COMPAT].join(","));
+    expect(sql(`select string_agg(version, ',' order by version) from supabase_migrations.schema_migrations where version > '${V37_VOID}'`)).toBe([V38_REMEDIATION, V39_COMPAT, ...PARTIAL_DELIVERY].join(","));
     expect(sql(STATE)).toBe(before);
     expect(sql(`select convalidated from pg_constraint where conname = 'invoice_voids_correction_fkey';`)).toBe("t");
     expect(sql(`select string_agg(movement_type || ':' || amount_dirham || ':' || (business_date = current_date), ',' order by business_date) from public.sales_movements where invoice_id = 'a9100000-0000-4000-8000-000000000003';`))
