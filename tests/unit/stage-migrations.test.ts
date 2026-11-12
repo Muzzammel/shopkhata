@@ -349,7 +349,14 @@ describe("process lifecycle: termination is confirmed only from a complete listi
   const soon = () => Date.now() + 2_000;
 
   it("process-listing command failure confirms nothing", async () => {
-    await expect(listProcesses({ timeoutMs: 1_000, exec: vi.fn(async () => { throw Object.assign(new Error("powershell failed"), { code: 1 }); }) })).rejects.toThrow("powershell failed");
+    // The listing command runs only on the win32 branch (Linux reads /proc, refused below); pin the platform so the
+    // injected failure is reached on every host, and prove it was.
+    const host = process.platform, platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+    const exec = vi.fn(async () => { throw Object.assign(new Error("powershell failed"), { code: 1 }); });
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    try { await expect(listProcesses({ timeoutMs: 1_000, exec })).rejects.toThrow("powershell failed"); } finally { Object.defineProperty(process, "platform", platform); }
+    expect(exec).toHaveBeenCalledTimes(1);
+    expect(process.platform).toBe(host);
     const tree = new ProcessTree(10, T0).absorb(table({ pid: 10, ppid: 1, created: T0 + 5 }));
     expect(await confirmTreeGone(tree, { deadline: Date.now() + 400, list: vi.fn(async () => { throw new Error("listing failed"); }), kill: vi.fn() })).toBe(false);
   });
