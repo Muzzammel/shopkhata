@@ -3,12 +3,15 @@ import { delimiter, join } from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prepareInvoiceBatch, qatarBusinessDate, type EntryRow } from "@/lib/invoice-entry";
+import { resetLocal } from "./release-helpers";
 
 // OPS-01B slice 1: invoice void through the real API with real sessions and permissions, and the
 // void-versus-void and void-versus-payment races proven with two concurrent database sessions.
 
-const SUITE_TIMEOUT = 120_000;
-const RESET_TIMEOUT = 90_000;
+// Hook budget: the prerequisite check (<= 30 s) + RESET_BUDGET (lease, image checks, reset, kill confirmation and lease
+// release all inside it; scripts/local-reset.mjs) + 30 s slack. A hook that still times out leaves the lease held.
+const SUITE_TIMEOUT = 210_000;
+const RESET_BUDGET = 150_000;
 const PNPM = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const DB_CONTAINER = "supabase_db_shopkhata";
 
@@ -121,10 +124,10 @@ describe("OPS-01B invoice void (real network, real sessions, concurrent sessions
   let supabaseAvailable = false;
   let credentials: { url: string; key: string } = { url: "", key: "" };
 
-  beforeAll(() => {
+  beforeAll(async () => {
     if (!isSupabaseRunning()) throw new Error("Prerequisite: local Supabase must be running. Start it with: pnpm.cmd exec supabase start --local");
     supabaseAvailable = true;
-    runSupabase(["db", "reset", "--local"], RESET_TIMEOUT);
+    await resetLocal([], { timeoutMs: RESET_BUDGET });
     const env = parseEnv(runSupabase(["status", "-o", "env"], 30_000));
     const url = env.API_URL;
     const key = env.PUBLISHABLE_KEY ?? env.ANON_KEY;
@@ -132,9 +135,9 @@ describe("OPS-01B invoice void (real network, real sessions, concurrent sessions
     credentials = { url, key };
   }, SUITE_TIMEOUT);
 
-  afterAll(() => {
+  afterAll(async () => {
     if (!supabaseAvailable) return;
-    runSupabase(["db", "reset", "--local"], RESET_TIMEOUT);
+    await resetLocal([], { timeoutMs: RESET_BUDGET });
   }, SUITE_TIMEOUT);
 
   async function signIn({ email, password }: { email: string; password: string }): Promise<SupabaseClient> {

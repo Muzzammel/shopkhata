@@ -3,9 +3,12 @@ import { delimiter, join } from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { beforeAll, describe, expect, it } from "vitest";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
+import { resetLocal } from "./release-helpers";
 
-const SUITE_TIMEOUT = 120_000;
-const RESET_TIMEOUT = 90_000;
+// Hook budget: the prerequisite check (<= 30 s) + RESET_BUDGET (lease, image checks, reset, kill confirmation and lease
+// release all inside it; scripts/local-reset.mjs) + 30 s slack. A hook that still times out leaves the lease held.
+const SUITE_TIMEOUT = 210_000;
+const RESET_BUDGET = 150_000;
 const PNPM = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
 type CommandFailure = Error & { stdout?: string; stderr?: string };
@@ -78,7 +81,7 @@ describe("complete invoice operations through real authenticated Supabase", () =
   let manager: SupabaseClient;
   beforeAll(async () => {
     if (!isSupabaseRunning()) throw new Error("Prerequisite: local Supabase must be running.");
-    runSupabase(["db", "reset", "--local"], RESET_TIMEOUT);
+    await resetLocal([], { timeoutMs: RESET_BUDGET });
     const env = parseEnv(runSupabase(["status", "-o", "env"], 30_000));
     async function login(email: string, password: string) {
       const c = createClient(env.API_URL, env.PUBLISHABLE_KEY ?? env.ANON_KEY);

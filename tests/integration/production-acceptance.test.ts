@@ -479,7 +479,7 @@ describe("production acceptance against real Supabase", () => {
     const env: NodeJS.ProcessEnv = { ...process.env, SHOPKHATA_BACKUP_DIR: backupDir };
     delete env.SHOPKHATA_BACKUP_DB_URL;
     const output = execFileSync(process.execPath, [join("scripts", "backup.mjs"), "verify"], { encoding: "utf8", timeout: 240_000, env, stdio: ["ignore", "pipe", "pipe"] });
-    expect(output).toContain("RESTORE VERIFIED");
+    expect(output).toContain("RESTORE CHECKS PASSED (pending parent lock release)");
     const [backup] = readdirSync(backupDir);
     const manifest = JSON.parse(readFileSync(join(backupDir, backup, "manifest.json"), "utf8"));
     const verification = JSON.parse(readFileSync(join(backupDir, backup, "restore-verification.json"), "utf8"));

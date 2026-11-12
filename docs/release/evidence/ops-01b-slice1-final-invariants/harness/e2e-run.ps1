@@ -7,6 +7,13 @@ $repo = "C:\Users\Reem\Desktop\shopkhata"
 $ev = "$repo\docs\release\evidence\ops-01b-slice1-final-invariants\logs"
 $sp = "C:\Users\Reem\AppData\Local\Temp\claude\86599d7da4cda383\d46ec58f-b8ba-4f13-93e7-53968403f4a0\scratchpad"
 Set-Location $repo
+if (-not $env:SHOPKHATA_RESTORE_LOCK_ID) {
+  & node "$repo\scripts\with-restore-lock.mjs" powershell.exe -NoProfile -NonInteractive -File $PSCommandPath -Name $Name -PwArgs $PwArgs
+  exit $LASTEXITCODE
+}
+# Validate inherited ownership before ANY reset, including a directly invoked harness with forged environment.
+& node "$repo\scripts\with-restore-lock.mjs" --assert
+if ($LASTEXITCODE -ne 0) { throw "The local harness does not hold the shared restore lock." }
 if (Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue) { throw "port 3000 already in use: stop the stale server first" }
 $tree = (& "C:\Program Files\Git\bin\bash.exe" "$sp/tree.sh").Trim()
 $log = "$ev\$Name.log"; $serverLog = "$ev\$Name.server.log"
@@ -43,7 +50,6 @@ try {
 } finally {
   taskkill /PID $dev.Id /T /F | Out-Null
   Start-Sleep -Seconds 2
-  git checkout -- AGENTS.md  # next dev rewrites it; never part of the tested tree
 }
 $finished = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 "`n# finished: $finished`n# exit: $code" | Out-File -Encoding utf8 -Append $log

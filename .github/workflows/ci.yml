@@ -73,6 +73,11 @@ jobs:
 
   # The full gate against a real local Supabase stack, one suite at a time.
   integration:
+    # Isolated disposable daemon/database on this GitHub-hosted VM, never a shared local engine.
+    # Sequential lifecycle: start; migration resets; explicit reset; pgTAP writes/rollbacks;
+    # integration/rehearsal/perf resets and writes; final browser reset; E2E writes; stop.
+    # start/reset/test-db/stop below intentionally need no cross-runner lock. Moving to a
+    # self-hosted/shared daemon requires a lock around the ENTIRE lifecycle before setup.
     runs-on: ubuntu-latest
     timeout-minutes: 75
     needs: verify

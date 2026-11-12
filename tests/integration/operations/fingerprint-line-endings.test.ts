@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { APP_FNS, CRLF, LONE_CR, MIXED, PASS, edit, gate, git, migrations, stageCheckout, stop } from "./fingerprint-gates";
-import { DB_URL, NEW_VERSIONS, V35, psql, runbookV3, supabase } from "./release-helpers";
+import { DB_URL, NEW_VERSIONS, V35, psql, resetLocal, runbookV3, supabase } from "./release-helpers";
 
 // OPS-01B P1B: the function-body fingerprints of the release gates (preflight C05/C15, post-36 P03) hash a CANONICAL body,
 // regexp_replace(prosrc, E'\r\n?', E'\n', 'g'): CRLF -> LF, lone CR -> LF, nothing else. Production stores bodies with
@@ -35,7 +35,7 @@ describe("OPS-01B release fingerprints are line-ending stable, and nothing else 
   it("gates pass on any line-ending representation and still STOP on every real drift", async () => {
     try {
       // ---- DB35, preflight C05/C15 -----------------------------------------------------------------------------------
-      await supabase(["db", "reset", "--local", "--version", V35], undefined, 240_000);
+      await resetLocal(["--version", V35]);
       expect(await migrations()).toBe(`35 ${V35}`);
       expect(await gate(PREFLIGHT)).toMatchObject(PASS);
       for (const [name, rep] of [["CRLF", CRLF], ["lone CR", LONE_CR], ["mixed", MIXED]] as const) {
@@ -68,7 +68,7 @@ describe("OPS-01B release fingerprints are line-ending stable, and nothing else 
       for (const [name, sql, stops] of drifts) expect(await gate(PREFLIGHT, sql), name).toMatchObject(stop(...stops));
 
       // ---- DB36, post-36 P03 (W2b and restore mode) ------------------------------------------------------------------
-      await supabase(["db", "reset", "--local", "--version", V36], undefined, 240_000);
+      await resetLocal(["--version", V36]);
       expect(await migrations()).toBe(`36 ${V36}`);
       const G = "private.storage_receipt_maintenance_guard()";
       for (const script of [POST36, RESTORE]) {
@@ -81,7 +81,7 @@ describe("OPS-01B release fingerprints are line-ending stable, and nothing else 
       expect(await gate(OLD_POST36, CRLF), "the old raw P03 false-fails").toMatchObject(stop("P03"));
 
       // ---- databases built from migration FILES checked out with CRLF (Windows autocrlf) ----------------------------
-      await supabase(["--workdir", stageCheckout(V35, "crlf"), "db", "reset", "--local", "--no-seed"], undefined, 240_000);
+      await resetLocal(["--no-seed"], { workdir: stageCheckout(V35, "crlf") });
       expect(await migrations()).toBe(`35 ${V35}`);
       const crlf35 = await gate(PREFLIGHT);
       expect(crlf35.crBodies).toBeGreaterThan(30);
@@ -99,12 +99,12 @@ describe("OPS-01B release fingerprints are line-ending stable, and nothing else 
       expect(await psql(`begin;\n${unguarded}\n${runbookV3()}\nrollback;`), "a real drift at 39 still fails V3").toMatch(/^(public\.)?create_customer\(jsonb\)$/m);
 
       // ---- and from an LF checkout ----------------------------------------------------------------------------------
-      await supabase(["--workdir", stageCheckout(V35, "lf"), "db", "reset", "--local", "--no-seed"], undefined, 240_000);
+      await resetLocal(["--no-seed"], { workdir: stageCheckout(V35, "lf") });
       const lf35 = await gate(PREFLIGHT);
       expect(lf35.crBodies).toBe(0);
       expect(lf35).toMatchObject(PASS);
     } finally {
-      await supabase(["db", "reset", "--local"], undefined, 240_000);
+      await resetLocal();
     }
   }, 1_800_000);
 });

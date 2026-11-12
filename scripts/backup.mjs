@@ -23,12 +23,20 @@ import { isDeepStrictEqual } from "node:util";
 
 import { createClient } from "@supabase/supabase-js";
 
+import { acceptedRehearsal, compareRestored, differences, releaseReceiptPath, runRestoreChecks } from "./backup-verification.mjs";
+import { assertRestoreLockHeld, queueRestoreCompletion, RestoreLockError, withRestoreLock } from "./restore-lock.mjs";
+import { assertLocalEndpoint, classifyDatabaseTarget, validateRestoreEndpoints } from "./backup-target.mjs";
+import { guardedLocalReset, LocalResetError } from "./local-reset.mjs";
+
 const REPO = resolve(import.meta.dirname, "..");
 const CLI = join(REPO, "node_modules", "supabase", "dist", "supabase.js");
 const BUCKET = "expense-receipts";
 // supabase_db_<project_id from supabase/config.toml>
 const LOCAL_DB_CONTAINER = "supabase_db_shopkhata";
 const DUMPS = ["roles.sql", "schema.sql", "data.sql"];
+// Total budget of the verify's guarded local reset (snapshot, image checks, reset, kill confirmation); shorter than
+// any outer supervisor (release-helpers VERIFY_TIMEOUT) so the inner deadline expires first.
+const BACKUP_RESET_BUDGET = 300_000;
 // The psql client used against a URL-addressed (hosted) database: the image of the documented manual restore.
 const PSQL_IMAGE = "public.ecr.aws/supabase/postgres:17.6.1.159";
 
@@ -90,6 +98,7 @@ function requireQuiescent(src, when) {
 // One SQL statement returning a single jsonb column `v`, against a URL-addressed (hosted) database. Written to a file
 // so a long statement (every receipt name) never meets a command-line length limit.
 function urlSql(dbUrl) {
+  if (classifyDatabaseTarget(dbUrl) === "local") return (statement) => JSON.parse(psql(["-c", statement], undefined, new URL(dbUrl).username) || "null");
   return (statement) => {
     const file = join(mkdtempSync(join(tmpdir(), "shopkhata-sql-")), "q.sql");
     writeFileSync(file, statement);
@@ -101,10 +110,9 @@ const lit = (value) => `'${String(value).replaceAll("'", "''")}'`;
 // psql against a database URL through the documented client image. A local URL (127.0.0.1) is reached from the
 // container as host.docker.internal; that is the only difference from a hosted restore.
 function psqlUrl(dbUrl, args, stdin) {
+  if (classifyDatabaseTarget(dbUrl) === "local") return psql(args, stdin, new URL(dbUrl).username);
   const url = new URL(dbUrl);
-  const local = ["127.0.0.1", "localhost"].includes(url.hostname);
-  if (local) url.hostname = "host.docker.internal";
-  const result = spawnSync("docker", ["run", "--rm", "-i", ...(local ? ["--add-host", "host.docker.internal:host-gateway"] : []), PSQL_IMAGE,
+  const result = spawnSync("docker", ["run", "--rm", "-i", PSQL_IMAGE,
     "psql", url.toString(), "-v", "ON_ERROR_STOP=1", "-q", "-A", "-t", ...args], {
     encoding: "utf8", stdio: [stdin ?? "ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024, timeout: 900_000,
   });
@@ -181,8 +189,8 @@ async function createBackup() {
   return dir;
 }
 
-function psql(args, stdin) {
-  const result = spawnSync("docker", ["exec", "-i", "-e", "PGPASSWORD=postgres", LOCAL_DB_CONTAINER, "psql", "-h", "127.0.0.1", "-U", "supabase_admin", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-q", "-A", "-t", ...args], {
+function psql(args, stdin, user = "supabase_admin") {
+  const result = spawnSync("docker", ["exec", "-i", "-e", "PGPASSWORD=postgres", LOCAL_DB_CONTAINER, "psql", "-h", "127.0.0.1", "-U", user, "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-q", "-A", "-t", ...args], {
     encoding: "utf8", stdio: [stdin ?? "ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024, timeout: 900_000,
   });
   if (result.status !== 0) fail(`psql failed: ${(result.stderr || result.error?.message || "").trim()}`);
@@ -203,13 +211,6 @@ function provenEmpty(manifest, skipped) {
     if (count === undefined) fail(`STOP: data.sql has an empty section for ${schema}.${table}, but the backup's fingerprint has no inventory for it (a backup taken before the Storage inventory, or an unknown table). Take a new backup.`);
     if (count !== "0:") fail(`STOP: data.sql has an empty section for ${schema}.${table}, but the source fingerprint records ${count === "unreadable" ? "an unreadable table" : `${count.split(":")[0]} row(s)`}.`);
   }
-}
-
-function differences(expected, actual, path = "") {
-  if (isDeepStrictEqual(expected, actual)) return [];
-  const plain = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
-  if (!plain(expected) || !plain(actual)) return [`${path || "(root)"}: backup ${JSON.stringify(expected)} / restored ${JSON.stringify(actual)}`];
-  return [...new Set([...Object.keys(expected), ...Object.keys(actual)])].flatMap((key) => differences(expected[key], actual[key], path ? `${path}.${key}` : key));
 }
 
 // Runs as each active non-owner account under row-level security: it must see exactly the receipt
@@ -300,6 +301,7 @@ function restoreTarget(confirmHost) {
   const dbUrl = process.env.SHOPKHATA_RESTORE_DB_URL;
   if (!apiUrl || !serviceKey || !dbUrl) fail("Set SHOPKHATA_RESTORE_SUPABASE_URL, SHOPKHATA_RESTORE_SERVICE_ROLE_KEY and SHOPKHATA_RESTORE_DB_URL to the project being restored.");
   if (new URL(apiUrl).host !== confirmHost) fail(`--confirm must repeat the target host exactly (${new URL(apiUrl).host}).`);
+  validateRestoreEndpoints(dbUrl, apiUrl);
   return { apiUrl, serviceKey, dbUrl };
 }
 
@@ -401,11 +403,15 @@ function checkArtifacts(dir, manifest) {
 // Lists a backup in the application's owner-only Backup & Recovery screen. Deliberately a separate,
 // explicit step: taking a backup stays read-only against its source. Only a summary is written
 // (times, sizes, the manifest hash, the rehearsal result); the backup itself never leaves this computer.
-async function recordBackup(from) {
+async function recordBackup(from, locked = false) {
+  // Read only routing metadata outside the lock; all integrity/evidence reads and the write happen inside it.
+  const route = JSON.parse(readFileSync(join(resolve(from), "manifest.json"), "utf8"));
+  if (route.environment === "local" && !locked) return withRestoreLock(LOCAL_DB_CONTAINER, "backup record", () => recordBackup(from, true), { exclusive: true });
   const dir = resolve(from);
   if (!existsSync(join(dir, "manifest.json"))) fail(`${dir} is not a ShopKhata backup (manifest.json is missing).`);
   const manifestBytes = readFileSync(join(dir, "manifest.json"));
   const manifest = JSON.parse(manifestBytes.toString("utf8"));
+  if (manifest.environment === "local" && !locked) return withRestoreLock(LOCAL_DB_CONTAINER, "backup record", () => recordBackup(from, true), { exclusive: true });
   checkArtifacts(dir, manifest);
   log(`Integrity: ${DUMPS.length} dump files and ${manifest.receipts.length} receipt file(s) match their recorded SHA-256`);
 
@@ -415,11 +421,25 @@ async function recordBackup(from) {
   if (manifest.environment === "local") {
     if (apiUrl) fail("This is a backup of the local stack. Unset SHOPKHATA_BACKUP_SUPABASE_URL to record it there.");
     ({ apiUrl, serviceKey } = localSource());
+    if (new URL(apiUrl).origin !== "http://127.0.0.1:55321") fail("Unexpected local recording API target.");
+    assertLocalEndpoint("supabase_kong_shopkhata", 55321, 8000);
   } else if (!apiUrl || !serviceKey || process.env.SHOPKHATA_BACKUP_ENV !== manifest.environment) {
     fail(`Set SHOPKHATA_BACKUP_ENV=${manifest.environment}, SHOPKHATA_BACKUP_SUPABASE_URL and SHOPKHATA_BACKUP_SERVICE_ROLE_KEY to the project this backup was taken from.`);
   }
+  if (manifest.environment !== "local" && !/^https:\/\/[a-z0-9]{20}\.supabase\.co\/?$/.test(apiUrl)) fail("Recording a hosted backup requires its hosted Supabase API.");
   const rehearsalPath = join(dir, "restore-verification.json");
-  const rehearsal = existsSync(rehearsalPath) ? JSON.parse(readFileSync(rehearsalPath, "utf8")) : null;
+  // Only a completed rehearsal bound to THIS manifest and a verification run counts (scripts/backup-verification.mjs).
+  const text = existsSync(rehearsalPath) ? readFileSync(rehearsalPath, "utf8") : null;
+  let release = null;
+  try {
+    const runId = JSON.parse(text)?.runId;
+    if (typeof runId === "string" && /^[a-zA-Z0-9-]+$/.test(runId)) {
+      const receipt = releaseReceiptPath(rehearsalPath, runId);
+      if (existsSync(receipt)) release = readFileSync(receipt, "utf8");
+    }
+  } catch { /* malformed evidence is rejected by acceptedRehearsal */ }
+  const { rehearsal, reason } = acceptedRehearsal(text, sha256(manifestBytes), release);
+  if (!rehearsal && existsSync(rehearsalPath)) log(`Restore evidence not used: ${reason}.`);
   const { error } = await createClient(apiUrl, serviceKey, { auth: { persistSession: false } }).from("backup_records").upsert({
     backup_created_at: manifest.createdAt, environment: manifest.environment, source: manifest.source,
     app_version: manifest.app?.version ?? null, git_commit: manifest.app?.gitCommit ?? null, latest_migration: manifest.migrations.at(-1),
@@ -430,25 +450,54 @@ async function recordBackup(from) {
   log(`Recorded the ${manifest.environment} backup of ${manifest.createdAt} (${rehearsal ? `restore rehearsal ${rehearsal.ok ? "passed" : "FAILED"} at ${rehearsal.verifiedAt}` : "no restore rehearsal yet"}).`);
 }
 
-async function verifyRestore(from) {
+async function verifyRestore(from, lock) {
+  // Runs under the restore lock `lock` (see the dispatch below).
   const dir = from ? resolve(from) : await createBackup();
-  if (!existsSync(join(dir, "manifest.json"))) fail(`${dir} is not a ShopKhata backup (manifest.json is missing).`);
-  const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8"));
-  const checks = [];
-  const pass = (name, detail) => { checks.push({ name, detail }); log(`PASS ${name}: ${detail}`); };
+  const evidence = join(dir, "restore-verification.json");
+  // The evidence says ok=true only once every check below has passed (scripts/backup-verification.mjs); earlier
+  // evidence is invalidated first, a failure or an interrupted run leaves ok=false with the failed check, and the error
+  // still ends the command nonzero.
+  const { passes, environment } = await runRestoreChecks(evidence, (check, record) => verifySteps(dir, check, record, lock), {
+    complete: (value) => queueRestoreCompletion(lock, evidence, value),
+  });
+  if (environment !== "local") log("The local database now holds the restored data. Run `pnpm exec supabase db reset --local` when you have finished inspecting it.");
+  return { passes, evidence, inherited: lock.inherited };
+}
 
+// Every required check of the rehearsal, in order; check(name) marks the one now running.
+async function verifySteps(dir, check, record, lock) {
+  let passes = 0;
+  const pass = (name, detail) => { passes += 1; log(`PASS ${name}: ${detail}`); };
+
+  check("backup manifest");
+  if (!existsSync(join(dir, "manifest.json"))) fail(`${dir} is not a ShopKhata backup (manifest.json is missing).`);
+  const manifestBytes = readFileSync(join(dir, "manifest.json"));
+  let manifest;
+  try { manifest = JSON.parse(manifestBytes.toString("utf8")); } catch (error) { fail(`manifest.json is not valid JSON: ${error.message}`); }
+  // The evidence is bound to this exact manifest (backup:record accepts a pass only for the same SHA-256).
+  record({ manifestSha256: sha256(manifestBytes) });
+
+  check("artifact integrity");
   checkArtifacts(dir, manifest);
   pass("artifact integrity", `${DUMPS.length} dump files and ${manifest.receipts.length} receipt file(s) match their recorded SHA-256`);
 
+  check("migration compatibility");
   const repoMigrations = readdirSync(join(REPO, "supabase", "migrations")).filter((name) => name.endsWith(".sql")).map((name) => name.split("_")[0]).sort();
   if (!isDeepStrictEqual(repoMigrations.slice(0, manifest.migrations.length), manifest.migrations)) {
     fail("The backup was taken at a migration state this checkout does not contain. Check out the release that produced it.");
   }
   pass("migration compatibility", `backup is at ${manifest.migrations.at(-1)} (${manifest.migrations.length} of ${repoMigrations.length} migrations in this checkout)`);
 
+  check("database restore");
+  assertRestoreLockHeld(lock);
   const target = localSource();
+  if (new URL(target.apiUrl).origin !== "http://127.0.0.1:55321") fail("Unexpected local rehearsal API target.");
+  assertLocalEndpoint("supabase_db_shopkhata", 55322, 5432);
+  assertLocalEndpoint("supabase_kong_shopkhata", 55321, 8000);
   log("Resetting the LOCAL Supabase database (the disposable restore target) to the backup's migration state...");
-  supabase(["db", "reset", "--local", "--no-seed", "--version", manifest.migrations.at(-1)]);
+  // Only through the guarded reset (scripts/local-reset.mjs), under this run's exclusive operation lease: the images are
+  // proven before anything is reset, and a reset that cannot be confirmed stopped keeps the lease (fail closed).
+  await guardedLocalReset({ root: REPO, args: ["--no-seed", "--version", manifest.migrations.at(-1)], lease: lock.operation, timeoutMs: BACKUP_RESET_BUDGET });
   const reset = localSql("select to_jsonb(array_agg(version order by version)) from supabase_migrations.schema_migrations");
   if (!isDeepStrictEqual(reset, manifest.migrations)) fail(`The local reset reached ${reset?.at(-1)}, not exactly the backup's migration state.`);
   const tables = [...readFileSync(join(dir, "data.sql"), "utf8").matchAll(/^COPY ("[a-z_]+"\."[a-z_0-9]+") /gm)].map((match) => match[1]);
@@ -461,16 +510,21 @@ async function verifyRestore(from) {
   psql(["-c", "analyze"]);
   pass("database restore", `${tables.length} tables restored from data.sql in one transaction, then analyzed`);
 
+  check("receipt restore");
   const receipts = await restoreReceipts(dir, manifest, target.apiUrl, target.serviceKey, localSql);
   const orphans = Number(psql(["-c", `select count(*) from public.attachments a where a.expense_id is not null and not exists (select 1 from storage.objects o where o.bucket_id = '${BUCKET}' and o.name = a.file_path and (o.metadata ->> 'size')::bigint = a.byte_size)`]));
   if (orphans) fail(`${orphans} restored receipt record(s) have no matching stored file.`);
   pass("receipt restore", `${manifest.receipts.length} file(s) uploaded and read back byte-identical, stored metadata unchanged${receipts.context ? ", through the receipt restore context (closed again)" : ""}; all ${manifest.receiptAttachments} receipt record(s) have their file`);
+  check("maintenance state");
   const maintenance = maintenanceState(localSql);
   if (maintenance) pass("maintenance state", maintenance.enabled ? `restored LOCKED (maintenance on${maintenance.bypass ? ", with the backup's operator bypass" : ", no bypass"}), as in the backup` : "maintenance off, as in the backup");
 
+  check("fingerprint reconciliation");
   const restored = fingerprint(target);
-  const diff = differences(manifest.fingerprint, restored);
-  writeFileSync(join(dir, "restore-verification.json"), `${JSON.stringify({ verifiedAt: new Date().toISOString(), ok: diff.length === 0, differences: diff, restoredFingerprint: restored }, null, 2)}\n`);
+  // Only the comparison skips the local-only Storage tables (scripts/backup-local-storage.mjs); the evidence keeps the full restored fingerprint.
+  const { differences: diff, tolerated } = compareRestored(manifest.fingerprint, restored);
+  record({ differences: diff, toleratedLocalOnly: tolerated, restoredFingerprint: restored });
+  if (tolerated.length) log(`Local-only Storage tables absent from the backup and empty here, left out of the comparison: ${tolerated.join(", ")}.`);
   if (diff.length) fail(`The restored state does not reconcile with the backup:\n  ${diff.join("\n  ")}`);
   const rows = Object.values(restored.tables).reduce((sum, value) => sum + Number(value.split(":")[0]), 0);
   pass("table reconciliation", `${Object.keys(restored.tables).length} tables, ${rows} rows: every count and row hash identical`);
@@ -478,9 +532,11 @@ async function verifyRestore(from) {
     pass(`financial reconciliation ${shopId}`, `invoices ${shop.sales_totals.invoice_count}, net sales ${shop.sales_totals.net_sales_dirham ?? shop.sales_totals.effective_total_dirham}, paid ${shop.sales_totals.effective_paid_dirham}, due ${shop.sales_totals.effective_due_dirham}, customer due ${shop.customer_due_totals.outstanding_due_dirham}, available credit ${shop.customer_due_totals.available_credit_dirham} (dirham); ledger, balances, expenses and closed dates identical`);
   }
 
+  check("shop isolation");
   psql(["-c", ISOLATION_SQL]);
   pass("shop isolation", "every active non-owner account sees only its own shops' invoices and receipt objects under row-level security");
 
+  check("application reads");
   // Representative reads the way the application makes them: a restored owner account signs in
   // (one-time link, so no password is needed) and reads through the API under row-level security.
   const ownerEmail = psql(["-c", "select email from public.profiles where role = 'owner' and is_active order by created_at limit 1"]);
@@ -500,20 +556,35 @@ async function verifyRestore(from) {
   }
   pass("application reads", "a restored owner signed in and read the invoice projection and customer-due report through the API; both match for every shop");
 
-  log(`RESTORE VERIFIED: ${checks.length} checks passed. Evidence: ${join(dir, "restore-verification.json")}`);
-  if (manifest.environment !== "local") log("The local database now holds the restored data. Run `pnpm exec supabase db reset --local` when you have finished inspecting it.");
+  // Nothing else touched the database meanwhile only if the lock was ours throughout.
+  check("restore lock");
+  assertRestoreLockHeld(lock);
+  pass("restore lock", `held for the whole rehearsal (${lock.inherited ? "inherited from the run that started this one" : "taken by this run"})`);
+  return { passes, environment: manifest.environment };
+}
+
+// A restore whose target is this computer's local database (SHOPKHATA_RESTORE_DB_URL on localhost) needs the lock too.
+function localRestoreTarget() {
+  return validateRestoreEndpoints(process.env.SHOPKHATA_RESTORE_DB_URL, process.env.SHOPKHATA_RESTORE_SUPABASE_URL) === "local";
 }
 
 try {
   const [mode, flag, value, confirmFlag, confirmHost] = process.argv.slice(2);
   const hasBackup = flag === "--from" && value && statSync(value).isDirectory();
+  // Whatever resets or loads the local database runs only while holding its restore lock in Docker
+  // (scripts/restore-lock.mjs). Local record takes the same lock inside recordBackup, across evidence validation and
+  // the database write. Hosted recording requires a hosted API and a finalized release receipt, without a local daemon.
+  const locked = (purpose, fn) => withRestoreLock(LOCAL_DB_CONTAINER, `node scripts/backup.mjs ${purpose}`, fn, { exclusive: true });
   if (mode === undefined) await createBackup();
-  else if (mode === "verify" && (flag === undefined || hasBackup)) await verifyRestore(value);
+  else if (mode === "verify" && (flag === undefined || hasBackup)) {
+    const result = await locked(`verify ${value ? resolve(value) : "(new local backup)"}`, (lock) => verifyRestore(value, lock));
+    log(`${result.inherited ? "RESTORE CHECKS PASSED (pending parent lock release)" : "RESTORE VERIFIED"}: ${result.passes} checks passed. Evidence: ${result.evidence}`);
+  }
   else if (mode === "record" && hasBackup && confirmFlag === undefined) await recordBackup(value);
-  else if (mode === "restore" && hasBackup && confirmFlag === "--confirm" && confirmHost) await restoreTo(value, confirmHost);
-  else if (mode === "restore-receipts" && hasBackup && confirmFlag === "--confirm" && confirmHost) await restoreReceiptsTo(value, confirmHost);
+  else if (mode === "restore" && hasBackup && confirmFlag === "--confirm" && confirmHost) await (localRestoreTarget() ? locked(`restore ${resolve(value)} (local target)`, () => restoreTo(value, confirmHost)) : restoreTo(value, confirmHost));
+  else if (mode === "restore-receipts" && hasBackup && confirmFlag === "--confirm" && confirmHost) await (localRestoreTarget() ? locked(`restore-receipts ${resolve(value)} (local target)`, () => restoreReceiptsTo(value, confirmHost)) : restoreReceiptsTo(value, confirmHost));
   else fail("Usage: node scripts/backup.mjs [verify [--from <backup directory>] | record --from <backup directory> | restore --from <backup directory> --confirm <target host> | restore-receipts --from <backup directory> --confirm <target host>]");
 } catch (error) {
-  console.error(`[backup] FAILED: ${error instanceof BackupError ? error.message : error.stack}`);
+  console.error(`[backup] FAILED: ${error instanceof BackupError || error instanceof RestoreLockError || error instanceof LocalResetError ? error.message : error.stack}`);
   process.exit(1);
 }

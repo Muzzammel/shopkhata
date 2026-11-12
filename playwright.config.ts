@@ -2,6 +2,8 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  // The e2e suite changes the local database destructively: the whole run holds its restore lock (scripts/restore-lock.mjs).
+  globalSetup: "./tests/e2e/restore-lock.global-setup.ts",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,

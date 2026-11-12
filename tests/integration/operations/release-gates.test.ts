@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { NEW_VERSIONS, OWNER_ID, STAFF1_ID, lastJson, psql, session, sleep, supabase } from "./release-helpers";
+import { NEW_VERSIONS, OWNER_ID, STAFF1_ID, lastJson, psql, resetLocal, session, sleep } from "./release-helpers";
 
 // OPS-01B executable release gates, on a database at exactly migration 36 (the W2b/W3 moment):
 //   (1) the post-36 gate enforces the EXPECTED STATE (P00 mode, P08 singleton/OFF/no bypass, P10 no restore context),
@@ -58,7 +58,7 @@ async function twoStateReads() {
 
 describe("OPS-01B release gates at migration 36 (post-36 expected state, W3 decision)", () => {
   it("enforces the expected state and the W3 invariant", async () => {
-    await supabase(["db", "reset", "--local", "--version", V36], undefined, 240_000);
+    await resetLocal(["--version", V36]);
     try {
       // ---- (1) post-36 expected state --------------------------------------------------------------------------------
       expect(RESTORE, "the restore file is the W2b file with only the mode literal (and a header line) changed").toBe(
@@ -116,7 +116,7 @@ describe("OPS-01B release gates at migration 36 (post-36 expected state, W3 deci
       expect(await classify(disabled, afterReads, "disable")).toMatchObject({ exit: 0, decision: { case: 1, firewall: "MAY_REMOVE" } });
       expect(await classify({ code: 1, out: "context deadline exceeded" }, afterReads, "disable")).toMatchObject({ exit: 3, decision: { firewall: "KEEP_ON" } });
     } finally {
-      await supabase(["db", "reset", "--local"], undefined, 240_000);
+      await resetLocal();
     }
   }, 900_000);
 });

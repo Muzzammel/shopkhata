@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { psql } from "./release-helpers";
+import { psql, stagePins } from "./release-helpers";
 
 // Shared by the OPS-01B fingerprint tests (P1B line endings, P1C maintenance controller): runs the REAL gate SQL files
 // against the local stack after a drift that is applied and rolled back in the same transaction.
@@ -36,7 +36,8 @@ export async function gate(script: string, setup = ""): Promise<GateResult> {
 export const PASS = { verdict: "PASS", failed: [] };
 export const stop = (...failed: string[]) => ({ verdict: "STOP", failed });
 
-/** A workdir holding the migrations up to `last` exactly as committed, materialized with LF or CRLF line endings. */
+/** A workdir holding the migrations up to `last` exactly as committed, materialized with LF or CRLF line endings, plus
+ *  this checkout's validated Supabase CLI pins. Reset it only through `resetLocal`, which checks the images first. */
 export function stageCheckout(last: string, eol: "lf" | "crlf"): string {
   const dir = mkdtempSync(join(tmpdir(), `ops01b-${eol}-`));
   mkdirSync(join(dir, "supabase", "migrations"), { recursive: true });
@@ -46,6 +47,7 @@ export function stageCheckout(last: string, eol: "lf" | "crlf"): string {
     const text = git(["show", `HEAD:${file}`]).replace(/\r\n/g, "\n");
     writeFileSync(join(dir, file), eol === "crlf" ? text.replace(/\n/g, "\r\n") : text);
   }
+  stagePins(dir);
   return dir;
 }
 export const migrations = () => psql("select count(*) || ' ' || max(version) from supabase_migrations.schema_migrations");

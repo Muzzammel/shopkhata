@@ -218,6 +218,126 @@ See [deployment.md](deployment.md) for the full sequence.
 
 ## When a backup or restore fails
 
+### Local recovery coordination (OPS-01B Round 5)
+
+Local verification, restores, local backup recording, integration/performance tests and E2E runs share the
+Docker restore lock in `scripts/restore-lock.mjs`. It coordinates participants on the verified local daemon;
+it does not coordinate unrelated Docker engines or manual SQL/reset commands. Local recording holds the lock
+across artifact/evidence validation and the completed `backup_records` write. Hosted recording still requires
+the backup environment and hosted API credentials and does not require a local Docker daemon.
+
+The supported local restore URL is `postgresql://postgres:<password>@127.0.0.1:55322/postgres`, paired with
+`http://127.0.0.1:55321`. The tool verifies the exact running Supabase containers, their project labels and port
+bindings, and pins the local Docker endpoint. Local restore SQL uses the database container directly, preserving
+the requested database role. Aliases (including localhost), LAN addresses, tunnels, URL query overrides and
+unsupported remote targets are refused. Hosted restores support Supabase direct/pooler database hosts paired
+with the same project's HTTPS API; the explicit `--confirm` host check and empty-project checks still apply.
+
+Finalization sequence: invalidate previous evidence, atomically mark the run running, run every check under the
+lock, atomically write the checked result, then register it with the lock owner. The owner verifies its engine,
+database and lock identity, reads and removes its pending queue, releases the Docker lock, then atomically writes
+`restore-verification.json.release-<runId>.json`. Recording accepts success only when that receipt matches both
+the run ID and manifest hash. Failed release or interrupted finalization leaves no acceptable success. A new
+verification run has a new run ID, so late receipts cannot revive stale evidence. Keep the receipt with its backup.
+Older evidence without a receipt needs a fresh, separately authorized verification before it can record success.
+
+Round 5A adds a distinct exclusive operation lease (`<database-lock-name>.operation`) for local record, verify,
+and local restore commands. Verified descendants share parent database ownership but each must atomically create
+this inert Docker container before entering its operation. A conflicting sibling exits nonzero before evidence
+invalidation or database work, even when its backup directory differs. The parent harness holds database ownership
+without holding an operation lease, so its backup-tool children can acquire operation exclusivity without nesting.
+No operation lease is inherited, waited on, or automatically reclaimed; an abandoned lease requires the same manual
+inspection procedure as an abandoned database lock. Parent database-lock teardown acquires operation exclusivity too,
+and refuses to remove the database lock beneath an active operation.
+
+The lock binds the verified local Docker engine to the `shopkhata` Supabase project and its PostgreSQL service.
+Each check requires the expected database name, both Supabase/Compose project labels, a Supabase Postgres image,
+and the local `55322` to `5432` port binding. The image digest is pinned for the held lock. Database container IDs
+and volume identities may change during a legitimate reset; neither is an ownership key. A missing, stopped,
+wrong-project, wrong-service or changed-image replacement fails closed. Checks resume only after the expected
+service is running again. Versioned identity labels are checked on parent and operation locks, including inherited
+children. Old container-ID-bound locks retain the same conflicting name and cannot be inherited under this model.
+
+Abandoned-lock cleanup remains an explicit operator action. Inspect the full container ID, exact name, all ownership
+labels/token and creation time; correlate the owner with the completed failed run and prove the owner and its
+descendants are inactive. Check host processes, database activity and every operation lease (including parent ID
+references). A paused or slow holder is active. If anything is uncertain, leave the lock in place. Immediately before
+removal recheck ownership and inactivity, then remove only that verified full ID, never by name, prefix or prune.
+
+An inherited verify queues its checked result under its operation ID. Only a successfully removed operation lease
+marks that run's queue entry released. Parent teardown refuses incomplete entries and publishes release receipts only
+after removing both the parent database lock and its own teardown operation lease. Standalone verification retains
+its operation lease through database-lock removal, removes that lease, and only then publishes receipts. Failed
+operation release, or interruption before its per-run finalization marker, cannot produce acceptable success evidence.
+After lease removal, only atomic, immutable-run-specific queue markers/receipts are written; they cannot overwrite or
+validate another operation's canonical evidence. A callback that fails after queueing has its own queued entries
+discarded while it still holds the operation lease. Financial assertions and hosted recording remain unchanged.
+
+Inherited rehearsals report `RESTORE CHECKS PASSED (pending parent lock release)`; the parent test runner creates
+the receipt only after its teardown releases the lock. A standalone rehearsal prints `RESTORE VERIFIED` only after
+release and receipt creation. Failed checks retain their failure evidence; incomplete finalization is never a pass.
+Abandoned locks require the existing manual inspection/removal procedure; they are never reclaimed automatically.
+
+Guarded local resets (G6-B, `scripts/local-reset.mjs`). `pnpm backup:verify` and the operations integration suites
+(`resetLocal`) reset the local database only through `guardedLocalReset`, while holding an exclusive operation lease.
+It snapshots the project into a private folder (`supabase/` without `.temp`, no symlinks, plus only the validated
+version pins: never link state), asks the Supabase CLI which PostgreSQL and Storage images that snapshot resolves,
+and refuses unless each is the running container's tag in its official repository AND names the running container's
+exact local image ID (and its digest, if the running reference carries one); PostgreSQL must also be the lock's
+image. It re-verifies the lease, then resets that same snapshot as a tracked process tree: every member is identified
+by PID plus creation time (Windows CIM listing, Linux `/proc`), so a reused PID is never taken for, or killed as, a
+member. The lease is released only after a complete, successful listing shows no member alive; a failed, timed-out,
+malformed or incomplete listing confirms nothing. A timed-out reset is killed member by member; if its termination
+cannot be confirmed within the cleanup reserve, the lease (and, for a standalone verify, the database lock) is
+deliberately left in place, so nothing can release the lock while
+a reset may still run: use the abandoned-lock procedure above. Commands that never reset (backup, restore into a
+blank project, receipts, record) do no image check.
+
+Timeout hierarchy (each inner deadline is cut from the outer one): a process listing at most 15 s, a Docker call at
+most 20 s, the CLI `services` check at most 60 s, both within the reset budget minus a 30 s cleanup reserve; the
+reset gets what is left, then up to 30 s to kill and confirm its tree. `resetLocal` keeps 20 s of its budget for
+releasing the lease; the hook suites give it 150 s inside a 210 s hook (30 s prerequisite check, 30 s slack).
+`backup.mjs verify` gives its reset 300 s; the integration tests supervise the whole verify for 900 s and, past that,
+kill and confirm its whole process tree. Whatever expires, a destructive child that cannot be confirmed gone keeps
+its lease, and a killed `backup.mjs` never releases its own, so the parent run's lock cannot be released early. Residual, Docker-level and not closable here: between the check
+and the CLI's own image lookup another process could re-tag or pull a local image, and container operations the CLI
+already sent to the daemon complete even when the CLI is killed; the lock remains advisory against non-participants.
+
+Review 9 remediation (G6-B). A process whose creation time cannot be read has an UNKNOWN identity: it is never taken
+for a different (terminated) process and never killed, and while one holds a tracked PID or is the child of a tracked
+process the tree stays unconfirmed (lease kept). Windows kills are bound to the process handle (PID and creation time
+are re-checked on the handle that is terminated). Reset, services check, kill, listing and confirmation share ONE
+absolute deadline fixed at the start; each kill is capped at 5 s and by the time left, and none is attempted after the
+deadline, so a hook timeout cannot release protection while the reset may still run. The G6-B backup-creation
+subprocess (`localBackup` in the operations helpers) gets an environment built from scratch: operating-system
+variables, the run's lock handover and the pinned local Docker engine only. SHOPKHATA_BACKUP_* / SHOPKHATA_RESTORE_*
+routing, SUPABASE_*, PG*, DOCKER_CONTEXT and proxy variables of the launching shell are dropped, remote or non-local
+variables passed explicitly are refused, and the local containers plus the Supabase CLI's own report of the local API
+and database are verified BEFORE the backup command is spawned; its manifest must say `local`. `scripts/backup.mjs`
+and production backup behaviour are unchanged.
+
+OPEN findings (not remediated here; each BLOCKS its workflow until separately resolved):
+- Unleased reset paths: the acceptance suite (`tests/integration/production-acceptance.test.ts`), the performance and
+  migration-upgrade suites, and the retained e2e harness reset the database without an operation lease or confirmed
+  process-tree supervision, so parent-lock teardown could run beneath a surviving reset. Not reachable in G6-B.
+- Acceptance-suite verify timeout mismatch: its 240 s supervisor of `backup.mjs verify` is shorter than the 300 s reset
+  budget and has no tree confirmation (the operations suites use `backupVerify`, 900 s, with confirmation).
+
+Destructive entry-point inventory:
+
+- `.github/workflows/ci.yml`: Supabase start, migration-test resets, explicit database reset, pgTAP writes/rollbacks,
+  integration/acceptance/performance mutations and restore rehearsals, browser-setup reset, E2E mutations, stop.
+  These run sequentially on a disposable `ubuntu-latest` VM and its own daemon. No lock spans independent runners.
+  A future shared/self-hosted daemon must protect the whole lifecycle before setup.
+- `docs/release/evidence/ops-01b-slice1-final-invariants/harness/e2e-run.ps1`: reset and E2E mutations. Its Node
+  wrapper acquires before reset and retains ownership through server teardown; inherited ownership is checked.
+- Vitest's shared global setup acquires before test modules load; each worker verifies inherited engine/database
+  identity and pins Docker before destructive setup. Playwright's global setup protects E2E writes. Its web servers
+  run `dev`, `build`, and `next start`, with no reset command or package lifecycle hook that performs database setup.
+
+Non-database unit runs leave the real-Docker lock cases disabled. Those cases require the explicit
+`SHOPKHATA_LOCK_DOCKER_TESTS=1` opt-in and are separate from the database integration approval gate.
+
 | Message | Meaning and action |
 | --- | --- |
 | `The local Supabase stack is not running` | Start Docker, then `pnpm exec supabase start` |

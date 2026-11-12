@@ -6,7 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
 import {
-  DB_URL, NEW_VERSIONS, SHOP_1, STAFF1, STAFF1_ID, backupTool, localEnv, maintenanceOn, psql, runSqlFile, sh, signIn, stageMigrations, supabase, uid,
+  DB_URL, NEW_VERSIONS, SHOP_1, STAFF1, STAFF1_ID, backupTool, backupVerify, localBackup, localEnv, maintenanceOn, psql, resetLocal, runSqlFile, signIn, stageMigrations, uid,
 } from "./release-helpers";
 
 // OPS-01B recovery: a POPULATED backup (expense + registered receipt + real bytes) taken at migration 36 inside the
@@ -21,15 +21,20 @@ const V36 = NEW_VERSIONS[0];
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jL1sAAAAASUVORK5CYII=", "base64");
 const objectRow = (name: string) => psql(`select jsonb_build_object('owner', owner, 'owner_id', owner_id, 'created_at', created_at, 'size', metadata ->> 'size', 'mimetype', metadata ->> 'mimetype', 'etag', metadata ->> 'eTag') from storage.objects where bucket_id = 'expense-receipts' and name = '${name}'`);
 
+// A blank project from a staged --workdir, only after the CLI is shown to resolve the running stack's exact images from it.
+async function resetBlank(): Promise<void> {
+  await resetLocal(["--no-seed"], { workdir: stageMigrations("") });
+}
+
 describe("OPS-01B locked, populated, exact-version restore", () => {
   it("restores receipts into a locked database through the restore context, at exactly migration 36", async () => {
-    try { await rehearse(); } finally { await supabase(["db", "reset", "--local"], undefined, 240_000); }
+    try { await rehearse(); } finally { await resetLocal(); }
   }, 1_500_000);
 });
 
 async function rehearse(): Promise<void> {
   // ---- source: production modeled at 36, a real receipt, maintenance ON (inside the window) ------------------------
-  await supabase(["db", "reset", "--local", "--version", V36], undefined, 240_000);
+  await resetLocal(["--version", V36]);
   let env = await localEnv();
   const staff = await signIn(env, STAFF1);
   const today = qatarBusinessDate(new Date());
@@ -52,8 +57,8 @@ async function rehearse(): Promise<void> {
 
   // ---- recovery backup at 36, locked, quiescent ------------------------------------------------------------------
   const backups = mkdtempSync(join(tmpdir(), "ops01b-locked-restore-"));
-  const backup = (await sh(["backup:db"], { SHOPKHATA_BACKUP_DIR: backups, SHOPKHATA_BACKUP_REQUIRE_QUIESCENT: "1" })).match(/Backup complete: (.+)/)?.[1]?.trim();
-  expect(backup).toBeTruthy();
+  // Local source only: an explicit local-only environment, verified before the tool starts (release-helpers.localBackup).
+  const backup = await localBackup(backups, { SHOPKHATA_BACKUP_REQUIRE_QUIESCENT: "1" });
   const manifest = JSON.parse(readFileSync(join(backup!, "manifest.json"), "utf8"));
   expect(manifest.migrations.at(-1)).toBe(V36);
   expect(manifest.migrations).toHaveLength(36);
@@ -68,15 +73,16 @@ async function rehearse(): Promise<void> {
   }
 
   // ---- (a) local rehearsal restore of the locked, populated backup ------------------------------------------------
-  const verified = await sh(["backup:verify", "--from", backup!], {}, 600_000);
-  expect(verified).toContain("RESTORE VERIFIED");
+  const verified = await backupVerify(backup!);
+  expect(verified).toContain("RESTORE CHECKS PASSED (pending parent lock release)");
+  expect(verified).not.toContain("RESTORE VERIFIED");
   expect(verified).toContain("through the receipt restore context (closed again)");
   expect(verified).toContain("restored LOCKED (maintenance on, no bypass)");
 
   // ---- (b) production-equivalent restore into a BLANK project, checkout at 39 -------------------------------------
   const checkout = readdirSync("supabase/migrations").filter((f) => f.endsWith(".sql")).map((f) => f.split("_")[0]);
   expect(checkout, "the checkout holds migrations through 39").toEqual(expect.arrayContaining(NEW_VERSIONS));
-  await supabase(["--workdir", stageMigrations(""), "db", "reset", "--local", "--no-seed"], undefined, 240_000);
+  await resetBlank();
   expect(await psql("select to_regclass('supabase_migrations.schema_migrations') is null and to_regclass('public.shops') is null"), "a blank project, like a new hosted one").toBe("t");
   env = await localEnv();
   const target = { SHOPKHATA_RESTORE_DB_URL: DB_URL, SHOPKHATA_RESTORE_SUPABASE_URL: env.API_URL, SHOPKHATA_RESTORE_SERVICE_ROLE_KEY: env.SERVICE_ROLE_KEY };
@@ -150,7 +156,7 @@ async function rehearse(): Promise<void> {
   const m2 = JSON.parse(readFileSync(join(withRow, "manifest.json"), "utf8"));
   m2.files["data.sql"].sha256 = createHash("sha256").update(readFileSync(join(withRow, "data.sql"))).digest("hex");
   writeFileSync(join(withRow, "manifest.json"), JSON.stringify(m2, null, 2));
-  await supabase(["--workdir", stageMigrations(""), "db", "reset", "--local", "--no-seed"], undefined, 240_000);
+  await resetBlank();
   await expect(backupTool(["restore", "--from", withRow, "--confirm", host], target)).rejects.toThrow(/permission denied for table buckets_vectors/);
 
   console.log(`[locked-restore] PASS: ${manifest.migrations.length} migrations (last ${V36}), 1 receipt restored locked, context closed, maintenance effective`);

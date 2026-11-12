@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CRLF, LONE_CR, MIXED, PASS, edit, gate, gatePrefix, git, migrations, represent, stageCheckout } from "./fingerprint-gates";
-import { NEW_VERSIONS, V35, psql, supabase } from "./release-helpers";
+import { NEW_VERSIONS, V35, psql, resetLocal } from "./release-helpers";
 import { escapedCr, lineEndingSensitive, literals } from "./sql-literals";
 
 // OPS-01B P1C. (1) The post-36 P03 gate protects private.assert_maintenance_controller(), the pre-lock authorization of
@@ -74,7 +74,7 @@ describe("OPS-01B P1C: P03 protects the maintenance controller; canonical bodies
   it("C05/C15 (DB35) and P03 (DB36) bodies: no line-ending-sensitive literal; every controller drift STOPs P03", async () => {
     try {
       // ---- DB35: the bodies preflight C05 (api_fns) and C15 (app_triggers' functions) hash -------------------------
-      await supabase(["db", "reset", "--local", "--version", V35], undefined, 240_000);
+      await resetLocal(["--version", V35]);
       expect(await migrations()).toBe(`35 ${V35}`);
       const c05 = await bodies(PREFLIGHT, "select 'C05 ' || sig, prosrc from api_fns");
       const c15 = await bodies(PREFLIGHT, "select distinct 'C15 ' || a.fn, regexp_replace(p.prosrc, E'\\r\\n?', E'\\n', 'g') from app_triggers a join pg_proc p on p.oid = to_regprocedure(a.fn)");
@@ -88,7 +88,7 @@ describe("OPS-01B P1C: P03 protects the maintenance controller; canonical bodies
       expect(pre.chr13).toEqual([]);
 
       // ---- DB36 built from the committed migrations materialized with LF (the reviewed bytes) ----------------------
-      await supabase(["--workdir", stageCheckout(V36, "lf"), "db", "reset", "--local", "--no-seed"], undefined, 240_000);
+      await resetLocal(["--no-seed"], { workdir: stageCheckout(V36, "lf") });
       expect(await migrations()).toBe(`36 ${V36}`);
       const p03Bodies = await bodies(POST36, "select sig, prosrc from fns");
       expect(p03Bodies.map((b) => b.sig)).toContain(CTL);
@@ -145,7 +145,7 @@ describe("OPS-01B P1C: P03 protects the maintenance controller; canonical bodies
       // F2's copy must not survive the rolled-back transaction.
       expect(await psql("select to_regprocedure('private.zz_p1c_ctl()') is null and to_regrole('zz_p1c_owner') is null")).toBe("t");
     } finally {
-      await supabase(["db", "reset", "--local"], undefined, 240_000);
+      await resetLocal();
     }
   }, 1_200_000);
 });

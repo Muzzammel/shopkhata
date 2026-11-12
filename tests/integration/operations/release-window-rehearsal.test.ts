@@ -7,8 +7,8 @@ import { prepareInvoiceBatch, qatarBusinessDate, type EntryRow } from "@/lib/inv
 import { compareSnapshots, loadDeclarations } from "../../../scripts/window-compare.mjs";
 import { AS_MIGRATION_ROLE, POST36_DRIFTS, PREFLIGHT_DRIFTS } from "./preflight-drifts";
 import {
-  MANAGER, NEW_VERSIONS, OWNER, OWNER_ID, SHOP_1, STAFF1, STAFF1_ID, V35, bypassOff, bypassOn, lastJson, localEnv, maintenanceOff, maintenanceOn,
-  observeQuiescence, psql, pushUpTo, runbookV3, session, sh, signIn, sleep, supabase, uid,
+  MANAGER, NEW_VERSIONS, OWNER, OWNER_ID, SHOP_1, STAFF1, STAFF1_ID, V35, backupVerify, bypassOff, bypassOn, lastJson, localBackup, localEnv, maintenanceOff, maintenanceOn,
+  observeQuiescence, psql, pushUpTo, resetLocal, runbookV3, session, signIn, sleep, uid,
 } from "./release-helpers";
 
 // OPS-01B slice 1: the release window, rehearsed end to end on the local stack with the runbook's real commands
@@ -36,16 +36,15 @@ async function gateUnder(sql: string, gate: string, admin = false): Promise<{ ve
 
 describe("OPS-01B release window (35 -> 39), rehearsed on the local stack", () => {
   it("walks the runbook: inventory, bootstrap with in-flight receipt and old RPC, post-36 gate, lock, drain, recovery point, 37-39, smoke, reopen", async () => {
-    try { await rehearse(); } finally { await supabase(["db", "reset", "--local"], undefined, 240_000); }
+    try { await rehearse(); } finally { await resetLocal(); }
   }, 1_800_000);
 });
 
 async function rehearse(): Promise<void> {
   const backups = mkdtempSync(join(tmpdir(), "ops01b-backups-"));
-  const backupEnv = { SHOPKHATA_BACKUP_DIR: backups };
 
   // ---- PRE-WINDOW ------------------------------------------------------------------------------------------------
-  await supabase(["db", "reset", "--local", "--version", V35], undefined, 240_000);
+  await resetLocal(["--version", V35]);
   const env = await localEnv();
   const staff = await signIn(env, STAFF1); const owner = await signIn(env, OWNER); const manager = await signIn(env, MANAGER);
   const today = qatarBusinessDate(new Date());
@@ -75,9 +74,12 @@ async function rehearse(): Promise<void> {
   }
   say(`P1 inventory gate STOP on all ${Object.keys(PREFLIGHT_DRIFTS).length} simulated drifts, each on its own check`);
 
-  const rehearsalBackup = (await sh(["backup:db"], backupEnv)).match(/Backup complete: (.+)/)?.[1]?.trim();
-  expect(rehearsalBackup).toBeTruthy();
-  expect(await sh(["backup:verify", "--from", rehearsalBackup!], backupEnv, 480_000)).toContain("RESTORE VERIFIED");
+  const rehearsalBackup = await localBackup(backups);
+  // Inside this run's restore lock the verify inherits it: its checks pass, but RESTORE VERIFIED (and an accepted
+  // rehearsal) exists only once the parent lock release is finalized, so a nested run must never claim it.
+  const p2 = await backupVerify(rehearsalBackup!);
+  expect(p2).toContain("RESTORE CHECKS PASSED (pending parent lock release)");
+  expect(p2).not.toContain("RESTORE VERIFIED");
   say("P2 backup capability proven (pre-window copy, not the recovery point)");
 
   // ---- WINDOW ----------------------------------------------------------------------------------------------------
@@ -184,7 +186,7 @@ create trigger zz_hold after insert on storage.objects for each row execute func
   expect(notQuiet.first.quiescent, "the old pre-36 transaction is visible to W5").toBe(false);
   expect(notQuiet.first.open_writers).toBeGreaterThan(0);
   expect(notQuiet.first.sessions.some((s: { state: string }) => s.state.startsWith("idle in transaction"))).toBe(true);
-  await expect(sh(["backup:db"], { ...backupEnv, SHOPKHATA_BACKUP_REQUIRE_QUIESCENT: "1" })).rejects.toThrow(/not quiescent before the dumps/);
+  await expect(localBackup(backups, { SHOPKHATA_BACKUP_REQUIRE_QUIESCENT: "1" })).rejects.toThrow(/not quiescent before the dumps/);
   say(`S  W5 detects the old pre-36 RPC transaction (open writers ${notQuiet.first.open_writers}, write locks ${notQuiet.first.write_locks.length}); the recovery backup REFUSES`);
   // Drain: let it finish. It commits after the lock (it never passed the guard), and before the recovery point.
   oldRpc.send("commit;\nselect 'old-rpc-committed';"); await oldRpc.until("old-rpc-committed"); await oldRpc.end();
@@ -205,13 +207,13 @@ create trigger zz_hold after insert on storage.objects for each row execute func
 
   // W6: the AUTHORITATIVE recovery point, quiescence enforced by the tool.
   const since = await psql("select clock_timestamp()");
-  const recovery = (await sh(["backup:db"], { ...backupEnv, SHOPKHATA_BACKUP_REQUIRE_QUIESCENT: "1" })).match(/Backup complete: (.+)/)?.[1]?.trim();
-  expect(recovery).toBeTruthy();
+  const recovery = await localBackup(backups, { SHOPKHATA_BACKUP_REQUIRE_QUIESCENT: "1" });
   const manifest = JSON.parse(readFileSync(join(recovery!, "manifest.json"), "utf8"));
   expect(manifest.receipts.map((r: { name: string }) => r.name), "the receipt accepted across the install is in the recovery point").toContain(receiptPath);
   expect(readFileSync(join(recovery!, "data.sql"), "utf8")).toContain(oldRpcName);
-  const verified = await sh(["backup:verify", "--from", recovery!], backupEnv, 480_000);
-  expect(verified).toContain("RESTORE VERIFIED");
+  const verified = await backupVerify(recovery!);
+  expect(verified).toContain("RESTORE CHECKS PASSED (pending parent lock release)");
+  expect(verified).not.toContain("RESTORE VERIFIED");
   expect(verified).toContain("restored LOCKED");
   const baseline = await snapshot();
   expect(baseline.maintenance.enabled).toBe(true);
@@ -219,7 +221,7 @@ create trigger zz_hold after insert on storage.objects for each row execute func
   await sleep(1000);
   const stable = compareSnapshots(baseline, await snapshot(), { expectMaintenance: "on" });
   expect(stable.report, "nothing may move between the recovery point and now").toEqual({ release_control: [], migration_metadata: [], operator_smoke: [], unexpected: [] });
-  say(`W6 recovery point (quiescent, ${manifest.receipts.length} receipt(s) incl. the bootstrap one, the drained old-RPC write) RESTORE VERIFIED (locked); baseline stable`);
+  say(`W6 recovery point (quiescent, ${manifest.receipts.length} receipt(s) incl. the bootstrap one, the drained old-RPC write) restore checks passed (locked; pending parent lock release); baseline stable`);
 
   // W7-W9: 37 -> 38 -> 39.
   for (let i = 1; i < NEW_VERSIONS.length; i++) {

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CRLF, LONE_CR, MIXED, PASS, edit, gate, gatePrefix, git, migrations, represent, stageCheckout } from "./fingerprint-gates";
-import { NEW_VERSIONS, OWNER_ID, STAFF1_ID, V35, psql, supabase } from "./release-helpers";
+import { NEW_VERSIONS, OWNER_ID, STAFF1_ID, V35, psql, resetLocal } from "./release-helpers";
 
 // OPS-01B P1D. The maintenance authorization chain is
 //   pre-lock:  public.set_maintenance* -> private.assert_maintenance_controller() -> private.is_owner()
@@ -104,7 +104,7 @@ describe("OPS-01B P1D: the maintenance authorization chain is fingerprinted at D
   it("DB35 C23 and post-36 P03 STOP on every authorization-chain drift; line endings alone PASS", async () => {
     try {
       // ================= DB35: the mandatory preflight =================
-      await supabase(["db", "reset", "--local", "--version", V35], undefined, 240_000);
+      await resetLocal(["--version", V35]);
       expect(await migrations()).toBe(`35 ${V35}`);
       const clean = await gate(PREFLIGHT);
       expect(clean).toMatchObject(PASS);
@@ -133,7 +133,7 @@ describe("OPS-01B P1D: the maintenance authorization chain is fingerprinted at D
       for (const i of [0, 12]) expect(await gate(OLD_PREFLIGHT, DRIFTS[i][1]), `P1C preflight blind to ${DRIFTS[i][0]}`).toMatchObject(PASS);
 
       // ================= DB36 (LF-built from the committed migrations): the post-36 gate =================
-      await supabase(["--workdir", stageCheckout(V36, "lf"), "db", "reset", "--local", "--no-seed"], undefined, 240_000);
+      await resetLocal(["--no-seed"], { workdir: stageCheckout(V36, "lf") });
       expect(await migrations()).toBe(`36 ${V36}`);
       // Migration 36 does not alter the pre-existing dependencies: C23's own object sets give the DB35 values.
       const at36 = JSON.parse(await psql(`${gatePrefix(PREFLIGHT)}zz_p1d as (select 1)\nselect json_build_object('md5', (select md5(string_agg(sig || '|' || prosecdef::text || '|' || coalesce(proconfig::text, '') || '|' || pg_get_userbyid(proowner) || '|' || prosrc, E'\\n' order by sig)) from auth_deps), 'profiles', (select md5 from auth_profiles));`));
@@ -163,7 +163,7 @@ describe("OPS-01B P1D: the maintenance authorization chain is fingerprinted at D
       for (const i of [0, 12]) expect(await gate(OLD_POST36, DRIFTS[i][1]), `P1C P03 blind to ${DRIFTS[i][0]}`).toMatchObject(PASS);
       expect(await psql("select to_regrole('zz_p1d_owner') is null")).toBe("t");
     } finally {
-      await supabase(["db", "reset", "--local"], undefined, 240_000);
+      await resetLocal();
     }
   }, 1_800_000);
 });
