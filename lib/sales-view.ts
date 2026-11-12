@@ -1,21 +1,23 @@
 import { qar } from "@/lib/dashboard-view";
 import type { InvoiceDetail } from "@/lib/invoice-detail";
+import type { DeliveryStatus } from "@/lib/invoice-delivery";
 import { paymentMethodLabel } from "@/lib/payment-method";
 
 // View-only helpers for Sales, New Sale and Invoice Detail. Nothing here computes a balance:
 // every figure is passed in from effective_invoices or the server's own history rows.
 
-export type InvoiceBadge = "void" | "paid" | "due" | "delivered" | "corrected" | "replaced";
-export const BADGE_LABEL: Record<InvoiceBadge, string> = { void: "Void", paid: "Paid", due: "Due", delivered: "Delivered", corrected: "Corrected", replaced: "Replaced" };
+export type InvoiceBadge = "void" | "paid" | "due" | "delivered" | "partial" | "corrected" | "replaced";
+export const BADGE_LABEL: Record<InvoiceBadge, string> = { void: "Void", paid: "Paid", due: "Due", delivered: "Delivered", partial: "Partially delivered", corrected: "Corrected", replaced: "Replaced" };
 
 /**
  * Derived display states only; none of them is stored. Paid/due follow the list's own "fully paid" rule (due ≤ 0).
- * A void invoice is neither paid nor corrected: it shows Void instead.
+ * A void invoice is neither paid nor corrected: it shows Void instead. Delivered means fully delivered (legacy: the yes/no
+ * flag); a piece-tracked invoice with some pieces still to hand over shows Partially delivered, never Delivered.
  */
-export function invoiceBadges(invoice: { dueDirham: number; delivered: boolean; corrected: boolean; revision: number; isVoid?: boolean }): InvoiceBadge[] {
+export function invoiceBadges(invoice: { dueDirham: number; delivery: DeliveryStatus; corrected: boolean; revision: number; isVoid?: boolean }): InvoiceBadge[] {
   return [
     invoice.isVoid ? "void" : invoice.dueDirham > 0 ? "due" : "paid",
-    ...(invoice.delivered ? ["delivered" as const] : []),
+    ...(invoice.delivery === "full" ? ["delivered" as const] : invoice.delivery === "partial" ? ["partial" as const] : []),
     ...(invoice.corrected && !invoice.isVoid ? ["corrected" as const] : []),
     ...(invoice.revision > 0 ? ["replaced" as const] : []),
   ];

@@ -7,6 +7,7 @@ const TONE: Record<InvoiceBadge, string> = {
   paid: "bg-success-soft text-success",
   due: "bg-warning-soft text-warning",
   delivered: "bg-muted text-foreground",
+  partial: "bg-muted text-foreground ring-1 ring-warning/50 ring-inset",
   corrected: "bg-yellow-soft text-foreground ring-1 ring-yellow/60 ring-inset",
   replaced: "bg-card text-foreground ring-1 ring-input ring-inset",
 };

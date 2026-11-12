@@ -150,6 +150,14 @@ export type Database = {
         id: string; shop_id: string; expense_id: string; amount_dirham: number; expected_correction_request_id: string | null; category: string; description: string;
         reason: string; requested_by: string; requested_at: string; idempotency_key: string; fingerprint: string;
       }>
+      invoice_deliveries: TableShape<{
+        id: string; shop_id: string; invoice_id: string; pieces: number; business_date: string; created_by: string; recorded_at: string;
+        batch_id: string | null; idempotency_key: string | null; fingerprint: string | null; reverses_delivery_id: string | null; reason: string | null;
+      }>
+      invoice_piece_corrections: TableShape<{
+        id: string; seq: number; shop_id: string; invoice_id: string; ordered_before: number; ordered_after: number; reason: string;
+        business_date: string; created_by: string; recorded_at: string; idempotency_key: string; fingerprint: string;
+      }>
       invoice_voids: TableShape<{
         id: string; shop_id: string; invoice_id: string; correction_id: string | null; reason: string; actor_user_id: string;
         business_date: string; created_at: string; idempotency_key: string; fingerprint: string;
@@ -850,6 +858,7 @@ export type Database = {
           invoice_id: string
           invoice_type: string
           note: string | null
+          ordered_pieces: number | null
           quantity: number
           recorded_at: string
           shop_id: string
@@ -1265,6 +1274,9 @@ export type Database = {
           effective_credit_applied_dirham: number | null
           effective_total_dirham: number | null
           is_void: boolean | null
+          ordered_pieces: number | null
+          delivered_pieces: number | null
+          delivery_status: "none" | "partial" | "full" | null
           original_invoice_number: string | null
           original_total_dirham: number | null
           recorded_at: string | null
@@ -1345,6 +1357,9 @@ export type Database = {
       approve_overpayment: { Args: { command: Json }; Returns: Json }
       decide_invoice_correction: { Args: { command: Json }; Returns: Json }
       decide_invoice_replacement: { Args: { command: Json }; Returns: Json }
+      record_invoice_delivery: { Args: { command: Json }; Returns: Json }
+      reverse_invoice_delivery: { Args: { command: Json }; Returns: Json }
+      correct_invoice_ordered_pieces: { Args: { command: Json }; Returns: Json }
       record_payment: { Args: { command: Json }; Returns: Json }
       request_invoice_correction: { Args: { command: Json }; Returns: Json }
       void_invoice: { Args: { command: Json }; Returns: Json }
@@ -1369,7 +1384,7 @@ export type Database = {
       report_daily_summary: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { business_date: string; invoice_count: number; gross_invoice_dirham: number; initial_received_dirham: number; due_created_dirham: number; followup_payments_dirham: number; customer_payments_dirham: number; payment_corrections_dirham: number; invoice_corrections_dirham: number; credit_created_dirham: number; credit_applied_dirham: number; expense_count: number; expenses_dirham: number; cash_received_dirham: number; bank_received_dirham: number; total_received_dirham: number; net_cash_movement_dirham: number; net_due_movement_dirham: number }[] }
       report_day_pending_requests: { Args: { p_shop_id: string; p_date: string }; Returns: { pending_invoice_corrections: number; pending_invoice_replacements: number; pending_expense_corrections: number }[] }
       report_payment_totals: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { source: string | null; method: string | null; entry_count: number; amount_dirham: number }[] }
-      report_sales_totals: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { invoice_count: number; gross_sales_dirham: number; sales_corrections_dirham: number; net_sales_dirham: number; effective_paid_dirham: number; credit_applied_dirham: number; effective_due_dirham: number; delivered_count: number; undelivered_count: number }[] }
+      report_sales_totals: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { invoice_count: number; gross_sales_dirham: number; sales_corrections_dirham: number; net_sales_dirham: number; effective_paid_dirham: number; credit_applied_dirham: number; effective_due_dirham: number; delivered_count: number; undelivered_count: number; partially_delivered_count: number }[] }
       report_customer_due_totals: { Args: { p_shop_id: string }; Returns: { customers_with_due: number; outstanding_due_dirham: number; available_credit_dirham: number; unassigned_due_dirham: number }[] }
       report_expense_totals: { Args: { p_shop_id: string; p_from: string; p_to: string }; Returns: { category: string | null; expense_count: number; amount_dirham: number }[] }
       report_top_customers_by_sales: { Args: { p_shop_id: string; p_from: string; p_to: string; p_limit?: number }; Returns: { customer_id: string; name: string; amount_dirham: number }[] }

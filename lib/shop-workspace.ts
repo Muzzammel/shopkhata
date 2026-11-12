@@ -1,6 +1,7 @@
 import { can, type Actor } from "@/lib/auth/permissions";
 import { last30Days } from "@/lib/date-range";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
+import { deliveryStatus, type DeliveryStatus } from "@/lib/invoice-delivery";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getVisibleShops } from "@/lib/shop-switching";
 
@@ -16,7 +17,7 @@ export type WorkspaceInvoice = {
   business_date: string;
   effective_total_dirham: number;
   effective_due_dirham: number;
-  delivered: boolean;
+  delivery: DeliveryStatus;
   customer_id: string | null;
   is_void: boolean;
 };
@@ -48,10 +49,10 @@ export async function readShopWorkspace(actor: Actor, shopId: string): Promise<S
 }
 
 /** A voided invoice keeps is_void, so the preview shows VOID rather than Paid (its due is 0). */
-export function workspaceInvoice(invoice: { canonical_invoice_id: string | null; effective_invoice_number: string | null; business_date: string | null; effective_total_dirham: number | null; effective_due_dirham: number | null; effective_delivered: boolean | null; effective_customer_id: string | null; is_void: boolean | null }): WorkspaceInvoice {
+export function workspaceInvoice(invoice: { canonical_invoice_id: string | null; effective_invoice_number: string | null; business_date: string | null; effective_total_dirham: number | null; effective_due_dirham: number | null; delivery_status: string | null; effective_customer_id: string | null; is_void: boolean | null }): WorkspaceInvoice {
   return {
     id: invoice.canonical_invoice_id!, invoice_id: invoice.effective_invoice_number!, business_date: invoice.business_date!,
     effective_total_dirham: invoice.effective_total_dirham!, effective_due_dirham: invoice.effective_due_dirham!,
-    delivered: invoice.effective_delivered!, customer_id: invoice.effective_customer_id, is_void: invoice.is_void === true,
+    delivery: deliveryStatus(invoice.delivery_status), customer_id: invoice.effective_customer_id, is_void: invoice.is_void === true,
   };
 }

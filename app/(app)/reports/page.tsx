@@ -6,6 +6,7 @@ import { ui } from "@/components/sales/ui";
 import { can, getCurrentActor } from "@/lib/auth/permissions";
 import { dailyGroups } from "@/lib/closing-view";
 import { qar } from "@/lib/dashboard-view";
+import { DELIVERY_REPORT_LABEL } from "@/lib/invoice-delivery";
 import { qatarBusinessDate } from "@/lib/invoice-entry";
 import { paymentMethodLabel } from "@/lib/payment-method";
 import {
@@ -104,10 +105,10 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
         <Stat label="Payments received" value={qar(totals.paidDirham)} total="paid" />
         <Stat label="Customer credit applied" value={qar(totals.creditAppliedDirham)} total="credit" note="Not a receipt" />
         <Stat label="Outstanding due now" value={qar(totals.dueDirham)} total="due" note="Current position" />
-        <Stat label="Delivered / advance" value={`${totals.deliveredCount} / ${totals.undeliveredCount}`} />
+        <Stat label="Delivered / partial / advance" value={`${totals.deliveredCount} / ${totals.partiallyDeliveredCount} / ${totals.undeliveredCount}`} />
       </Group>
       <Table num={[5, 6, 7]} head={["Business date", "Movement", "Invoice", "Recorded (Qatar)", "Customer", "Amount", "Current total", "Current due", "Status"]} empty="No sales movements in this range.">
-        {rows.map((row) => <tr key={row.movementId} data-movement={row.movement}><td>{row.businessDate}</td><td>{SALES_MOVEMENTS[row.movement]}</td><td><Link href={`/shops/${shop.id}/invoices/${row.invoiceId}`} className="font-semibold underline underline-offset-4">{row.invoiceNumber}</Link></td><td>{qatarTime(row.recordedAt)}</td><td>{row.customerName || "—"}</td><td className={num} data-amount>{qar(row.amountDirham)}</td><td className={num}>{row.current ? qar(row.current.totalDirham) : "—"}</td><td className={num}>{row.current ? qar(row.current.dueDirham) : "—"}</td><td>{!row.current ? "—" : row.current.isVoid ? <span data-badge="void" className={cn(ui.badge, "bg-danger-soft text-destructive")}>Void</span> : <span className={cn(ui.badge, row.current.delivered ? "bg-muted text-foreground" : "bg-warning-soft text-warning")}>{row.current.delivered ? "Delivered" : "Advance"}</span>}</td></tr>)}
+        {rows.map((row) => <tr key={row.movementId} data-movement={row.movement}><td>{row.businessDate}</td><td>{SALES_MOVEMENTS[row.movement]}</td><td><Link href={`/shops/${shop.id}/invoices/${row.invoiceId}`} className="font-semibold underline underline-offset-4">{row.invoiceNumber}</Link></td><td>{qatarTime(row.recordedAt)}</td><td>{row.customerName || "—"}</td><td className={num} data-amount>{qar(row.amountDirham)}</td><td className={num}>{row.current ? qar(row.current.totalDirham) : "—"}</td><td className={num}>{row.current ? qar(row.current.dueDirham) : "—"}</td><td>{!row.current ? "—" : row.current.isVoid ? <span data-badge="void" className={cn(ui.badge, "bg-danger-soft text-destructive")}>Void</span> : <span data-delivery={row.current.delivery} className={cn(ui.badge, row.current.delivery === "none" ? "bg-warning-soft text-warning" : "bg-muted text-foreground", row.current.delivery === "partial" && "ring-1 ring-warning/50 ring-inset")}>{row.current.delivery === "none" ? "Advance" : DELIVERY_REPORT_LABEL[row.current.delivery]}</span>}</td></tr>)}
       </Table>
     </>;
   } else if (kind === "dues") {

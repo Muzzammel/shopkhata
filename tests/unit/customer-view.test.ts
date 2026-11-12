@@ -25,7 +25,7 @@ describe("customer view", () => {
   });
 
   it("sums effective invoice figures without touching due", () => {
-    const invoice = { invoiceId: "a", invoiceNumber: "A", businessDate: "2026-10-01", delivered: true, revision: 0, corrected: false };
+    const invoice = { invoiceId: "a", invoiceNumber: "A", businessDate: "2026-10-01", delivery: "full" as const, revision: 0, corrected: false };
     expect(customerTotals([{ ...invoice, totalDirham: 300, paidDirham: 100, creditAppliedDirham: 50, dueDirham: 150 }, { ...invoice, invoiceId: "b", totalDirham: 200, paidDirham: 200, creditAppliedDirham: 0, dueDirham: 0 }]))
       .toEqual({ salesDirham: 500, paidDirham: 300, creditAppliedDirham: 50 });
   });

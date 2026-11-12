@@ -2,6 +2,7 @@ import type { Actor } from "@/lib/auth/permissions";
 import { can } from "@/lib/auth/permissions";
 import type { CustomerLedgerSource } from "@/lib/customer-operations";
 import { runningLedger, type CustomerCredit, type CustomerInvoice, type LedgerEntry, type PaymentMeta } from "@/lib/customer-view";
+import { deliveryStatus } from "@/lib/invoice-delivery";
 import { readAllPages } from "@/lib/read-all-pages";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -38,7 +39,7 @@ export async function readCustomerDetail(actor: Actor, shopId: string, customerI
   if (customerError || balanceError || !customer || !balance || customer.shop_id !== shopId) return null;
 
   const [invoiceResult, ledgerResult, creditResult] = await Promise.all([
-    readAllPages((offset, end) => supabase.from("effective_invoices").select("canonical_invoice_id,effective_invoice_number,business_date,effective_total_dirham,effective_paid_dirham,effective_credit_applied_dirham,effective_due_dirham,effective_delivered,revision,original_total_dirham,is_void").eq("shop_id", shopId).eq("effective_customer_id", customerId).order("business_date", { ascending: false }).order("canonical_invoice_id").range(offset, end)),
+    readAllPages((offset, end) => supabase.from("effective_invoices").select("canonical_invoice_id,effective_invoice_number,business_date,effective_total_dirham,effective_paid_dirham,effective_credit_applied_dirham,effective_due_dirham,delivery_status,revision,original_total_dirham,is_void").eq("shop_id", shopId).eq("effective_customer_id", customerId).order("business_date", { ascending: false }).order("canonical_invoice_id").range(offset, end)),
     readAllPages((offset, end) => supabase.from("customer_ledger").select("business_date,recorded_at,sequence_id,invoice_id,entry_type,reference,invoice_number,actor_id,debit_dirham,credit_dirham").eq("shop_id", shopId).eq("customer_id", customerId).order("business_date").order("recorded_at").order("sequence_id").range(offset, end)),
     readAllPages((offset, end) => supabase.from("customer_credits").select("id,invoice_id,amount_dirham,business_date,recorded_at,reason,approved_by").eq("shop_id", shopId).eq("customer_id", customerId).not("approved_by", "is", null).order("recorded_at", { ascending: false }).range(offset, end)),
   ]);
@@ -47,7 +48,7 @@ export async function readCustomerDetail(actor: Actor, shopId: string, customerI
   const invoices: CustomerInvoice[] = invoiceResult.data.map((i) => ({
     invoiceId: i.canonical_invoice_id!, invoiceNumber: i.effective_invoice_number!, businessDate: i.business_date!,
     totalDirham: i.effective_total_dirham!, paidDirham: i.effective_paid_dirham!, creditAppliedDirham: i.effective_credit_applied_dirham ?? 0,
-    dueDirham: i.effective_due_dirham!, delivered: Boolean(i.effective_delivered), revision: i.revision ?? 0,
+    dueDirham: i.effective_due_dirham!, delivery: deliveryStatus(i.delivery_status), revision: i.revision ?? 0,
     // Same rule as the Sales list: only an approved correction can move the effective total off the recorded one.
     corrected: i.effective_total_dirham !== i.original_total_dirham, isVoid: i.is_void === true,
   }));

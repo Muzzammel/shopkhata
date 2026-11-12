@@ -52,6 +52,9 @@ export function InvoiceOperations({ detail, permissions }: {
   const mayCorrect = permissions.requestCorrection && !isVoid;
   const mayReplace = permissions.requestReplacement && !isVoid;
   const mayVoid = Boolean(permissions.voidInvoice) && !isVoid;
+  // A piece-tracked invoice takes its delivery from the delivery ledger (Record delivery), never from a request.
+  const tracked = detail.pieces != null;
+  const mayChangeDelivery = mayReplace && !tracked;
   const [voiding, setVoiding] = useState(false);
   const blockedVoid = detail.effectivePaidDirham !== 0 ? "PAYMENTS_OUTSTANDING" : detail.effectiveCreditAppliedDirham !== 0 ? "CREDIT_APPLIED" : null;
   const router = useRouter();
@@ -175,13 +178,13 @@ export function InvoiceOperations({ detail, permissions }: {
     <nav aria-label="Invoice actions" data-print="hide" className="sticky top-[57px] z-20 -mx-4 flex flex-wrap items-center gap-2 bg-background/92 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6 md:top-[65px]">
       {canPay && <button data-slot="button" type="button" className={cn(ui.primary, "min-h-10 px-4 max-sm:min-h-11 max-md:flex-1")} disabled={busy || uncertain || !hydrated} onClick={() => setPaying(true)}><HandCoinsIcon aria-hidden />Record payment</button>}
       {mayCorrect && <button data-slot="button" type="button" className={cn(actionClass, "max-md:hidden")} disabled={requestsBlocked} onClick={() => open("correction")}><PencilLineIcon aria-hidden />Request correction</button>}
-      {mayReplace && <button data-slot="button" type="button" className={cn(actionClass, "max-md:hidden")} disabled={requestsBlocked} onClick={() => open("delivery")}><TruckIcon aria-hidden />Request delivery change</button>}
+      {mayChangeDelivery && <button data-slot="button" type="button" className={cn(actionClass, "max-md:hidden")} disabled={requestsBlocked} onClick={() => open("delivery")}><TruckIcon aria-hidden />Request delivery change</button>}
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild><button ref={moreButton} data-slot="button" type="button" className={cn(ui.ghost, "min-h-10 px-4 max-sm:min-h-11")} disabled={!hydrated}><EllipsisIcon aria-hidden />More actions</button></DropdownMenuTrigger>
         <DropdownMenuContent align="end" data-print="hide" className="w-auto min-w-56 rounded-2xl p-1.5">
           {mayCorrect && <DropdownMenuItem className={cn(menuItem, "md:hidden")} disabled={requestsBlocked} onSelect={() => open("correction")}><PencilLineIcon aria-hidden />Request correction</DropdownMenuItem>}
           {mayReplace && <DropdownMenuItem className={menuItem} disabled={requestsBlocked} onSelect={() => open("replacement")}><RepeatIcon aria-hidden />Request replacement</DropdownMenuItem>}
-          {mayReplace && <DropdownMenuItem className={cn(menuItem, "md:hidden")} disabled={requestsBlocked} onSelect={() => open("delivery")}><TruckIcon aria-hidden />Request delivery change</DropdownMenuItem>}
+          {mayChangeDelivery && <DropdownMenuItem className={cn(menuItem, "md:hidden")} disabled={requestsBlocked} onSelect={() => open("delivery")}><TruckIcon aria-hidden />Request delivery change</DropdownMenuItem>}
           <DropdownMenuItem className={menuItem} onSelect={() => window.print()}><PrinterIcon aria-hidden />Print</DropdownMenuItem>
           {mayVoid && <DropdownMenuItem variant="destructive" className={menuItem} disabled={requestsBlocked} onSelect={openVoid}><BanIcon aria-hidden />Void invoice</DropdownMenuItem>}
         </DropdownMenuContent>
@@ -198,7 +201,7 @@ export function InvoiceOperations({ detail, permissions }: {
       <ul className="grid list-none gap-2.5 pl-0">{awaiting.map((change) => {
         const canDecide = change.kind === "replacement" ? permissions.approveReplacement : permissions.approveCorrection;
         // A replacement that keeps the current number and customer is the delivery-change shortcut.
-        const deliveryOnly = change.kind === "replacement" && change.invoiceNumber === detail.invoiceNumber && change.customerId === (detail.customer?.id ?? null) && Boolean(change.delivered) !== detail.delivered;
+        const deliveryOnly = !tracked && change.kind === "replacement" && change.invoiceNumber === detail.invoiceNumber && change.customerId === (detail.customer?.id ?? null) && Boolean(change.delivered) !== detail.delivered;
         const kindLabel = deliveryOnly ? "Delivery change" : change.kind === "replacement" ? "Replacement" : change.paymentId ? "Payment correction" : "Correction";
         const stale = change.kind === "correction" && change.expectedTotal !== null && change.expectedTotal !== detail.effectiveTotalDirham;
         return <li key={change.id} aria-label={`${kindLabel} request`} className="grid gap-2.5 rounded-2xl border border-border p-3.5">
@@ -209,7 +212,7 @@ export function InvoiceOperations({ detail, permissions }: {
           {change.kind === "replacement" ? <Comparison label="Requested replacement" rows={[
             { label: "Invoice number", current: detail.invoiceNumber, requested: change.invoiceNumber ?? "" },
             { label: "Customer", current: detail.customer ? `${detail.customer.name ?? "Unnamed customer"} · ${detail.customer.publicId}` : "No customer", requested: customerLabel(detail.customerNames, change.customerId) },
-            { label: "Delivery", current: deliveryText(detail.delivered), requested: deliveryText(Boolean(change.delivered)) },
+            ...(tracked ? [] : [{ label: "Delivery", current: deliveryText(detail.delivered), requested: deliveryText(Boolean(change.delivered)) }]),
           ]} /> : change.correctedTotal !== null && change.expectedTotal !== null ? <>
             <Comparison label="Requested correction" rows={[{ label: "Invoice total", current: qar(change.expectedTotal), requested: qar(change.correctedTotal) }]} />
             <p className="text-sm tabular-nums">Invoice total: {qar(change.expectedTotal)} → {qar(change.correctedTotal)} ({signedQar(change.amountDelta!)})</p>
@@ -330,9 +333,10 @@ export function InvoiceOperations({ detail, permissions }: {
               <CustomerSearch key={tab} shopId={detail.shopId} disabled={locked} onSelect={(c) => setCustomer(c ? { id: c.id, name: c.name, mobile: c.mobile, publicId: c.public_id } : null)} />
               <button data-slot="button" type="button" className={cn(ui.quiet, "justify-self-start")} onClick={() => setCustomer(null)}>Use no customer</button>
             </div>
-            <label data-slot="label" className="flex min-h-12 items-center gap-3 rounded-2xl border border-border px-4 text-sm font-medium">
-              <input data-slot="checkbox" type="checkbox" className="size-5 accent-[var(--primary)]" checked={delivered} onChange={(e) => setDelivered(e.target.checked)} />Replacement delivered
-            </label>
+            {tracked ? <p className="text-[13px] text-muted-foreground">Delivery is recorded by pieces and is not part of a replacement.</p>
+              : <label data-slot="label" className="flex min-h-12 items-center gap-3 rounded-2xl border border-border px-4 text-sm font-medium">
+                <input data-slot="checkbox" type="checkbox" className="size-5 accent-[var(--primary)]" checked={delivered} onChange={(e) => setDelivered(e.target.checked)} />Replacement delivered
+              </label>}
             <p className={ui.warn}>Requires manager or owner approval. The invoice keeps its current number, customer and delivery until then.</p>
           </>}
           <div className="grid gap-1.5">

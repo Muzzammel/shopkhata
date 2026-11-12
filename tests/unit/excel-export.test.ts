@@ -16,11 +16,11 @@ describe("Excel exports", () => {
   it("exports invoices with effective values as QAR numbers and round-trips through the read library", async () => {
     const read = await roundTrip(invoiceExportSheet([{
       invoiceNumber: "NEW-7", businessDate: "2026-10-03", totalDirham: 10500, paidDirham: 2800, creditAppliedDirham: 0, dueDirham: 7700,
-      delivered: true, customerName: "Mary", customerMobile: "55512345", recordedAt: "2026-10-03T09:15:30.000Z", originalNumber: "OLD-7",
+      delivery: "full", customerName: "Mary", customerMobile: "55512345", recordedAt: "2026-10-03T09:15:30.000Z", originalNumber: "OLD-7",
       invoiceId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", originalTotalDirham: 10000,
     }, {
       invoiceNumber: "A-2", businessDate: "2026-10-03", totalDirham: 1999, paidDirham: 1999, creditAppliedDirham: 0, dueDirham: 0,
-      delivered: false, customerName: "", customerMobile: "", recordedAt: null, originalNumber: "A-2", invoiceId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", originalTotalDirham: 1999,
+      delivery: "none", customerName: "", customerMobile: "", recordedAt: null, originalNumber: "A-2", invoiceId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", originalTotalDirham: 1999,
     }]));
     expect(read.sheet).toBe("Invoices");
     expect(read.data[0]).toEqual(INVOICE_EXPORT_HEADERS);
@@ -32,7 +32,7 @@ describe("Excel exports", () => {
   it("writes money cells with a two-decimal number format and refuses a non-integer dirham value", () => {
     const sheet = invoiceExportSheet([{
       invoiceNumber: "A", businessDate: "2026-10-03", totalDirham: 8050, paidDirham: 0, creditAppliedDirham: 0, dueDirham: 8050,
-      delivered: false, customerName: "", customerMobile: "", recordedAt: null, originalNumber: "A", invoiceId: "x", originalTotalDirham: 8050,
+      delivery: "none", customerName: "", customerMobile: "", recordedAt: null, originalNumber: "A", invoiceId: "x", originalTotalDirham: 8050,
     }]);
     expect(sheet.data[1][2]).toEqual({ value: 80.5, type: Number, format: "0.00" });
     expect(() => expenseExportSheet([{ businessDate: "2026-10-03", category: "other", description: "x", amountDirham: 10.5, createdBy: "", recordedAt: null, expenseId: "x" }]))

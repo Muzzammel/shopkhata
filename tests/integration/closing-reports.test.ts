@@ -279,7 +279,7 @@ describe("daily close, backdating and reports against real Supabase", () => {
     const sum = (field: keyof (typeof effective)[number]) => effective.reduce((total, item) => total + (item[field] as number), 0);
     expect(sales.totals).toEqual({ invoiceCount: 3, grossSalesDirham: day.grossInvoiceDirham, salesCorrectionsDirham: day.invoiceCorrectionsDirham,
       netSalesDirham: day.grossInvoiceDirham + day.invoiceCorrectionsDirham, paidDirham: sum("effective_paid_dirham"), creditAppliedDirham: sum("effective_credit_applied_dirham"),
-      dueDirham: sum("effective_due_dirham"), deliveredCount: 2, undeliveredCount: 1 });
+      dueDirham: sum("effective_due_dirham"), deliveredCount: 2, partiallyDeliveredCount: 0, undeliveredCount: 1 });
     // Every correction here is dated today, so today's net sales equal the effective totals of today's invoices.
     expect(sales.totals).toMatchObject({ grossSalesDirham: 1800, salesCorrectionsDirham: -30, netSalesDirham: sum("effective_total_dirham"), paidDirham: 1490, creditAppliedDirham: 50, dueDirham: 230 });
     expect(sales.rows.filter((item) => item.movement === "sale").map((item) => item.invoiceNumber).sort()).toEqual([a, renamed, c].sort());
@@ -322,7 +322,7 @@ describe("daily close, backdating and reports against real Supabase", () => {
     const salesSheet = await sheetData(salesReportSheet(sales.rows, sales.totals));
     expect(salesSheet).toHaveLength(9);
     expect(salesSheet.slice(-4).map((item) => [item[0], item[3]])).toEqual([["Gross sales", 18], ["Invoice corrections", -0.3], ["Net sales", 17.7], ["Current state of these invoices", null]]);
-    expect(salesSheet.at(-1)?.slice(7, 11)).toEqual([14.9, 0.5, 2.3, "2 delivered, 1 not delivered"]);
+    expect(salesSheet.at(-1)?.slice(7, 11)).toEqual([14.9, 0.5, 2.3, "2 delivered, 0 partially delivered, 1 not delivered"]);
     expect((await sheetData(customerDueSheet(dues.rows, dues.totals))).slice(-2).map((item) => item[3])).toEqual([2.3, 0]);
     expect((await sheetData(expenseReportSheet(expenses.rows, expenses.totals))).at(-1)?.slice(0, 4)).toEqual(["Total", null, "2 expenses", 2.3]);
     expect((await sheetData(paymentReportSheet(payments.rows, payments.totals))).slice(-4).map((item) => [item[0], item[4]])).toEqual([["Total cash received", 15.4], ["Total bank received", 0], ["Total received (cash + bank)", 15.4], ["Total customer credit applied", 0.5]]);

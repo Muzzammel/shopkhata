@@ -6,16 +6,16 @@ import { buildTimeline, invoiceBadges, personLabel } from "@/lib/sales-view";
 const base: InvoiceDetail = {
   id: "a9000000-0000-4000-8000-000000000001", shopId: "s", invoiceNumber: "INV-1", originalInvoiceNumber: "INV-1", originalCustomerId: null, originalDelivered: false,
   revision: 0, changes: [], originalTotalDirham: 10000, effectiveTotalDirham: 10000, effectivePaidDirham: 0, effectiveCreditAppliedDirham: 0, effectiveDueDirham: 10000,
-  businessDate: "2026-10-01", recordedAt: "2026-10-01T08:00:00Z", createdBy: "u-staff", creatorName: null, delivered: false, customer: null,
+  businessDate: "2026-10-01", recordedAt: "2026-10-01T08:00:00Z", createdBy: "u-staff", creatorName: null, delivered: false, pieces: null, customer: null,
   payments: [], corrections: [], people: { "u-owner": "Owner Name" }, customerNames: { "c-1": "Mary · CUS-1" },
 };
 const change = { reason: "r", amountDelta: null, correctedTotal: null, expectedTotal: null, paymentId: null, invoiceNumber: null, customerId: null, delivered: null, expectedRevision: null, decision: null };
 
 describe("invoice badges", () => {
   it("derives only supported display states", () => {
-    expect(invoiceBadges({ dueDirham: 500, delivered: false, corrected: false, revision: 0 })).toEqual(["due"]);
-    expect(invoiceBadges({ dueDirham: 0, delivered: true, corrected: true, revision: 2 })).toEqual(["paid", "delivered", "corrected", "replaced"]);
-    expect(invoiceBadges({ dueDirham: -100, delivered: false, corrected: false, revision: 0 })).toEqual(["paid"]);
+    expect(invoiceBadges({ dueDirham: 500, delivery: "none", corrected: false, revision: 0 })).toEqual(["due"]);
+    expect(invoiceBadges({ dueDirham: 0, delivery: "full", corrected: true, revision: 2 })).toEqual(["paid", "delivered", "corrected", "replaced"]);
+    expect(invoiceBadges({ dueDirham: -100, delivery: "none", corrected: false, revision: 0 })).toEqual(["paid"]);
   });
 });
 

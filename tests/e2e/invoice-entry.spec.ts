@@ -69,14 +69,14 @@ test("searches beyond 200 customers and keeps a selected customer on a delivered
   const search = row.getByLabel("Customer search", { exact: true });
   await search.fill(`List customer ${suffix}`);
   const customerOptions = page.getByRole("option");
-  await expect(customerOptions).toHaveCount(20);
+  await expect(customerOptions).toHaveCount(3);
   await page.getByRole("button", { name: "Show more results" }).click();
-  await expect(customerOptions).toHaveCount(40);
+  await expect(customerOptions).toHaveCount(23);
   const customerOptionTexts = await customerOptions.allInnerTexts();
   const returnedPublicIds = customerOptionTexts.map((text) => text.match(new RegExp(`CUS-LIST-${suffix}-\\d+`))?.[0]);
-  expect(returnedPublicIds).toEqual(expectedFirstTwoPages.map((customer) => customer.publicId));
-  expect(new Set(returnedPublicIds).size).toBe(40);
-  await expect(customerOptions.nth(20)).toContainText(expectedFirstTwoPages[20].publicId);
+  expect(returnedPublicIds).toEqual(expectedFirstTwoPages.slice(0, 23).map((customer) => customer.publicId));
+  expect(new Set(returnedPublicIds).size).toBe(23);
+  await expect(customerOptions.nth(3)).toContainText(expectedFirstTwoPages[3].publicId);
 
   await search.fill(target.name);
   const option = page.getByRole("option", { name: new RegExp(target.name) });
@@ -86,7 +86,7 @@ test("searches beyond 200 customers and keeps a selected customer on a delivered
   await row.getByLabel("Invoice ID").fill(`CUSTOMER-DUE-${suffix}`);
   await row.getByLabel("Total QAR").fill("42.00");
   await row.getByLabel("Received QAR").fill("12.00");
-  await row.getByLabel("Delivered").check();
+  await row.getByLabel("Delivered now").fill("1");
   await expect(row.getByText(new RegExp(target.name))).toBeVisible();
   await page.getByRole("button", { name: "Review sale" }).click();
   await expect(page.getByLabel("Sale review").getByText("Due QAR 30.00", { exact: true }).first()).toBeVisible();
@@ -120,6 +120,44 @@ test("distinguishes duplicate customer names by mobile and public ID", async ({ 
   await expect(page.getByRole("option")).toContainText(`CUS-DUP-B-${suffix}`);
   await search.fill(`No such customer ${suffix}`);
   await expect(page.locator('[id^="customer-search-status-"]').filter({ hasText: "No customers found." })).toBeVisible();
+});
+
+test("customer search ranks matches by relevance and displays a maximum of three suggestions initially", async ({ page }) => {
+  const suffix = Date.now();
+  seedCustomers("10000000-0000-4000-8000-000000000001", [
+    { id: crypto.randomUUID(), publicId: `CUS-RANK-A-${suffix}`, name: `Aaron Partial ${suffix}`, mobile: `99755${suffix}` },
+    { id: crypto.randomUUID(), publicId: `CUS-RANK-B-${suffix}`, name: `Abby Partial ${suffix}`, mobile: `98755${suffix}` },
+    { id: crypto.randomUUID(), publicId: `CUS-RANK-C-${suffix}`, name: `Adam Partial ${suffix}`, mobile: `97755${suffix}` },
+    { id: crypto.randomUUID(), publicId: `CUS-RANK-Z-${suffix}`, name: `Zack Exact Mobile ${suffix}`, mobile: `755${suffix}` },
+    { id: crypto.randomUUID(), publicId: `CUS-RANK-P-${suffix}`, name: `755${suffix} Prefix Name`, mobile: `55000001` },
+  ]);
+  await loginStaff(page);
+  const search = page.getByLabel("Customer search", { exact: true });
+  await search.fill(`755${suffix}`);
+
+  const options = page.getByRole("option");
+  // Exactly 3 suggestions initially
+  await expect(options).toHaveCount(3);
+
+  // Exact mobile match (Zack) first despite starting with Z
+  await expect(options.nth(0)).toContainText(`Zack Exact Mobile ${suffix}`);
+  // Name prefix match next
+  await expect(options.nth(1)).toContainText(`755${suffix} Prefix Name`);
+  // Partial matches next
+  await expect(options.nth(2)).toContainText(`Aaron Partial ${suffix}`);
+
+  // Show more results button expands to show remaining matches
+  const showMore = page.getByRole("button", { name: "Show more results" });
+  await expect(showMore).toBeVisible();
+  await showMore.click();
+  await expect(options).toHaveCount(5);
+  await expect(options.nth(3)).toContainText(`Abby Partial ${suffix}`);
+  await expect(options.nth(4)).toContainText(`Adam Partial ${suffix}`);
+
+  // Keyboard navigation and selection
+  await search.press("ArrowDown");
+  await search.press("Enter");
+  await expect(page.getByText(`Zack Exact Mobile ${suffix}`)).toBeVisible();
 });
 
 test("rapid customer searches ignore an older response that arrives last", async ({ page }) => {
@@ -170,13 +208,13 @@ test("Shop 1 staff saves a mixed batch and sees it after refresh", async ({ page
   await rows.nth(0).getByLabel("Invoice ID").fill(`${prefix}-PAID`);
   await rows.nth(0).getByLabel("Total QAR").fill("100.00");
   await rows.nth(0).getByLabel("Received QAR").fill("100.00");
-  await rows.nth(0).getByLabel("Delivered").check();
+  await rows.nth(0).getByLabel("Delivered now").fill("1");
 
   await page.getByRole("button", { name: "Add another invoice" }).click();
   await rows.nth(1).getByLabel("Invoice ID").fill(`${prefix}-DUE`);
   await rows.nth(1).getByLabel("Total QAR").fill("80.50");
   await rows.nth(1).getByLabel("Received QAR").fill("20.00");
-  await rows.nth(1).getByLabel("Delivered").check();
+  await rows.nth(1).getByLabel("Delivered now").fill("1");
   await rows.nth(1).getByLabel("New customer name").fill("E2E Mary");
 
   await page.getByRole("button", { name: "Add another invoice" }).click();
@@ -196,6 +234,46 @@ test("Shop 1 staff saves a mixed batch and sees it after refresh", async ({ page
   await expect(page.getByText(`${prefix}-DUE`)).toBeVisible();
   await expect(page.getByText(`${prefix}-ADV`)).toBeVisible();
 });
+
+for (const viewport of [{ width: 1280, height: 720 }, { width: 375, height: 667 }]) {
+  test(`Add another invoice suggests the next number, scrolls to and focuses the new row (${viewport.width}px)`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await loginStaff(page);
+    const rows = page.locator("[data-entry-row]");
+    const add = page.getByRole("button", { name: "Add another invoice" });
+    const number = (i: number) => rows.nth(i).getByLabel("Invoice ID");
+
+    await number(0).fill("1050");
+    await rows.nth(0).getByLabel("Total QAR").fill("10.00");
+    await add.click();
+    await expect(rows).toHaveCount(2);
+    await expect(number(1)).toHaveValue("1051");
+    await expect(number(1)).toBeFocused();
+    await expect(number(1)).toBeInViewport();
+
+    // Consecutive additions follow the row above; padding and prefixes survive.
+    await add.click();
+    await expect(number(2)).toHaveValue("1052");
+    await number(2).fill("INV-0099");
+    await add.click();
+    await expect(number(3)).toHaveValue("INV-0100");
+    await expect(number(3)).toBeFocused();
+    await expect(number(3)).toBeInViewport();
+    // Editable, and an unincrementable number leaves the next one empty.
+    await page.keyboard.press("Control+A");
+    await page.keyboard.type("CASH");
+    await expect(number(3)).toHaveValue("CASH");
+    await add.click();
+    await expect(number(4)).toHaveValue("");
+    await expect(number(4)).toBeFocused();
+
+    // Earlier rows are untouched and nothing was saved.
+    await page.getByRole("button", { name: "Edit invoice 1" }).click();
+    await expect(number(0)).toHaveValue("1050");
+    await expect(rows.nth(0).getByLabel("Total QAR")).toHaveValue("10.00");
+    await expect(page.getByRole("status").filter({ hasText: /Sale saved|\d+ invoices saved/ })).toHaveCount(0);
+  });
+}
 
 test("invoice detail shows canonical identity, effective balances, payments, and approved corrections", async ({ page }) => {
   const invoiceNumber = `DETAIL-${Date.now()}`;
@@ -345,7 +423,7 @@ test("recent invoices show approved invoice and payment corrections", async ({ p
   await row.getByLabel("Invoice ID").fill(invoiceNumber);
   await row.getByLabel("Total QAR").fill("100.00");
   await row.getByLabel("Received QAR").fill("20.00");
-  await row.getByLabel("Delivered").check();
+  await row.getByLabel("Delivered now").fill("1");
   await row.getByLabel("New customer name").fill("Corrected customer");
   await page.getByRole("button", { name: "Review sale" }).click();
   await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
@@ -650,4 +728,32 @@ test("staff remain on today's Qatar date without a backdate control", async ({ p
   await expect(page.getByLabel("Business date")).toBeDisabled();
   await expect(page.getByLabel("Backdate reason")).toHaveCount(0);
 });
+});
+
+test("records a partial piece delivery, shows remaining and requires a customer for the due", async ({ page }) => {
+  const number = `PARTIAL-${Date.now()}`;
+  await loginStaff(page);
+  const row = page.locator("[data-entry-row]").first();
+  await expect(row.getByLabel("Ordered pieces")).toHaveValue("1");
+  await expect(row.getByLabel("Delivered now")).toHaveValue("0");
+  await row.getByLabel("Invoice ID").fill(number);
+  await row.getByLabel("Total QAR").fill("90.00");
+  await row.getByLabel("Received QAR").fill("30.00");
+  await row.getByLabel("Ordered pieces").fill("3");
+  await row.getByLabel("Delivered now").fill("4");
+  await row.getByLabel("Delivered now").blur();
+  await expect(row.getByText("Delivered now must be a whole number from 0 to 3.")).toBeVisible();
+  await row.getByLabel("Delivered now").fill("1");
+  await expect(row.locator("[data-remaining-pieces]")).toHaveText("2 pieces remaining.");
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await expect(row.getByText("A customer is required for a delivered invoice with due.")).toBeVisible();
+  await row.getByLabel("New customer name").fill(`Partial customer ${number}`);
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await expect(page.getByLabel("Sale review").locator("[data-review-delivery]")).toContainText("3 ordered · 1 delivered now · 2 remaining");
+  await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Sale saved/ })).toBeVisible();
+  const persisted = localDbQuery(`select t.ordered_pieces || '/' || t.delivered_pieces || '/' || t.delivery_status || '/' || b.effective_due_dirham as pieces
+    from public.invoices i join public.invoice_delivery_totals t on t.canonical_invoice_id = i.id
+    join public.invoice_effective_balances b on b.canonical_invoice_id = i.id where i.invoice_id = '${number}'`);
+  expect(persisted).toContain("3/1/partial/6000");
 });

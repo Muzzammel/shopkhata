@@ -309,10 +309,10 @@ describe("resetLocal: the only reset path of the operations suites", () => {
     expect(text("release-helpers.ts")).toContain("guardedLocalReset({ root: workdir, args, lease,");
     expect(files.filter((f) => /resetLocal\(/.test(text(f)) && f !== "release-helpers.ts").sort()).toEqual([
       "authorization-chain.test.ts", "fingerprint-line-endings.test.ts", "invoice-operations.test.ts", "invoice-void.test.ts", "locked-restore.test.ts",
-      "maintenance.test.ts", "p03-maintenance-controller.test.ts", "release-gates.test.ts", "release-window-rehearsal.test.ts",
+      "maintenance.test.ts", "p03-maintenance-controller.test.ts", "partial-delivery.test.ts", "release-gates.test.ts", "release-window-rehearsal.test.ts",
     ]);
     // Hooks bound their reset below the hook timeout (prerequisite check + reset budget + kill confirmation).
-    for (const f of ["invoice-operations.test.ts", "invoice-void.test.ts", "maintenance.test.ts"]) {
+    for (const f of ["invoice-operations.test.ts", "invoice-void.test.ts", "maintenance.test.ts", "partial-delivery.test.ts"]) {
       expect(text(f)).toContain("const SUITE_TIMEOUT = 210_000;");
       expect(text(f)).toContain("const RESET_BUDGET = 150_000;");
       expect(text(f)).not.toMatch(/resetLocal\(\)/);

@@ -71,15 +71,17 @@ test("complete staff invoice lifecycle with separate owner approvals, canonical 
   await replacement.getByLabel("Replacement invoice number").fill(newNumber);
   await replacement.getByLabel("Customer search", { exact: true }).fill(customerName);
   await page.getByRole("option", { name: new RegExp(customerName) }).click();
-  await replacement.getByLabel("Replacement delivered").check();
-  await replacement.getByLabel("Request reason").fill("Correct number, customer and delivery");
+  // A New Sale invoice is piece-tracked: its delivery comes from recorded pieces, never from a replacement.
+  await expect(replacement.getByLabel("Replacement delivered")).toHaveCount(0);
+  await expect(replacement).toContainText("Delivery is recorded by pieces and is not part of a replacement.");
+  await replacement.getByLabel("Request reason").fill("Correct number and customer");
   await replacement.getByRole("button", { name: "Submit request" }).click();
   await expect(page.getByText("Replacement — Pending approval", { exact: true })).toBeVisible();
   await owner.reload(); await owner.getByRole("button", { name: "Approve" }).click();
   await expect(totals(owner).getByRole("heading", { name: newNumber, exact: true })).toBeVisible();
   await expect(totals(owner)).toContainText(customerName);
   await expect(totals(owner)).toContainText(oldNumber);
-  await expect(totals(owner)).toContainText("Delivered");
+  await expect(totals(owner)).toContainText("Not delivered");
   await expect(owner.getByRole("region", { name: "History" })).toContainText("Version 1");
   await owner.getByRole("button", { name: "Record payment" }).click();
   await expect(owner.getByRole("dialog", { name: "Record payment" })).toContainText(newNumber);

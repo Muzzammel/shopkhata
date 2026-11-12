@@ -20,7 +20,7 @@ test("opens with the last-30-day default and a visible status filter", async ({ 
   const to = await page.locator('input[name="to"]').inputValue();
   const days = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
   expect(days).toBe(29);
-  for (const label of ["All", "Delivered", "Not delivered", "Due", "Paid"]) {
+  for (const label of ["All", "Delivered", "Partially delivered", "Not delivered", "Due", "Paid"]) {
     await expect(page.getByRole("navigation", { name: "Filter by status" }).getByRole("link", { name: label, exact: true })).toBeVisible();
   }
 });

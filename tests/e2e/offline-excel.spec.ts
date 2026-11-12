@@ -177,7 +177,7 @@ test.describe("durable local drafts", () => {
     localDbQuery(`insert into public.customers (id, shop_id, public_id, name, mobile) values ('${customer.id}', '${SHOP_1}', '${customer.publicId}', '${customer.name}', null)`);
     await login(page);
     await fillRow(page, 0, `${prefix}-1`, "40.00", "15.00");
-    await entryRows(page).nth(0).getByLabel("Delivered").check();
+    await entryRows(page).nth(0).getByLabel("Delivered now").fill("1");
     await entryRows(page).nth(0).getByLabel("Customer search", { exact: true }).fill(customer.name);
     await page.getByRole("option", { name: new RegExp(customer.name) }).click();
     await page.getByRole("button", { name: "Add another invoice" }).click();
@@ -198,7 +198,7 @@ test.describe("durable local drafts", () => {
     await editRow(page, 0);
     await expect(entryRows(page).nth(0).getByLabel("Invoice ID")).toHaveValue(`${prefix}-1`);
     await expect(entryRows(page).nth(0).getByLabel("Received QAR")).toHaveValue("15.00");
-    await expect(entryRows(page).nth(0).getByLabel("Delivered")).toBeChecked();
+    await expect(entryRows(page).nth(0).getByLabel("Delivered now")).toHaveValue("1");
     await expect(entryRows(page).nth(0)).toContainText(customer.publicId);
     await editRow(page, 1);
     await expect(entryRows(page).nth(1).getByLabel("Total QAR")).toHaveValue("not-money");
@@ -538,7 +538,7 @@ test.describe("Excel export", () => {
     const today = qatarBusinessDate(new Date());
     await login(page);
     await fillRow(page, 0, invoice, "100.00", "30.00");
-    await entryRows(page).nth(0).getByLabel("Delivered").check();
+    await entryRows(page).nth(0).getByLabel("Delivered now").fill("1");
     await entryRows(page).nth(0).getByLabel("New customer name").fill(customerName);
     await page.getByRole("button", { name: "Review sale" }).click();
     await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();

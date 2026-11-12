@@ -69,8 +69,8 @@ describe("invoice.void permission", () => {
     expect(can(actor("owner", { isActive: false }), "invoice.void", SHOP)).toBe(false);
   });
   it("shows VOID instead of paid/corrected", () => {
-    expect(invoiceBadges({ dueDirham: 0, delivered: true, corrected: true, revision: 1, isVoid: true })).toEqual(["void", "delivered", "replaced"]);
-    expect(invoiceBadges({ dueDirham: 0, delivered: false, corrected: false, revision: 0 })).toEqual(["paid"]);
+    expect(invoiceBadges({ dueDirham: 0, delivery: "full", corrected: true, revision: 1, isVoid: true })).toEqual(["void", "delivered", "replaced"]);
+    expect(invoiceBadges({ dueDirham: 0, delivery: "none", corrected: false, revision: 0 })).toEqual(["paid"]);
   });
 });
 
@@ -78,7 +78,7 @@ describe("invoice export Status and Original Total columns", () => {
   it("labels the current-state total, keeps Status, and never exports a voided invoice's original amount as 0", async () => {
     const { INVOICE_EXPORT_HEADERS, invoiceExportSheet } = await import("@/lib/excel/exports");
     expect(INVOICE_EXPORT_HEADERS).toEqual(["Invoice Number", "Business Date", "Current Total QAR", "Paid QAR", "Credit Applied QAR", "Due QAR", "Delivered", "Customer", "Customer Mobile", "Recorded At (Qatar)", "Original Number", "Invoice Reference", "Status", "Original Total QAR"]);
-    const row = { invoiceNumber: "V-1", businessDate: "2026-10-03", totalDirham: 0, paidDirham: 0, creditAppliedDirham: 0, dueDirham: 0, delivered: false, customerName: "", customerMobile: "", recordedAt: null, originalNumber: "V-1", invoiceId: INVOICE, originalTotalDirham: 10000 };
+    const row = { invoiceNumber: "V-1", businessDate: "2026-10-03", totalDirham: 0, paidDirham: 0, creditAppliedDirham: 0, dueDirham: 0, delivery: "none" as const, customerName: "", customerMobile: "", recordedAt: null, originalNumber: "V-1", invoiceId: INVOICE, originalTotalDirham: 10000 };
     const sheet = invoiceExportSheet([{ ...row, isVoid: true }, { ...row, invoiceNumber: "A-1", isVoid: false }]);
     expect(sheet.data.map((cells) => cells.at(-2))).toEqual([{ value: "Status", fontWeight: "bold" }, "VOID", "ACTIVE"]);
     expect(sheet.data[1].at(-1)).toEqual({ value: 100, type: Number, format: "0.00" });
@@ -100,10 +100,10 @@ describe("void reason counts Unicode characters, as PostgreSQL length() does", (
 describe("New Sale recent-invoice preview (m1)", () => {
   it("keeps is_void, so a voided invoice (due 0) shows VOID and never Paid", async () => {
     const { workspaceInvoice } = await import("@/lib/shop-workspace");
-    const row = { canonical_invoice_id: INVOICE, effective_invoice_number: "V-1", business_date: "2026-11-01", effective_total_dirham: 0, effective_due_dirham: 0, effective_delivered: false, effective_customer_id: null };
+    const row = { canonical_invoice_id: INVOICE, effective_invoice_number: "V-1", business_date: "2026-11-01", effective_total_dirham: 0, effective_due_dirham: 0, delivery_status: "none", effective_customer_id: null };
     const voided = workspaceInvoice({ ...row, is_void: true });
     expect(voided.is_void).toBe(true);
-    const badges = invoiceBadges({ dueDirham: voided.effective_due_dirham, delivered: voided.delivered, corrected: false, revision: 0, isVoid: voided.is_void });
+    const badges = invoiceBadges({ dueDirham: voided.effective_due_dirham, delivery: voided.delivery, corrected: false, revision: 0, isVoid: voided.is_void });
     expect(badges).toContain("void");
     expect(badges).not.toContain("paid");
     expect(workspaceInvoice({ ...row, is_void: false }).is_void).toBe(false);
@@ -155,11 +155,12 @@ describe("voidInvoice server action", () => {
   });
 });
 
-describe("void action in the invoice operations UI", () => {
+// The first test pays the cold import of the operations UI (~3.5 s alone); 5 s is not enough under parallel load.
+describe("void action in the invoice operations UI", { timeout: 20_000 }, () => {
   const detail: InvoiceDetail = {
     id: INVOICE, shopId: SHOP, invoiceNumber: "INV-77", originalInvoiceNumber: "INV-77", originalCustomerId: null, originalDelivered: false, revision: 0, changes: [],
     originalTotalDirham: 12000, effectiveTotalDirham: 10000, effectivePaidDirham: 0, effectiveCreditAppliedDirham: 0, effectiveDueDirham: 10000,
-    businessDate: "2026-10-03", recordedAt: "2026-10-03T00:00:00Z", createdBy: null, creatorName: null, delivered: false, customer: null, payments: [], corrections: [],
+    businessDate: "2026-10-03", recordedAt: "2026-10-03T00:00:00Z", createdBy: null, creatorName: null, delivered: false, pieces: null, customer: null, payments: [], corrections: [],
     voided: null, people: {}, customerNames: {},
   };
   const permissions = { payment: true, requestCorrection: true, requestReplacement: true, approveCorrection: true, approveReplacement: true, voidInvoice: true };

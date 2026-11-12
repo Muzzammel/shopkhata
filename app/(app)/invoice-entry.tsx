@@ -10,7 +10,7 @@ import { PaymentMethodField } from "@/components/sales/payment-method-field";
 import { ui } from "@/components/sales/ui";
 import { groupedQar, qar } from "@/lib/dashboard-view";
 
-import { prepareInvoiceBatch, qatarBusinessDate, selectInvoiceAttempt, type EntryRow } from "@/lib/invoice-entry";
+import { isPieceTracked, prepareInvoiceBatch, qatarBusinessDate, rowDelivered, rowPieces, selectInvoiceAttempt, suggestNextInvoiceNumber, type EntryRow } from "@/lib/invoice-entry";
 import {
   classifySaveResult, draftStatusLabel, isBlankRows, newSubmission, nextSubmission, restoreBusinessDate, retryDelayMs, serializeDraft,
   type DraftConflict, type DraftCustomer, type DraftSubmission, type SaveOutcome, type StoredDraft,
@@ -34,7 +34,7 @@ import { paymentMethodLabel } from "@/lib/payment-method";
 import { cn } from "@/lib/utils";
 
 /** Errors shown on their own input; any other row error is listed under the invoice. */
-const ROW_FIELDS = ["invoiceId", "total", "received", "customer"];
+const ROW_FIELDS = ["invoiceId", "total", "received", "customer", "orderedPieces", "deliveredPieces"];
 
 const REAUTH_MESSAGE = "Sign in again to continue. Your draft is kept on this device and has not been confirmed as saved.";
 
@@ -53,8 +53,24 @@ function typedDirham(value: string): number | null {
   try { return value.trim() ? parseQar(value.trim()) : null; } catch { return null; }
 }
 
-function emptyRow(): EntryRow {
-  return { rowId: crypto.randomUUID(), invoiceId: "", total: "", received: "", paymentMethod: "cash", delivered: false, customerId: "", customerName: "", customerMobile: "", note: "" };
+/** Display only: the remaining pieces under the Delivery fields. */
+function remainingText(row: EntryRow): string {
+  const { remaining } = rowPieces(row);
+  if (remaining === null) return "Remaining pieces show once both counts are valid.";
+  if (remaining === 0) return "All pieces delivered.";
+  return `${remaining} piece${remaining === 1 ? "" : "s"} remaining${rowDelivered(row) ? "" : " — recorded as an advance"}.`;
+}
+
+/** Display only: delivery on a collapsed invoice card. */
+function deliveryText(row: EntryRow): string {
+  if (!isPieceTracked(row)) return row.delivered ? "Delivered" : "Not delivered";
+  const { ordered, delivered, valid } = rowPieces(row);
+  if (!valid) return "—";
+  return delivered === 0 ? "Not delivered" : delivered === ordered ? "Delivered" : `${delivered} of ${ordered} pcs delivered`;
+}
+
+function emptyRow(suggestedInvoiceId = ""): EntryRow {
+  return { rowId: crypto.randomUUID(), invoiceId: suggestedInvoiceId, total: "", received: "", paymentMethod: "cash", delivered: false, customerId: "", customerName: "", customerMobile: "", note: "", orderedPieces: "1", deliveredPieces: "0" };
 }
 
 export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRole, invoices, businessDate, offlineShell = false }: {
@@ -78,6 +94,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
   const [importRows, setImportRows] = useState<EntryRow[]>([]);
   const [lookupFailed, setLookupFailed] = useState<string | null>(null);
   const [reviewQueued, setReviewQueued] = useState(false);
+  const [suggestedInvoiceId, setSuggestedInvoiceId] = useState<string>("");
   const [rows, setRows] = useState<EntryRow[]>(() => [emptyRow()]);
   const [customers, setCustomers] = useState<Record<string, DraftCustomer>>({});
   const [key, setKey] = useState(() => crypto.randomUUID());
@@ -159,7 +176,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
     shopId: currentShop.id, businessDate: displayDate, isBackdated: displayBackdated,
     backdatedReason: displayReason, idempotencyKey: key, rows,
   }, duplicateNumbers, Boolean(attempt), currentDate);
-  const invoiceDraft = !isBlankRows(rows);
+  const invoiceDraft = !isBlankRows(rows, suggestedInvoiceId);
   const uncertain = batchUncertain || paymentGuard.uncertain;
   const workspaceLocked = switching || busy || paymentActivity || !hydrated;
   const reconnecting = syncAttempt !== null && retryDelayMs(syncAttempt) !== null && !busy;
@@ -179,8 +196,9 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
     });
   }
 
-  function resetDraft() {
-    setRows([emptyRow()]);
+  function resetDraft(nextSuggestedInvoiceId = "") {
+    setSuggestedInvoiceId(nextSuggestedInvoiceId);
+    setRows([emptyRow(nextSuggestedInvoiceId)]);
     setCustomers({});
     setKey(crypto.randomUUID());
     setSubmission(null);
@@ -204,6 +222,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
     setOtherDraftShops(shops.filter((item) => item.id !== shopId && draftShopIds.includes(item.id)));
     if (draft) {
       const today = qatarBusinessDate(new Date());
+      setSuggestedInvoiceId("");
       setRows(draft.rows);
       setCustomers(draft.customers);
       setKey(draft.idempotencyKey);
@@ -239,7 +258,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
   // which after a submission happens only on a confirmed server receipt.
   useEffect(() => {
     if (hydratedShop !== currentShop.id) return;
-    if (isBlankRows(rows) && !submission) {
+    if (isBlankRows(rows, suggestedInvoiceId) && !submission) {
       void deleteDraft(actorId, currentShop.id);
       return;
     }
@@ -247,7 +266,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
       userId: actorId, shopId: currentShop.id, businessDate: selectedBusinessDate, today: currentDate, backdatedReason, rows,
       customers, idempotencyKey: key, submission, conflict, createdAt, now: new Date().toISOString(),
     })).then(setStorageAvailable);
-  }, [actorId, backdatedReason, conflict, createdAt, currentDate, currentShop.id, customers, hydratedShop, key, rows, selectedBusinessDate, submission]);
+  }, [actorId, backdatedReason, conflict, createdAt, currentDate, currentShop.id, customers, hydratedShop, key, rows, selectedBusinessDate, submission, suggestedInvoiceId]);
 
   const reportPaymentActivity = useCallback((active: boolean) => {
     paymentActivityRef.current = active;
@@ -299,7 +318,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
       setCurrentShop(result.workspace.shop);
       setCurrentInvoices(result.workspace.invoices);
       forgetRegistry();
-      resetDraft();
+      resetDraft("");
       setResult(null);
       // Keep the address (and so the shell's shop label) on the shop now shown.
       window.history.replaceState(null, "", `/?shop=${result.workspace.shop.id}`);
@@ -367,7 +386,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
       ? "The earlier submission may already be saved in ShopKhata. Discard the local copy anyway?"
       : "Discard this unsaved draft from this device?";
     if (!window.confirm(warning)) return;
-    resetDraft();
+    resetDraft("");
     setResult(null);
   }
 
@@ -390,11 +409,13 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
       const outcome = classifySaveResult(saved);
       setResult(saved);
       if (outcome.kind === "saved") {
+        const lastRow = before.payload.rows[before.payload.rows.length - 1];
+        const nextSuggested = lastRow ? suggestNextInvoiceNumber(lastRow.invoiceId) : "";
         // Shown on the success panel: exactly what the confirmed submission contained.
         const sent = prepareInvoiceBatch(before.payload, [], true).totals;
         setLastSaved({ numbers: before.payload.rows.map((row) => row.invoiceId.trim()), invoiced: sent?.invoiced ?? 0, received: sent?.received ?? 0, due: sent?.due ?? 0 });
-        // Only a confirmed receipt clears the draft.
-        resetDraft();
+        // Only a confirmed receipt clears the draft and advances to next suggestion.
+        resetDraft(nextSuggested);
         await refreshCurrentWorkspace(commandShopId, commandGeneration);
       } else if (outcome.kind === "rejected") {
         setSubmission(null);
@@ -482,7 +503,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
   const isDuplicate = (number: string) => duplicateNumbers.some((n) => normalizeInvoiceNumber(n) === normalizeInvoiceNumber(number));
   const locked = workspaceLocked || batchUncertain;
   const multiple = rows.length > 1;
-  const deliveredCount = rows.filter((row) => row.delivered).length;
+  const deliveredCount = rows.filter(rowDelivered).length;
   const dateError = attempted ? preview.errors.find((error) => error.field === "backdatedReason" || error.field === "businessDate")?.message : undefined;
   const showSaved = Boolean(result?.ok && lastSaved);
   const activeId = rows.some((row) => row.rowId === activeRowId) ? activeRowId : rows[rows.length - 1]?.rowId;
@@ -492,6 +513,19 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
   function expandRow(rowId: string, index: number) {
     flushSync(() => setActiveRowId(rowId));
     document.getElementById(fid(index, "invoiceId"))?.focus();
+  }
+
+  // Appends a row numbered after the one above it (empty when that cannot be incremented), then brings its
+  // number field into view and focus. Rendered synchronously so the new field exists before it is focused.
+  function addAnotherRow() {
+    const next = emptyRow(suggestNextInvoiceNumber(rows[rows.length - 1]?.invoiceId));
+    const index = rows.length;
+    flushSync(() => { setRows((current) => [...current, next]); setActiveRowId(next.rowId); });
+    editDraft();
+    const target = document.getElementById(fid(index, "invoiceId"));
+    if (!target) return;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }
 
   function startReview() {
@@ -618,7 +652,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
                 <div className="grid gap-0.5"><dt className="text-xs text-muted-foreground">Total</dt><dd className="font-semibold">{total === null ? "—" : qar(total)}</dd></div>
                 <div className="grid gap-0.5"><dt className="text-xs text-muted-foreground">Received</dt><dd className="font-semibold">{qar(received)}{received > 0 && <span className="font-medium text-muted-foreground"> · {paymentMethodLabel(row.paymentMethod)}</span>}</dd></div>
                 <div className="grid gap-0.5"><dt className="text-xs text-muted-foreground">Due</dt><dd className={cn("font-semibold", total !== null && total - received > 0 && "text-warning")}>{total === null ? "—" : qar(total - received)}</dd></div>
-                <div className="grid gap-0.5"><dt className="text-xs text-muted-foreground">Delivery</dt><dd className="font-semibold">{row.delivered ? "Delivered" : "Not delivered"}</dd></div>
+                <div className="grid gap-0.5"><dt className="text-xs text-muted-foreground">Delivery</dt><dd className="font-semibold">{deliveryText(row)}</dd></div>
               </dl>
               {customer && <p className="text-[13px] text-muted-foreground">Customer <strong className="font-semibold text-foreground">{customer}</strong></p>}
               {duplicate}
@@ -658,10 +692,24 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
               </div>
               <div className={section}>
                 <p className={sectionTitle}>Delivery</p>
-                <label data-slot="label" className={cn("flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-input px-3.5 text-sm font-medium sk-press has-[:checked]:border-foreground has-[:checked]:bg-muted max-sm:min-h-12", locked && "cursor-not-allowed opacity-60")}>
-                  <input data-slot="checkbox" type="checkbox" className="size-5 accent-[var(--primary)]" disabled={locked} checked={row.delivered} onChange={(event) => updateRow(row.rowId, { delivered: event.target.checked })} />Delivered
-                </label>
-                <p className="text-xs text-muted-foreground">{row.delivered ? "Goods handed over with this sale." : "Not delivered yet — recorded as an advance."}</p>
+                {isPieceTracked(row) ? <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="grid content-start gap-1.5"><label htmlFor={fid(index, "orderedPieces")} className={ui.label} data-slot="label">Ordered pieces</label>
+                      <input {...fieldProps(row, index, "orderedPieces")} inputMode="numeric" pattern="[0-9]*" autoComplete="off" value={row.orderedPieces ?? ""} onChange={(event) => updateRow(row.rowId, { orderedPieces: event.target.value })} className={cn(fieldProps(row, index, "orderedPieces").className, "tabular-nums")} />
+                      {errorText(row, index, "orderedPieces")}
+                    </div>
+                    <div className="grid content-start gap-1.5"><label htmlFor={fid(index, "deliveredPieces")} className={ui.label} data-slot="label">Delivered now</label>
+                      <input {...fieldProps(row, index, "deliveredPieces")} inputMode="numeric" pattern="[0-9]*" autoComplete="off" value={row.deliveredPieces ?? ""} onChange={(event) => updateRow(row.rowId, { deliveredPieces: event.target.value })} className={cn(fieldProps(row, index, "deliveredPieces").className, "tabular-nums")} />
+                      {errorText(row, index, "deliveredPieces")}
+                    </div>
+                  </div>
+                  <p data-remaining-pieces aria-live="polite" className="text-xs text-muted-foreground tabular-nums">{remainingText(row)}</p>
+                </> : <>
+                  <label data-slot="label" className={cn("flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-input px-3.5 text-sm font-medium sk-press has-[:checked]:border-foreground has-[:checked]:bg-muted max-sm:min-h-12", locked && "cursor-not-allowed opacity-60")}>
+                    <input data-slot="checkbox" type="checkbox" className="size-5 accent-[var(--primary)]" disabled={locked} checked={row.delivered} onChange={(event) => updateRow(row.rowId, { delivered: event.target.checked })} />Delivered
+                  </label>
+                  <p className="text-xs text-muted-foreground">{row.delivered ? "Goods handed over with this sale." : "Not delivered yet — recorded as an advance."}</p>
+                </>}
               </div>
             </div>
 
@@ -704,7 +752,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
           </article>;
         })}
 
-        <button data-slot="button" type="button" className="flex min-h-14 items-center justify-center gap-2 rounded-3xl border border-dashed border-input bg-transparent text-sm font-semibold text-foreground sk-press hover:border-foreground hover:bg-card disabled:pointer-events-none disabled:opacity-50" disabled={locked} onClick={() => { const next = emptyRow(); setRows((current) => [...current, next]); setActiveRowId(next.rowId); editDraft(); }}><PlusIcon aria-hidden className="size-4" />Add another invoice</button>
+        <button data-slot="button" type="button" className="flex min-h-14 items-center justify-center gap-2 rounded-3xl border border-dashed border-input bg-transparent text-sm font-semibold text-foreground sk-press hover:border-foreground hover:bg-card disabled:pointer-events-none disabled:opacity-50" disabled={locked} onClick={addAnotherRow}><PlusIcon aria-hidden className="size-4" />Add another invoice</button>
       </div>
 
       <aside id="sale-summary" aria-label="Sale summary" className="grid min-w-0 gap-4 lg:sticky lg:top-[81px]">
@@ -752,7 +800,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
           </div>
           {preview.command && <ul className="grid list-none divide-y divide-border pl-0 text-sm tabular-nums">{preview.command.rows.map((row) => <li key={row.row_id} className="grid gap-0.5 py-2 first:pt-0">
             <div className="flex justify-between gap-3"><strong className="[overflow-wrap:anywhere]">{row.invoice_number}</strong><span>{qar(row.total_dirham)}</span></div>
-            <div className="flex flex-wrap justify-between gap-x-3 text-xs text-muted-foreground"><span>{row.delivered ? "Delivered" : "Not delivered"}{row.received_dirham > 0 && ` · ${paymentMethodLabel(row.payment_method)}`}</span><span>Received {qar(row.received_dirham)}</span><span>Due {qar(row.total_dirham - row.received_dirham)}</span></div>
+            <div className="flex flex-wrap justify-between gap-x-3 text-xs text-muted-foreground"><span data-review-delivery>{row.ordered_pieces !== undefined && row.delivered_pieces !== undefined ? `${row.ordered_pieces} ordered · ${row.delivered_pieces} delivered now · ${row.ordered_pieces - row.delivered_pieces} remaining` : row.delivered ? "Delivered" : "Not delivered"}{row.received_dirham > 0 && ` · ${paymentMethodLabel(row.payment_method)}`}</span><span>Received {qar(row.received_dirham)}</span><span>Due {qar(row.total_dirham - row.received_dirham)}</span></div>
           </li>)}</ul>}
           {preview.totals && <dl className="grid grid-cols-3 gap-2 rounded-2xl bg-muted p-3 text-center tabular-nums">
             <div><dt className="text-[11px] text-muted-foreground">Invoiced</dt><dd className="text-sm font-semibold">{qar(preview.totals.invoiced)}</dd></div>
@@ -808,7 +856,7 @@ export function InvoiceEntry({ appName, shop, shops, actorId, actorName, actorRo
           <Link href={`/shops/${currentShop.id}/invoices/${invoice.id}`} aria-label={`View invoice ${invoice.invoice_id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-xl px-2 py-2.5 text-foreground no-underline transition-colors duration-150 hover:bg-muted">
             <strong className="truncate font-semibold">{invoice.invoice_id}</strong>
             <span className="text-right text-sm font-semibold tabular-nums">{qar(invoice.effective_total_dirham)}</span>
-            <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">{invoice.business_date}<InvoiceBadges badges={invoiceBadges({ dueDirham: invoice.effective_due_dirham, delivered: invoice.delivered, corrected: false, revision: 0, isVoid: invoice.is_void })} /></span>
+            <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">{invoice.business_date}<InvoiceBadges badges={invoiceBadges({ dueDirham: invoice.effective_due_dirham, delivery: invoice.delivery, corrected: false, revision: 0, isVoid: invoice.is_void })} /></span>
             <span className={cn("text-right text-xs tabular-nums", invoice.effective_due_dirham > 0 ? "font-semibold text-warning" : "text-muted-foreground")}>Due {qar(invoice.effective_due_dirham)}</span>
           </Link>
         </li>)}</ul>}

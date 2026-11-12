@@ -16,6 +16,7 @@ const rowSchema = z.object({
   received: z.string().max(32), paymentMethod: z.enum(PAYMENT_METHODS).optional(), delivered: z.boolean(), customerId: z.string().max(100),
   customerName: z.string().max(200), customerMobile: z.string().max(100),
   note: z.string().max(1000).optional(),
+  orderedPieces: z.string().max(12).optional(), deliveredPieces: z.string().max(12).optional(),
 }).strict();
 const entrySchema = z.object({
   shopId: z.uuid(), businessDate: z.iso.date(), isBackdated: z.boolean(),

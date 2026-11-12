@@ -1,4 +1,5 @@
 import { InvoiceOperations } from "../../../../invoice-operations";
+import { InvoiceDelivery } from "../../../../invoice-delivery";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
@@ -8,7 +9,9 @@ import { InvoiceTimeline } from "@/components/sales/invoice-timeline";
 import { ui } from "@/components/sales/ui";
 import { can, getCurrentActor } from "@/lib/auth/permissions";
 import { groupedQar, qar } from "@/lib/dashboard-view";
+import { DELIVERY_STATUS_LABEL, deliveryBlockReason, orderCorrectionBlockReason, reversalBlockReason } from "@/lib/invoice-delivery";
 import { readInvoiceDetail } from "@/lib/invoice-detail";
+import { qatarBusinessDate } from "@/lib/invoice-entry";
 import { paymentMethodLabel } from "@/lib/payment-method";
 import { getReadableShops, shopViewer } from "@/lib/shop-switching";
 import { buildTimeline, invoiceBadges, longDate, personLabel, qatarDateTime } from "@/lib/sales-view";
@@ -26,9 +29,18 @@ export default async function InvoiceDetailPage({ params }: PageProps<"/shops/[s
   const actor = shopViewer(user, shop);
   const detail = await readInvoiceDetail(actor, shopId, invoiceId);
   if (!detail) notFound();
+  // Deliveries are recorded on today's Qatar date; a closed day refuses them, so the action is not offered.
+  const { data: lastDayEvent } = detail.pieces ? await supabase.from("daily_closes").select("event_type").eq("shop_id", shopId)
+    .eq("business_date", qatarBusinessDate(new Date())).order("event_sequence", { ascending: false }).limit(1).maybeSingle() : { data: null };
+  const deliveryBlocked = deliveryBlockReason({ pieces: detail.pieces, isVoid: detail.voided != null, shopActive: shopRow?.is_active === true, todayClosed: lastDayEvent?.event_type === "closed", canRecord: can(actor, "batch.enter", shopId) });
+
+  const canReverse = can(actor, "delivery.reverse", shopId);
+  const reverseBlocked = reversalBlockReason({ isVoid: detail.voided != null, shopActive: shopRow?.is_active === true, todayClosed: lastDayEvent?.event_type === "closed", canReverse });
+  const canCorrect = can(actor, "delivery.correct_ordered", shopId);
+  const correctBlocked = orderCorrectionBlockReason({ isVoid: detail.voided != null, shopActive: shopRow?.is_active === true, todayClosed: lastDayEvent?.event_type === "closed", canCorrect });
 
   const corrected = detail.corrections.length > 0;
-  const badges = invoiceBadges({ dueDirham: detail.effectiveDueDirham, delivered: detail.delivered, corrected, revision: detail.revision, isVoid: detail.voided != null });
+  const badges = invoiceBadges({ dueDirham: detail.effectiveDueDirham, delivery: detail.pieces?.status ?? (detail.delivered ? "full" : "none"), corrected, revision: detail.revision, isVoid: detail.voided != null });
   const customerHref = detail.customer ? `/customers/${detail.customer.id}?shop=${shopId}` : null;
   const figure = "grid content-start gap-1 rounded-2xl p-4";
 
@@ -75,8 +87,13 @@ export default async function InvoiceDetailPage({ params }: PageProps<"/shops/[s
         </div>
         <div className={cn(figure, "bg-muted")}>
           <span className="text-xs text-muted-foreground">Delivery</span>
-          <strong className="text-lg font-semibold">{detail.delivered ? "Delivered" : "Not delivered"}</strong>
-          <span className="text-xs text-muted-foreground">{detail.delivered ? "Goods handed over" : "Advance — goods not handed over yet"}</span>
+          {detail.pieces ? <>
+            <strong className="text-lg font-semibold">{DELIVERY_STATUS_LABEL[detail.pieces.status]}</strong>
+            <span className="text-xs text-muted-foreground">{detail.pieces.delivered} of {detail.pieces.ordered} pieces · {detail.pieces.remaining} remaining</span>
+          </> : <>
+            <strong className="text-lg font-semibold">{detail.delivered ? "Delivered" : "Not delivered"}</strong>
+            <span className="text-xs text-muted-foreground">{detail.delivered ? "Goods handed over" : "Advance — goods not handed over yet"}</span>
+          </>}
         </div>
       </div>
 
@@ -91,6 +108,8 @@ export default async function InvoiceDetailPage({ params }: PageProps<"/shops/[s
         {detail.effectiveTotalDirham !== detail.originalTotalDirham && <div className="grid gap-0.5"><dt className="text-xs text-muted-foreground">Original total</dt><dd className="font-semibold tabular-nums">{qar(detail.originalTotalDirham)}</dd></div>}
         <div className="grid gap-0.5 sm:col-span-2 lg:col-span-1"><dt className="text-xs text-muted-foreground">Reference</dt><dd className="font-mono text-xs break-all text-muted-foreground">{detail.id}</dd></div>
       </dl>
+
+      {detail.pieces && <InvoiceDelivery shopId={shopId} invoiceId={detail.id} invoiceReference={detail.originalInvoiceNumber} pieces={detail.pieces} people={detail.people} blockedReason={deliveryBlocked} canReverse={canReverse} reverseBlockedReason={canReverse ? reverseBlocked : null} canCorrect={canCorrect} correctBlockedReason={canCorrect ? correctBlocked : null} />}
 
       <section aria-labelledby="payment-history-heading" className="grid gap-3 border-t border-border pt-5">
         <h2 id="payment-history-heading" data-slot="heading" className="text-base font-semibold">Payments received</h2>

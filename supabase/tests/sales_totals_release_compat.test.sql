@@ -18,7 +18,7 @@ create function pg_temp.legacy(f date, t date) returns bigint language sql as $$
 select ok(pg_temp.t(current_date, current_date) ?& array['invoice_count', 'effective_total_dirham', 'effective_paid_dirham', 'credit_applied_dirham',
   'effective_due_dirham', 'delivered_count', 'undelivered_count'], 'the full e4f4cfe contract (7 fields) is returned');
 select ok(pg_temp.t(current_date, current_date) ?& array['gross_sales_dirham', 'sales_corrections_dirham', 'net_sales_dirham'], 'the OPS-01B movement fields are returned');
-select is((select count(*)::int from jsonb_object_keys(pg_temp.t(current_date, current_date))), 10, 'exactly 10 output fields');
+select is((select count(*)::int from jsonb_object_keys(pg_temp.t(current_date, current_date))), 11, 'exactly 11 output fields');
 select ok(has_function_privilege('authenticated', 'public.report_sales_totals(uuid,date,date)', 'execute'), 'authenticated can execute');
 select ok(not has_function_privilege('anon', 'public.report_sales_totals(uuid,date,date)', 'execute'), 'anon cannot execute');
 select ok(not exists(select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = 'public.report_sales_totals(uuid,date,date)'::regprocedure and a.grantee = 0), 'PUBLIC has no grant');

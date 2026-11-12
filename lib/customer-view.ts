@@ -1,4 +1,5 @@
 import { qatarBusinessDate } from "@/lib/invoice-entry";
+import type { DeliveryStatus } from "@/lib/invoice-delivery";
 import type { CustomerLedgerSource } from "@/lib/customer-operations";
 
 // View-only helpers for the Customers screens. Nothing here computes a balance the database does
@@ -22,7 +23,7 @@ export function balanceStatuses(balance: { dueDirham: number; creditDirham: numb
 export type CustomerInvoice = {
   invoiceId: string; invoiceNumber: string; businessDate: string;
   totalDirham: number; paidDirham: number; creditAppliedDirham: number; dueDirham: number;
-  delivered: boolean; revision: number; corrected: boolean; isVoid?: boolean;
+  delivery: DeliveryStatus; revision: number; corrected: boolean; isVoid?: boolean;
 };
 
 /** Sums of this customer's effective invoices, all dates. Due equals the balance view's own sum of the same rows. */

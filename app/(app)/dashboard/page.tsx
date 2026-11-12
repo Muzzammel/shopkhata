@@ -108,6 +108,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         <ListCard title="Invoice health" className="border-0 p-0 sm:p-0">
           <Rows empty="" rows={[
             { key: "total", label: "Total invoices", value: String(data.invoiceHealth.total) }, { key: "delivered", label: "Delivered", value: String(data.invoiceHealth.delivered) },
+            { key: "partial", label: "Partially delivered", value: String(data.invoiceHealth.partial) },
             { key: "advance", label: "Advance (not delivered)", value: String(data.invoiceHealth.advance) }, { key: "paid", label: "Fully paid", value: String(data.invoiceHealth.fullyPaid) },
             { key: "due", label: "With outstanding due", value: String(data.invoiceHealth.withDue), tone: data.invoiceHealth.withDue > 0 ? "due" : undefined },
           ]} />

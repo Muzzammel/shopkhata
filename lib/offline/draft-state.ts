@@ -15,6 +15,8 @@ export const AUTO_RETRY_DELAYS_MS = [1_000, 5_000, 15_000] as const;
 const rowSchema = z.object({
   rowId: z.string().min(1), invoiceId: z.string(), total: z.string(), received: z.string(), paymentMethod: z.enum(PAYMENT_METHODS).optional(), delivered: z.boolean(),
   customerId: z.string(), customerName: z.string(), customerMobile: z.string(), note: z.string().optional(),
+  // Absent on drafts saved before piece tracking: those rows stay legacy (yes/no delivered only).
+  orderedPieces: z.string().optional(), deliveredPieces: z.string().optional(),
 });
 const customerSchema = z.object({ id: z.string(), name: z.string().nullable(), mobile: z.string().nullable(), public_id: z.string() });
 const payloadSchema = z.object({
@@ -61,9 +63,14 @@ export function draftKey(userId: string, shopId: string): string {
   return `${userId}:${shopId}`;
 }
 
-export function isBlankRows(rows: readonly EntryRow[]): boolean {
-  return rows.length <= 1 && rows.every((row) => !(row.invoiceId.trim() || row.total.trim() || row.received.trim() || row.delivered
-    || row.customerId || row.customerName.trim() || row.customerMobile.trim() || row.note?.trim()));
+export function isBlankRows(rows: readonly EntryRow[], suggestedInvoiceId?: string): boolean {
+  return rows.length <= 1 && rows.every((row) => {
+    const isBlankInvoiceId = !row.invoiceId.trim()
+      || (suggestedInvoiceId !== undefined && suggestedInvoiceId.trim() !== "" && row.invoiceId.trim() === suggestedInvoiceId.trim());
+    return isBlankInvoiceId && !(row.total.trim() || row.received.trim() || row.delivered
+      || !["", "1"].includes(row.orderedPieces?.trim() ?? "") || !["", "0"].includes(row.deliveredPieces?.trim() ?? "")
+      || row.customerId || row.customerName.trim() || row.customerMobile.trim() || row.note?.trim());
+  });
 }
 
 export function serializeDraft(input: {

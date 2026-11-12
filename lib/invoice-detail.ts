@@ -3,6 +3,7 @@ import { can, type Actor } from "@/lib/auth/permissions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 import { readInvoiceChanges, type ChangeRequest } from "@/lib/invoice-change-history";
+import { summarizeDeliveries, type PieceDelivery } from "@/lib/invoice-delivery";
 
 export type InvoiceDetailCorrection = {
   id: string;
@@ -35,6 +36,8 @@ export type InvoiceDetail = {
   createdBy: string | null;
   creatorName: string | null;
   delivered: boolean;
+  /** Piece tracking from the delivery ledger; null for a legacy invoice (yes/no delivery only, no piece counts). */
+  pieces: PieceDelivery | null;
   customer: { id: string; name: string | null; mobile: string | null; publicId: string } | null;
   payments: Array<{
     id: string;
@@ -58,7 +61,7 @@ export async function readInvoiceDetail(actor: Actor, shopId: string, canonicalI
   if (!can(actor, "records.view_assigned", shopId) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(canonicalInvoiceId)) return null;
   const supabase = await createServerSupabaseClient();
   const { data: invoice, error: invoiceError } = await supabase.from("invoices")
-    .select("id, shop_id, invoice_id, total_amount_dirham, business_date, recorded_at, created_by, delivered, customer_id")
+    .select("id, shop_id, invoice_id, total_amount_dirham, business_date, recorded_at, created_by, delivered, customer_id, ordered_pieces")
     .eq("shop_id", shopId).eq("id", canonicalInvoiceId).maybeSingle();
   if (invoiceError || !invoice) return null;
 
@@ -66,7 +69,7 @@ export async function readInvoiceDetail(actor: Actor, shopId: string, canonicalI
     .eq("shop_id", shopId).eq("canonical_invoice_id", canonicalInvoiceId).maybeSingle();
   if (effectiveError || !effective) return null;
   const changes = await readInvoiceChanges(shopId, canonicalInvoiceId);
-  const [customerResult, paymentResult, invoiceCorrectionsResult, voidResult] = await Promise.all([
+  const [customerResult, paymentResult, invoiceCorrectionsResult, voidResult, deliveryResult, pieceCorrectionResult] = await Promise.all([
     effective.effective_customer_id
       ? supabase.from("customers").select("id, shop_id, name, mobile, public_id").eq("shop_id", shopId).eq("id", effective.effective_customer_id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
@@ -80,7 +83,20 @@ export async function readInvoiceDetail(actor: Actor, shopId: string, canonicalI
     effective.is_void
       ? supabase.from("invoice_voids").select("id, reason, business_date, actor_user_id, created_at, correction_id").eq("shop_id", shopId).eq("invoice_id", canonicalInvoiceId).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    invoice.ordered_pieces != null
+      ? readAllPages((o, e) => supabase.from("invoice_deliveries")
+        .select("id, pieces, business_date, recorded_at, created_by, batch_id, reverses_delivery_id, reason")
+        .eq("shop_id", shopId).eq("invoice_id", canonicalInvoiceId).order("recorded_at", { ascending: true }).order("id", { ascending: true }).range(o, e))
+      : Promise.resolve({ data: [], error: null }),
+    invoice.ordered_pieces != null
+      ? readAllPages((o, e) => supabase.from("invoice_piece_corrections")
+        .select("id, ordered_before, ordered_after, reason, business_date, recorded_at, created_by")
+        .eq("shop_id", shopId).eq("invoice_id", canonicalInvoiceId).order("seq", { ascending: true }).range(o, e))
+      : Promise.resolve({ data: [], error: null }),
   ]);
+  if (deliveryResult.error || !deliveryResult.data || pieceCorrectionResult.error || !pieceCorrectionResult.data) return null;
+  const pieceCorrections = pieceCorrectionResult.data;
+  const deliveries = deliveryResult.data;
   const payments = paymentResult.data;
   const invoiceCorrections = invoiceCorrectionsResult.data;
   if (voidResult.error || (effective.is_void && !voidResult.data)) return null;
@@ -100,7 +116,7 @@ export async function readInvoiceDetail(actor: Actor, shopId: string, canonicalI
 
   const corrections = [...invoiceCorrections, ...paymentCorrections];
   const actorIds = [...new Set([
-    invoice.created_by, ...payments.map((p) => p.created_by), ...corrections.flatMap((c) => [c.created_by, c.approved_by]),
+    invoice.created_by, ...payments.map((p) => p.created_by), ...deliveries.map((d) => d.created_by), ...pieceCorrections.map((c) => c.created_by), ...corrections.flatMap((c) => [c.created_by, c.approved_by]),
     ...changes.flatMap((c) => [c.requestedBy, c.decision?.actor]), voidResult.data?.actor_user_id,
   ].filter((id): id is string => Boolean(id)))];
   // One read each for people and customers. Customer names only label the history, so a failed read leaves them unresolved instead of hiding the invoice.
@@ -131,6 +147,11 @@ export async function readInvoiceDetail(actor: Actor, shopId: string, canonicalI
     createdBy: invoice.created_by,
     creatorName: invoice.created_by ? names.get(invoice.created_by) ?? null : null,
     delivered: effective.effective_delivered!,
+    pieces: invoice.ordered_pieces == null ? null : summarizeDeliveries(invoice.ordered_pieces, deliveries.map((d) => ({
+      id: d.id, pieces: d.pieces, businessDate: d.business_date, recordedAt: d.recorded_at, createdBy: d.created_by, withSale: d.batch_id != null, reversesId: d.reverses_delivery_id, reason: d.reason,
+    })), pieceCorrections.map((c) => ({
+      id: c.id, before: c.ordered_before, after: c.ordered_after, reason: c.reason, businessDate: c.business_date, recordedAt: c.recorded_at, createdBy: c.created_by,
+    }))),
     customer: customerResult.data ? {
       id: customerResult.data.id,
       name: customerResult.data.name,

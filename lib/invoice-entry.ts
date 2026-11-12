@@ -15,7 +15,38 @@ export type EntryRow = {
   customerName: string;
   customerMobile: string;
   note?: string;
+  /**
+   * Piece tracking. Both undefined = legacy row (older drafts, Excel imports): only the yes/no `delivered` flag is
+   * sent, exactly as before. Otherwise both are sent and `delivered` is derived from `deliveredPieces > 0`.
+   */
+  orderedPieces?: string;
+  deliveredPieces?: string;
 };
+
+export const isPieceTracked = (row: Pick<EntryRow, "orderedPieces" | "deliveredPieces">) =>
+  row.orderedPieces !== undefined || row.deliveredPieces !== undefined;
+
+const MAX_PIECES = 2_147_483_647;
+/** Whole number of pieces, or null when it is not one (no signs, decimals or exponents). */
+export function parsePieces(value: string | undefined): number | null {
+  const text = (value ?? "").trim();
+  if (!/^\d{1,10}$/.test(text)) return null;
+  const n = Number(text);
+  return n <= MAX_PIECES ? n : null;
+}
+
+/** Ordered/delivered/remaining for a tracked row; null parts while a field is not a valid count yet. */
+export function rowPieces(row: Pick<EntryRow, "orderedPieces" | "deliveredPieces">) {
+  const ordered = parsePieces(row.orderedPieces);
+  const delivered = parsePieces(row.deliveredPieces);
+  const valid = ordered !== null && ordered >= 1 && delivered !== null && delivered <= ordered;
+  return { ordered, delivered, remaining: valid ? ordered - delivered : null, valid };
+}
+
+/** The delivery flag the server will record for this row. */
+export function rowDelivered(row: EntryRow): boolean {
+  return isPieceTracked(row) ? (parsePieces(row.deliveredPieces) ?? 0) > 0 : row.delivered;
+}
 
 export type InvoiceEntryInput = {
   shopId: string;
@@ -39,6 +70,31 @@ export function selectInvoiceAttempt(input: InvoiceEntryInput, previous: Invoice
     ...input,
     rows: input.rows.map((row) => ({ ...row })),
   };
+}
+
+/**
+ * Suggests the next invoice number by incrementing the numeric portion of the current number.
+ * Preserves any prefix, separator, suffix, and leading zero padding.
+ * If the current number has no numeric portion or cannot be safely incremented, returns an empty string.
+ */
+export function suggestNextInvoiceNumber(currentNumber: string | null | undefined): string {
+  if (typeof currentNumber !== "string") return "";
+  const trimmed = currentNumber.trim();
+  if (!trimmed) return "";
+
+  // Match the last sequence of digits in the string
+  const match = /^(.*?)(\d+)(\D*)$/.exec(trimmed);
+  if (!match) return "";
+
+  const [, prefix, digits, suffix] = match;
+  try {
+    const nextVal = BigInt(digits) + BigInt(1);
+    if (nextVal < BigInt(0)) return "";
+    const nextDigits = nextVal.toString().padStart(digits.length, "0");
+    return `${prefix}${nextDigits}${suffix}`;
+  } catch {
+    return "";
+  }
 }
 
 export type EntryError = { rowId: string; field: string; message: string; code?: string };
@@ -75,6 +131,14 @@ export function prepareInvoiceBatch(input: InvoiceEntryInput, existingInvoiceIds
       errors.push({ rowId: row.rowId, field: "received", message: "Received must be a valid QAR amount no greater than the total." });
     }
     if (!row.invoiceId.trim()) errors.push({ rowId: row.rowId, field: "invoiceId", message: "Invoice ID is required." });
+    if (isPieceTracked(row)) {
+      const pieces = rowPieces(row);
+      if (pieces.ordered === null || pieces.ordered < 1) {
+        errors.push({ rowId: row.rowId, field: "orderedPieces", message: "Ordered pieces must be a whole number of at least 1." });
+      } else if (pieces.delivered === null || pieces.delivered > pieces.ordered) {
+        errors.push({ rowId: row.rowId, field: "deliveredPieces", message: `Delivered now must be a whole number from 0 to ${pieces.ordered}.` });
+      }
+    }
     return { total, received };
   });
 
@@ -87,7 +151,7 @@ export function prepareInvoiceBatch(input: InvoiceEntryInput, existingInvoiceIds
       type: "ADVANCE" as const,
       total: amounts[index].total,
       received: amounts[index].received,
-      delivered: row.delivered,
+      delivered: rowDelivered(row),
       customerId: row.customerId.trim() || (row.customerName.trim() || row.customerMobile.trim() ? "quick-add" : ""),
     })),
   }, { existingInvoiceKeys: new Set((replay ? [] : existingInvoiceIds).map((id) => invoiceKey(input.shopId, id))) });
@@ -109,7 +173,8 @@ export function prepareInvoiceBatch(input: InvoiceEntryInput, existingInvoiceIds
       total_dirham: amounts[index].total,
       received_dirham: amounts[index].received,
       payment_method: amounts[index].received > 0 ? row.paymentMethod ?? "cash" : "cash",
-      delivered: row.delivered,
+      delivered: rowDelivered(row),
+      ...(isPieceTracked(row) ? { ordered_pieces: parsePieces(row.orderedPieces) as number, delivered_pieces: parsePieces(row.deliveredPieces) as number } : {}),
       ...(row.note?.trim() ? { note: row.note.trim() } : {}),
       customer: row.customerId.trim()
         ? { type: "existing", customer_id: row.customerId.trim() }

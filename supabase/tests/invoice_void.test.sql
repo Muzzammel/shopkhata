@@ -44,8 +44,10 @@ insert into public.customer_credits(shop_id, customer_id, amount_dirham, busines
 select has_table('public', 'invoice_voids', 'the append-only void marker exists');
 select has_function('public', 'void_invoice', array['jsonb'], 'void RPC exists');
 select has_column('public', 'effective_invoices', 'is_void', 'effective_invoices exposes is_void');
-select is((select attnum from pg_attribute where attrelid = 'public.effective_invoices'::regclass and attname = 'is_void'),
-  (select max(attnum) from pg_attribute where attrelid = 'public.effective_invoices'::regclass and attnum > 0), 'is_void is the last column, existing columns keep their positions');
+-- Only columns appended later may follow is_void (20261112100000 partial delivery reporting appends three).
+select is((select array_agg(attname::text order by attnum) from pg_attribute where attrelid = 'public.effective_invoices'::regclass
+    and attnum > (select attnum from pg_attribute where attrelid = 'public.effective_invoices'::regclass and attname = 'is_void') and not attisdropped),
+  array['ordered_pieces', 'delivered_pieces', 'delivery_status'], 'is_void keeps its position; only the partial-delivery columns are appended after it');
 select ok((select prosecdef from pg_proc where oid = 'public.void_invoice(jsonb)'::regprocedure), 'void_invoice is SECURITY DEFINER');
 select ok(not has_function_privilege('anon', 'public.void_invoice(jsonb)', 'EXECUTE'), 'anon cannot execute void_invoice');
 select ok(not has_table_privilege('authenticated', 'public.invoice_voids', 'INSERT') and not has_table_privilege('authenticated', 'public.invoice_voids', 'UPDATE')
@@ -53,7 +55,7 @@ select ok(not has_table_privilege('authenticated', 'public.invoice_voids', 'INSE
 select ok((select relrowsecurity from pg_class where oid = 'public.invoice_voids'::regclass), 'RLS is enabled on invoice_voids');
 select ok(exists(select 1 from pg_trigger where tgrelid = 'public.invoice_voids'::regclass and tgname = 'invoice_voids_active_shop'), 'invoice_voids carries the OPS-01A active-shop guard');
 select ok(not has_function_privilege('authenticated', 'private.enforce_invoice_not_void()', 'EXECUTE'), 'the post-void guard is not callable through the Data API');
-select is((select count(*)::int from pg_trigger where tgfoid = 'private.enforce_invoice_not_void()'::regprocedure), 8, 'post-void guard on all eight invoice-scoped write tables');
+select is((select count(*)::int from pg_trigger where tgfoid = 'private.enforce_invoice_not_void()'::regprocedure), 10, 'post-void guard on all ten invoice-scoped write tables (invoice_deliveries since 20261112090000, invoice_piece_corrections since 20261112120000)');
 
 -- 2. Authorization ------------------------------------------------------------------------------------------------
 set local role anon;

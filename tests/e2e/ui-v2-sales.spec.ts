@@ -1,6 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { entryRows, fillRow, invoiceCount, login, OWNER, savedNotice, scalar, SHOP_1, STAFF } from "./offline-helpers";
+import { IMPORT_HEADERS } from "@/lib/excel/invoice-import";
+
+import { entryRows, fillRow, importFile, invoiceCount, login, MANAGER, MANAGER_ID, OWNER, savedNotice, scalar, SHOP_1, STAFF, workbook } from "./offline-helpers";
 
 // UI/UX V2 phase 2 — Sales list, New Sale and Invoice Detail. The business rules are covered by
 // the invoice suites; this file holds the presentation guarantees the redesign adds.
@@ -14,6 +16,17 @@ async function createSale(page: Page, number: string, total = "100.00", received
   await page.getByRole("button", { name: "Review sale" }).click();
   await page.getByRole("button", { name: saveButton }).click();
   await expect(savedNotice(page)).toBeVisible();
+}
+
+/** A legacy invoice (yes/no delivery, no piece counts): Excel imports still create those. */
+async function createLegacySale(page: Page, number: string, total: number, received: number) {
+  await page.goto(`/?shop=${SHOP_1}`);
+  await importFile(page, await workbook([[...IMPORT_HEADERS], [number, total, received, "No", null, null, null]]));
+  await page.getByRole("region", { name: "Import preview" }).getByRole("button", { name: "Add rows to draft" }).click();
+  await page.getByRole("button", { name: "Review sale" }).click();
+  await page.getByRole("button", { name: saveButton }).click();
+  await expect(savedNotice(page)).toBeVisible();
+  expect(scalar(`select ordered_pieces is null from public.invoices where shop_id = '${SHOP_1}' and invoice_id = '${number}'`)).toBe("true");
 }
 
 test.describe("New Sale", () => {
@@ -68,7 +81,7 @@ test.describe("New Sale", () => {
     await login(page, STAFF);
     const row = entryRows(page).first();
     await fillRow(page, 0, `V2-CUST-${Date.now()}`, "40.00", "10.00");
-    await row.getByLabel("Delivered").check();
+    await row.getByLabel("Delivered now").fill("1");
     await expect(row).toContainText("Customer required");
     await expect(page.getByRole("region", { name: "Summary" })).toContainText("CustomerRequired");
   });
@@ -141,9 +154,10 @@ test.describe("Invoice detail", () => {
   test("delivery change is a request: delivery stays unchanged until a manager or owner approves", async ({ page, browser }) => {
     const number = `V2-DELIVERY-${Date.now()}`;
     await login(page, STAFF);
-    // Fully paid: a delivered invoice with due would also need a customer.
-    await createSale(page, number, "100.00", "100.00");
-    await page.getByRole("link", { name: `View invoice ${number}`, exact: true }).click();
+    // Fully paid: a delivered invoice with due would also need a customer. Legacy: piece-tracked invoices record deliveries instead.
+    await createLegacySale(page, number, 100, 100);
+    await page.goto(`/shops/${SHOP_1}/invoices/${scalar(`select id from public.invoices where shop_id = '${SHOP_1}' and invoice_id = '${number}'`)}`);
+    await expect(page.locator("[data-piece-delivery]")).toHaveCount(0);
     const summary = page.getByRole("group", { name: "Financial summary" });
     await expect(summary).toContainText("Not delivered");
 
@@ -170,8 +184,9 @@ test.describe("Invoice detail", () => {
   test("drawers trap focus and close with Escape; Print shows only the document", async ({ page }) => {
     const number = `V2-DRAWER-${Date.now()}`;
     await login(page, STAFF);
-    await createSale(page, number);
-    await page.getByRole("link", { name: `View invoice ${number}`, exact: true }).click();
+    // Legacy: the delivery-change shortcut below exists only for invoices without piece counts.
+    await createLegacySale(page, number, 100, 0);
+    await page.goto(`/shops/${SHOP_1}/invoices/${scalar(`select id from public.invoices where shop_id = '${SHOP_1}' and invoice_id = '${number}'`)}`);
     await page.getByRole("button", { name: "Request correction" }).click();
     const drawer = page.getByRole("dialog", { name: "Request correction" });
     await expect(drawer).toBeVisible();
@@ -199,7 +214,8 @@ test.describe("Invoice detail", () => {
     await createSale(page, number, "50.00");
     await page.getByRole("link", { name: `View invoice ${number}`, exact: true }).click();
     const actions = page.getByRole("navigation", { name: "Invoice actions" });
-    await expect(actions.getByRole("button")).toHaveText(["Record payment", "Request correction", "Request delivery change", "More actions"]);
+    // A New Sale invoice is piece-tracked: deliveries are recorded on the page, so there is no delivery-change request.
+    await expect(actions.getByRole("button")).toHaveText(["Record payment", "Request correction", "More actions"]);
     await actions.getByRole("button", { name: "More actions" }).click();
     await expect(page.getByRole("menuitem")).toHaveText(["Request replacement", "Print"]);
     await page.keyboard.press("Escape");
@@ -208,7 +224,7 @@ test.describe("Invoice detail", () => {
     await page.reload();
     await expect(actions.getByRole("button")).toHaveText(["Record payment", "More actions"]);
     await actions.getByRole("button", { name: "More actions" }).click();
-    await expect(page.getByRole("menuitem")).toHaveText(["Request correction", "Request replacement", "Request delivery change", "Print"]);
+    await expect(page.getByRole("menuitem")).toHaveText(["Request correction", "Request replacement", "Print"]);
     await page.getByRole("menuitem", { name: "Request replacement" }).click();
     await expect(page.getByRole("dialog", { name: "Request replacement" })).toBeVisible();
     await page.keyboard.press("Escape");
@@ -243,5 +259,270 @@ test.describe("Invoice detail", () => {
       return { page: getComputedStyle(document.body).backgroundColor, card: getComputedStyle(doc).backgroundColor };
     });
     expect(colours.card).not.toBe(colours.page);
+  });
+});
+
+test.describe("Piece delivery", () => {
+  test("100 ordered, 60 with the sale, 40 later: over-delivery refused, a lost response retried once, nothing left", async ({ page }) => {
+    const number = `V2-PIECES-${Date.now()}`;
+    const totals = () => scalar(`select t.ordered_pieces || '/' || t.delivered_pieces || '/' || t.remaining_pieces || '/' || t.delivery_status || '/' || b.effective_total_dirham || '/' || b.effective_due_dirham
+      from public.invoices i join public.invoice_delivery_totals t on t.canonical_invoice_id = i.id join public.invoice_effective_balances b on b.canonical_invoice_id = i.id
+      where i.shop_id = '${SHOP_1}' and i.invoice_id = '${number}'`);
+    await login(page, STAFF);
+    await fillRow(page, 0, number, "250.00", "250.00");
+    const row = entryRows(page).first();
+    await row.getByLabel("Ordered pieces").fill("100");
+    await row.getByLabel("Delivered now").fill("60");
+    await page.getByRole("button", { name: "Review sale" }).click();
+    await page.getByRole("button", { name: saveButton }).click();
+    await expect(savedNotice(page)).toBeVisible();
+    expect(totals()).toBe("100/60/40/partial/25000/0");
+
+    await page.getByRole("link", { name: `View invoice ${number}`, exact: true }).click();
+    const figures = page.getByLabel("Piece delivery");
+    await expect(figures).toContainText("Ordered pieces100Delivered pieces60Remaining pieces40Delivery statusPartially delivered");
+    await expect(page.getByRole("group", { name: "Financial summary" })).toContainText("Partially delivered");
+    await expect(page.getByRole("button", { name: "Request delivery change" })).toHaveCount(0);
+    await expect(page.getByRole("list", { name: "Delivery history" }).getByRole("listitem")).toHaveCount(1);
+    await expect(page.getByRole("list", { name: "Delivery history" })).toContainText(`With the sale`);
+    await expect(page.getByRole("list", { name: "Delivery history" })).toContainText(`invoice ${number}`);
+
+    // Over-delivery is refused on screen, before anything is sent.
+    const pieces = page.getByLabel("Pieces delivered now");
+    await pieces.fill("41");
+    await page.getByRole("button", { name: "Record delivery" }).click();
+    await expect(page.getByText("Only 40 pieces remain to deliver.")).toBeVisible();
+
+    // The first response is lost after the server committed: the retry resends the same command and records nothing twice.
+    const payloads: string[] = [];
+    let dropped = false;
+    await page.route("**/*", async (route) => {
+      const request = route.request();
+      if (request.method() === "POST" && request.headers()["next-action"] && request.postData()?.includes("idempotency_key")) {
+        payloads.push(request.postData() ?? "");
+        if (!dropped) { dropped = true; await route.fetch(); return route.abort("failed"); }
+      }
+      return route.continue();
+    });
+    await pieces.fill("40");
+    await page.getByRole("button", { name: "Record delivery" }).click();
+    await expect(page.getByRole("button", { name: "Retry exact delivery" })).toBeVisible();
+    await expect(pieces).toBeDisabled();
+    expect(totals()).toBe("100/100/0/full/25000/0");
+    await page.getByRole("button", { name: "Retry exact delivery" }).click();
+    await expect(figures).toContainText("Delivered pieces100Remaining pieces0Delivery statusFully delivered");
+    expect(payloads).toHaveLength(2);
+    expect(payloads[1]).toBe(payloads[0]);
+    expect(scalar(`select count(*) from public.invoice_deliveries d join public.invoices i on i.id = d.invoice_id where i.shop_id = '${SHOP_1}' and i.invoice_id = '${number}'`)).toBe("2");
+    expect(totals()).toBe("100/100/0/full/25000/0");
+    await expect(page.getByRole("list", { name: "Delivery history" }).getByRole("listitem")).toHaveCount(2);
+    await expect(page.getByRole("list", { name: "Delivery history" })).toContainText("Later delivery");
+    await expect(page.getByText("All ordered pieces are delivered.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Record delivery" })).toHaveCount(0);
+
+    // One audit event for the one later delivery, despite two sends.
+    await page.unroute("**/*");
+    const invoiceId = scalar(`select id from public.invoices where shop_id = '${SHOP_1}' and invoice_id = '${number}'`);
+    expect(scalar(`select count(*) from public.audit_events where action = 'delivery.record' and entity_id = '${invoiceId}'`)).toBe("1");
+  });
+
+  test("a manager reverses a whole delivery with a reason: history kept, net totals, money unchanged; staff cannot", async ({ page, browser }) => {
+    const number = `V2-REVERSE-${Date.now()}`;
+    const reason = "Delivered to the wrong customer";
+    const totals = () => scalar(`select t.ordered_pieces || '/' || t.delivered_pieces || '/' || t.remaining_pieces || '/' || t.delivery_status || '/' || b.effective_total_dirham || '/' || b.effective_paid_dirham || '/' || b.effective_due_dirham
+      from public.invoices i join public.invoice_delivery_totals t on t.canonical_invoice_id = i.id join public.invoice_effective_balances b on b.canonical_invoice_id = i.id
+      where i.shop_id = '${SHOP_1}' and i.invoice_id = '${number}'`);
+    await login(page, MANAGER);
+    await fillRow(page, 0, number, "250.00", "250.00");
+    const row = entryRows(page).first();
+    await row.getByLabel("Ordered pieces").fill("100");
+    await row.getByLabel("Delivered now").fill("60");
+    await page.getByRole("button", { name: "Review sale" }).click();
+    await page.getByRole("button", { name: saveButton }).click();
+    await expect(savedNotice(page)).toBeVisible();
+    await page.getByRole("link", { name: `View invoice ${number}`, exact: true }).click();
+    const figures = page.getByLabel("Piece delivery");
+    const history = page.getByRole("list", { name: "Delivery history" });
+    await page.getByLabel("Pieces delivered now").fill("40");
+    await page.getByRole("button", { name: "Record delivery" }).click();
+    await expect(figures).toContainText("Delivered pieces100Remaining pieces0Delivery statusFully delivered");
+    expect(totals()).toBe("100/100/0/full/25000/25000/0");
+    const invoiceId = scalar(`select id from public.invoices where shop_id = '${SHOP_1}' and invoice_id = '${number}'`);
+    const money = () => scalar(`select (select count(*) from public.payments where invoice_id = '${invoiceId}') || '/' || (select count(*) from public.corrections where invoice_id = '${invoiceId}')
+      || '/' || (select count(*) from public.sales_movements where invoice_id = '${invoiceId}')`);
+    const moneyBefore = money();
+    const reverseButtons = page.getByRole("button", { name: /^Reverse delivery of/ });
+    await expect(reverseButtons).toHaveCount(2);
+
+    // Staff see the same history and no reversal action.
+    const staffContext = await browser.newContext();
+    const staff = await staffContext.newPage();
+    await login(staff, STAFF);
+    await staff.goto(new URL(page.url()).pathname);
+    await expect(staff.getByRole("list", { name: "Delivery history" }).getByRole("listitem")).toHaveCount(2);
+    await expect(staff.getByRole("button", { name: /^Reverse delivery of/ })).toHaveCount(0);
+    await staffContext.close();
+
+    // A reason is mandatory, on screen, before anything is sent.
+    await page.getByRole("button", { name: /^Reverse delivery of 60 pieces/ }).click();
+    await page.getByRole("button", { name: "Reverse delivery", exact: true }).click();
+    await expect(page.getByText("Enter the reason for reversing this delivery.")).toBeVisible();
+    await page.getByLabel("Reason for reversing this delivery").fill("too short");
+    await page.getByRole("button", { name: "Reverse delivery", exact: true }).click();
+    await expect(page.getByText("Explain the reversal in at least 10 characters.")).toBeVisible();
+    expect(totals()).toBe("100/100/0/full/25000/25000/0");
+
+    // The first response is lost after the server committed: the retry resends the same command and reverses nothing twice.
+    const payloads: string[] = [];
+    let dropped = false;
+    await page.route("**/*", async (route) => {
+      const request = route.request();
+      if (request.method() === "POST" && request.headers()["next-action"] && request.postData()?.includes("idempotency_key")) {
+        payloads.push(request.postData() ?? "");
+        if (!dropped) { dropped = true; await route.fetch(); return route.abort("failed"); }
+      }
+      return route.continue();
+    });
+    await page.getByLabel("Reason for reversing this delivery").fill(reason);
+    await page.getByRole("button", { name: "Reverse delivery", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Retry exact reversal" })).toBeVisible();
+    expect(totals()).toBe("100/40/60/partial/25000/25000/0");
+    await page.getByRole("button", { name: "Retry exact reversal" }).click();
+    await expect(figures).toContainText("Delivered pieces40Remaining pieces60Delivery statusPartially delivered");
+    await page.unroute("**/*");
+    expect(payloads).toHaveLength(2);
+    expect(payloads[1]).toBe(payloads[0]);
+
+    // History: the original delivery stays (marked Reversed); the reversal is a new event with reason, actor, date and the original.
+    await expect(history.getByRole("listitem")).toHaveCount(3);
+    await expect(history.locator('[data-delivery-event="delivery"]').first()).toContainText("With the sale · Reversed");
+    const reversal = history.locator('[data-delivery-event="reversal"]');
+    await expect(reversal).toHaveCount(1);
+    await expect(reversal).toContainText("Reversal of the 60 pieces delivered on");
+    await expect(reversal).toContainText(`reason: ${reason}`);
+    await expect(reversal).toContainText(`invoice ${number}`);
+    await expect(reversal).toContainText("\u221260 pieces");
+    await expect(page.getByRole("group", { name: "Financial summary" })).toContainText("Partially delivered");
+    await expect(reverseButtons).toHaveCount(1);
+
+    // Database: one reversal event by the manager on today's date, the original untouched, one audit event, money unchanged.
+    expect(scalar(`select count(*) || '/' || min(r.pieces) || '/' || bool_and(r.created_by = '${MANAGER_ID}') || '/' || bool_and(r.reason = '${reason}') || '/' || bool_and(r.business_date = (now() at time zone 'Asia/Qatar')::date) || '/' || min(o.pieces)
+      from public.invoice_deliveries r join public.invoice_deliveries o on o.id = r.reverses_delivery_id where r.invoice_id = '${invoiceId}'`)).toBe("1/-60/true/true/true/60");
+    expect(scalar(`select count(*) from public.invoice_deliveries where invoice_id = '${invoiceId}'`)).toBe("3");
+    expect(scalar(`select count(*) from public.audit_events where action = 'delivery.reverse' and entity_id = '${invoiceId}' and reason = '${reason}'`)).toBe("1");
+    expect(money()).toBe(moneyBefore);
+    expect(totals()).toBe("100/40/60/partial/25000/25000/0");
+
+    // Ordinary delivery recording still works afterwards, against the net total.
+    await page.getByLabel("Pieces delivered now").fill("61");
+    await page.getByRole("button", { name: "Record delivery" }).click();
+    await expect(page.getByText("Only 60 pieces remain to deliver.")).toBeVisible();
+    await page.getByLabel("Pieces delivered now").fill("60");
+    await page.getByRole("button", { name: "Record delivery" }).click();
+    await expect(figures).toContainText("Delivered pieces100Remaining pieces0Delivery statusFully delivered");
+    expect(totals()).toBe("100/100/0/full/25000/25000/0");
+    await expect(history.getByRole("listitem")).toHaveCount(4);
+  });
+  test("a manager corrects ordered pieces with a reason: original kept, stale edits refused, money unchanged; staff cannot", async ({ page, browser }) => {
+    const number = `V2-ORDERFIX-${Date.now()}`;
+    const reason = "Customer added twenty pieces";
+    const totals = () => scalar(`select t.ordered_pieces || '/' || t.delivered_pieces || '/' || t.remaining_pieces || '/' || t.delivery_status || '/' || t.original_ordered_pieces || '/' || b.effective_total_dirham || '/' || b.effective_paid_dirham || '/' || b.effective_due_dirham
+      from public.invoices i join public.invoice_delivery_totals t on t.canonical_invoice_id = i.id join public.invoice_effective_balances b on b.canonical_invoice_id = i.id
+      where i.shop_id = '${SHOP_1}' and i.invoice_id = '${number}'`);
+    await login(page, MANAGER);
+    await fillRow(page, 0, number, "250.00", "250.00");
+    const row = entryRows(page).first();
+    await row.getByLabel("Ordered pieces").fill("100");
+    await row.getByLabel("Delivered now").fill("60");
+    await page.getByRole("button", { name: "Review sale" }).click();
+    await page.getByRole("button", { name: saveButton }).click();
+    await expect(savedNotice(page)).toBeVisible();
+    await page.getByRole("link", { name: `View invoice ${number}`, exact: true }).click();
+    const figures = page.getByLabel("Piece delivery");
+    const corrections = page.getByRole("list", { name: "Ordered piece corrections" });
+    expect(totals()).toBe("100/60/40/partial/100/25000/25000/0");
+    const invoiceId = scalar(`select id from public.invoices where shop_id = '${SHOP_1}' and invoice_id = '${number}'`);
+    const money = () => scalar(`select (select count(*) from public.payments where invoice_id = '${invoiceId}') || '/' || (select count(*) from public.corrections where invoice_id = '${invoiceId}')
+      || '/' || (select count(*) from public.sales_movements where invoice_id = '${invoiceId}')`);
+    const moneyBefore = money();
+
+    // Staff see no correction action.
+    const staffContext = await browser.newContext();
+    const staff = await staffContext.newPage();
+    await login(staff, STAFF);
+    await staff.goto(new URL(page.url()).pathname);
+    await expect(staff.getByLabel("Piece delivery")).toContainText("Ordered pieces100");
+    await expect(staff.getByRole("button", { name: "Correct ordered pieces" })).toHaveCount(0);
+
+    // On-screen validation before anything is sent: below the delivered pieces, and a mandatory reason.
+    await page.getByRole("button", { name: "Correct ordered pieces" }).click();
+    await page.getByLabel("Corrected ordered pieces").fill("50");
+    await page.getByRole("button", { name: "Save correction" }).click();
+    await expect(page.getByText("60 pieces are already delivered. Reverse a delivery first to go lower.")).toBeVisible();
+    await expect(page.getByText("Enter the reason for correcting the ordered pieces.")).toBeVisible();
+    expect(scalar(`select count(*) from public.invoice_piece_corrections where invoice_id = '${invoiceId}'`)).toBe("0");
+
+    // The first response is lost after the server committed: the retry resends the same command and corrects once.
+    const payloads: string[] = [];
+    let dropped = false;
+    await page.route("**/*", async (route) => {
+      const request = route.request();
+      if (request.method() === "POST" && request.headers()["next-action"] && request.postData()?.includes("expected_ordered_pieces")) {
+        payloads.push(request.postData() ?? "");
+        if (!dropped) { dropped = true; await route.fetch(); return route.abort("failed"); }
+      }
+      return route.continue();
+    });
+    await page.getByLabel("Corrected ordered pieces").fill("120");
+    await page.getByLabel("Reason for the correction").fill(reason);
+    await page.getByRole("button", { name: "Save correction" }).click();
+    await expect(page.getByRole("button", { name: "Retry exact correction" })).toBeVisible();
+    expect(totals()).toBe("120/60/60/partial/100/25000/25000/0");
+    await page.getByRole("button", { name: "Retry exact correction" }).click();
+    await expect(figures).toContainText("Ordered pieces120Delivered pieces60Remaining pieces60Delivery statusPartially delivered");
+    await page.unroute("**/*");
+    expect(payloads).toHaveLength(2);
+    expect(payloads[1]).toBe(payloads[0]);
+    await expect(page.getByText("Originally ordered 100 pieces.")).toBeVisible();
+    await expect(corrections.getByRole("listitem")).toHaveCount(1);
+    await expect(corrections).toContainText("100 → 120");
+    await expect(corrections).toContainText(`Reason: ${reason}`);
+
+    // The staff page still shows 100: a stale editor. A second manager page on 120 corrects first; a stale command is refused.
+    const second = await browser.newContext();
+    const other = await second.newPage();
+    await login(other, MANAGER);
+    await other.goto(new URL(page.url()).pathname);
+    await other.getByRole("button", { name: "Correct ordered pieces" }).click();
+    await other.getByLabel("Corrected ordered pieces").fill("80");
+    await other.getByLabel("Reason for the correction").fill("Customer reduced the order");
+    await page.getByRole("button", { name: "Correct ordered pieces" }).click();
+    await page.getByLabel("Corrected ordered pieces").fill("130");
+    await page.getByLabel("Reason for the correction").fill("Customer added ten more pieces");
+    await other.getByRole("button", { name: "Save correction" }).click();
+    await expect(other.getByLabel("Piece delivery")).toContainText("Ordered pieces80");
+    await second.close();
+    await page.getByRole("button", { name: "Save correction" }).click();
+    await expect(page.getByText("The ordered pieces were changed by someone else. Refresh and check the latest quantity.")).toBeVisible();
+    await expect(figures).toContainText("Ordered pieces80Delivered pieces60Remaining pieces20");
+    expect(totals()).toBe("80/60/20/partial/100/25000/25000/0");
+
+    // Decrease to exactly the delivered pieces: the invoice becomes fully delivered and recording stops.
+    await page.getByLabel("Corrected ordered pieces").fill("60");
+    await page.getByLabel("Reason for the correction").fill("Customer cancelled the rest");
+    await page.getByRole("button", { name: "Save correction" }).click();
+    await expect(figures).toContainText("Ordered pieces60Delivered pieces60Remaining pieces0Delivery statusFully delivered");
+    await expect(page.getByText("All ordered pieces are delivered.")).toBeVisible();
+    await expect(corrections.getByRole("listitem")).toHaveCount(3);
+
+    // Database: append-only history, original preserved, audit per correction, money untouched. Staff sees the history.
+    expect(scalar(`select string_agg(ordered_before || '>' || ordered_after, ',' order by seq) from public.invoice_piece_corrections where invoice_id = '${invoiceId}'`)).toBe("100>120,120>80,80>60");
+    expect(scalar(`select ordered_pieces from public.invoices where id = '${invoiceId}'`)).toBe("100");
+    expect(scalar(`select count(*) from public.audit_events where action = 'delivery.correct_ordered' and entity_id = '${invoiceId}'`)).toBe("3");
+    expect(money()).toBe(moneyBefore);
+    expect(totals()).toBe("60/60/0/full/100/25000/25000/0");
+    await staff.reload();
+    await expect(staff.getByRole("list", { name: "Ordered piece corrections" }).getByRole("listitem")).toHaveCount(3);
+    await staffContext.close();
   });
 });

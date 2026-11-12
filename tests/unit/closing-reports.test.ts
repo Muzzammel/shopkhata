@@ -192,9 +192,9 @@ describe("report Excel exports", () => {
     const invoiceId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
     const data = await roundTrip(salesReportSheet([
       { movementId: invoiceId, movement: "sale", businessDate: "2026-10-04", recordedAt: "2026-10-03T21:30:00.000Z", amountDirham: 100000, invoiceId, invoiceNumber: "S-1", customerName: "Mary",
-        current: { totalDirham: 0, paidDirham: 0, creditAppliedDirham: 0, dueDirham: 0, delivered: true, isVoid: true } },
+        current: { totalDirham: 0, paidDirham: 0, creditAppliedDirham: 0, dueDirham: 0, delivery: "full", isVoid: true } },
       { movementId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", movement: "invoice_void", businessDate: "2026-10-06", recordedAt: null, amountDirham: -100000, invoiceId, invoiceNumber: "S-1", customerName: "Mary", current: null },
-    ], { invoiceCount: 1, grossSalesDirham: 100000, salesCorrectionsDirham: -100000, netSalesDirham: 0, paidDirham: 0, creditAppliedDirham: 0, dueDirham: 0, deliveredCount: 1, undeliveredCount: 0 }));
+    ], { invoiceCount: 1, grossSalesDirham: 100000, salesCorrectionsDirham: -100000, netSalesDirham: 0, paidDirham: 0, creditAppliedDirham: 0, dueDirham: 0, deliveredCount: 1, partiallyDeliveredCount: 0, undeliveredCount: 0 }));
     expect(data[0]).toEqual(SALES_REPORT_HEADERS);
     // Recorded at 00:30 Qatar time on the 4th, which is still the 3rd in UTC. The original sale keeps its amount; Status is current.
     expect(data[1]).toEqual(["2026-10-04", "Sale", "S-1", 1000, "Mary", "2026-10-04 00:30:00", 0, 0, 0, 0, "Yes", "VOID", invoiceId]);

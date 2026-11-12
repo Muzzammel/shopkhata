@@ -107,7 +107,8 @@ export type DashboardData = {
     /** Unpaid balance of every invoice dated in the period, customerless ones included (report_sales_totals.effective_due_dirham). */
     unpaidInvoicesDirham: number;
   };
-  invoiceHealth: { total: number; delivered: number; advance: number; fullyPaid: number; withDue: number };
+  /** delivered = fully delivered (legacy: flag set); partial = tracked with pieces still to hand over; advance = nothing delivered. */
+  invoiceHealth: { total: number; delivered: number; partial: number; advance: number; fullyPaid: number; withDue: number };
   collection: { outstandingDueDirham: number; availableCreditDirham: number; customersWithDue: number; paymentsReceivedDirham: number; bankReceivedDirham: number; largestDues: CustomerDueRow[]; creditCustomers: CreditCustomer[] };
   trend: { days: TrendPoint[]; today: DailySummary };
   expenses: { totalDirham: number; byCategory: { category: string; amountDirham: number; count: number }[]; recent: ExpenseLine[]; largest: ExpenseLine[] };
@@ -222,7 +223,7 @@ export async function loadDashboard(supabase: Client, shops: readonly { id: stri
       unpaidInvoicesDirham: salesRow.effective_due_dirham,
     },
     invoiceHealth: {
-      total: salesRow.invoice_count, delivered: salesRow.delivered_count, advance: salesRow.undelivered_count,
+      total: salesRow.invoice_count, delivered: salesRow.delivered_count, partial: salesRow.partially_delivered_count, advance: salesRow.undelivered_count,
       fullyPaid: fullyPaidCount.count ?? 0, withDue: withDueCount.count ?? 0,
     },
     collection: {

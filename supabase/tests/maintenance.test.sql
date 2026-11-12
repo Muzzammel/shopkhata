@@ -62,10 +62,10 @@ $$;
 create temp table guarded(name text primary key);
 insert into guarded values ('admin_create_shop'), ('admin_register_account'), ('admin_set_account_status'), ('admin_set_shop_assignment'),
   ('admin_set_shop_status'), ('admin_update_account'), ('admin_update_shop'), ('apply_customer_credit'), ('approve_overpayment'),
-  ('close_business_date'), ('create_customer'), ('create_expense'), ('decide_expense_correction'), ('decide_invoice_correction'),
-  ('decide_invoice_replacement'), ('record_customer_payment'), ('record_payment'), ('register_expense_attachment'),
+  ('close_business_date'), ('correct_invoice_ordered_pieces'), ('create_customer'), ('create_expense'), ('decide_expense_correction'), ('decide_invoice_correction'),
+  ('decide_invoice_replacement'), ('record_customer_payment'), ('record_invoice_delivery'), ('record_payment'), ('register_expense_attachment'),
   ('reopen_business_date'), ('request_expense_correction'), ('request_invoice_correction'), ('request_invoice_replacement'),
-  ('submit_batch'), ('void_invoice');
+  ('reverse_invoice_delivery'), ('submit_batch'), ('void_invoice');
 
 insert into public.expenses(id, shop_id, description, amount_dirham, business_date)
 values ('e9000000-0000-4000-8000-000000000001', pg_temp.s1(), 'Maintenance fixture expense', 1000, current_date);
@@ -156,7 +156,7 @@ select is((select coalesce(array_agg(p.proname::text order by p.proname::text), 
   '{}'::text[], 'every write RPC calls private.assert_not_in_maintenance() before any other statement, with no declaration initializers');
 select is((select array_agg(p.proname::text order by p.proname::text) from pg_proc p
   where p.pronamespace = 'public'::regnamespace and has_function_privilege('authenticated', p.oid, 'EXECUTE') and p.prosrc like '%assert_not_in_maintenance%'),
-  (select array_agg(name order by name) from guarded), 'the guarded RPCs are exactly the 24 write RPCs');
+  (select array_agg(name order by name) from guarded), 'the guarded RPCs are exactly the 26 write RPCs');
 select is((select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.provolatile <> 'v' and has_function_privilege('authenticated', p.oid, 'EXECUTE')
   and p.prosrc like '%assert_not_in_maintenance%'), 0::bigint, 'report RPCs are not guarded (reads stay RLS-scoped)');
 select is((select count(*) from guarded g join pg_proc p on p.proname = g.name and p.pronamespace = 'private'::regnamespace

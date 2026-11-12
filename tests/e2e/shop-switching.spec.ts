@@ -29,7 +29,7 @@ async function createInvoice(page: Page, invoiceNumber: string, total: string, r
   await row.getByLabel("Total QAR").fill(total);
   await row.getByLabel("Received QAR").fill(received);
   if (customerName) {
-    await row.getByLabel("Delivered").check();
+    await row.getByLabel("Delivered now").fill("1");
     await row.getByLabel("New customer name").fill(customerName);
   }
   await page.getByRole("button", { name: "Review sale" }).click();
@@ -262,7 +262,7 @@ test("a delayed successful batch cannot switch shops or move Shop 1 data into Sh
   await row.getByLabel("Invoice ID").fill(invoiceNumber);
   await row.getByLabel("Total QAR").fill("14.00");
   await row.getByLabel("Received QAR").fill("4.00");
-  await row.getByLabel("Delivered").check();
+  await row.getByLabel("Delivered now").fill("1");
   await row.getByLabel("New customer name").fill(customerName);
   await page.getByRole("button", { name: "Review sale" }).click();
   const held = await installHeldAction(page, false);

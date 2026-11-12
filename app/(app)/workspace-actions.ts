@@ -2,12 +2,20 @@
 
 import { can, getCurrentActor } from "@/lib/auth/permissions";
 import { findRegisteredInvoiceNumbers } from "@/lib/invoice-number-registry";
+import {
+  CUSTOMER_SEARCH_PAGE_SIZE,
+  INITIAL_SUGGESTIONS_LIMIT,
+  rankCustomersByRelevance,
+} from "@/lib/customer-search";
 import { readShopWorkspace } from "@/lib/shop-workspace";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-const CUSTOMER_SEARCH_PAGE_SIZE = 20;
-
-export async function searchShopCustomers(shopId: unknown, rawQuery: unknown, rawOffset: unknown = 0) {
+export async function searchShopCustomers(
+  shopId: unknown,
+  rawQuery: unknown,
+  rawOffset: unknown = 0,
+  rawLimit?: unknown
+) {
   if (typeof shopId !== "string" || typeof rawQuery !== "string") {
     return { ok: false as const, message: "Enter a customer search." };
   }
@@ -15,6 +23,12 @@ export async function searchShopCustomers(shopId: unknown, rawQuery: unknown, ra
   const offset = typeof rawOffset === "number" && Number.isInteger(rawOffset) && rawOffset >= 0 && rawOffset <= 10_000
     ? rawOffset
     : 0;
+  const limit = typeof rawLimit === "number" && Number.isInteger(rawLimit) && rawLimit > 0 && rawLimit <= 100
+    ? rawLimit
+    : offset === 0
+      ? INITIAL_SUGGESTIONS_LIMIT
+      : CUSTOMER_SEARCH_PAGE_SIZE;
+
   if (query.length < 2) return { ok: true as const, customers: [], hasMore: false, nextOffset: 0 };
   if (query.length > 100) return { ok: false as const, message: "Shorten the customer search." };
   const actor = await getCurrentActor();
@@ -36,13 +50,14 @@ export async function searchShopCustomers(shopId: unknown, rawQuery: unknown, ra
       .or(`name.ilike.${pattern},mobile.ilike.${pattern},public_id.ilike.${pattern}`)
       .order("name", { ascending: true, nullsFirst: false })
       .order("public_id", { ascending: true })
-      .range(offset, offset + CUSTOMER_SEARCH_PAGE_SIZE);
+      .limit(1000);
     if (error || !data) return { ok: false as const, message: "Customer search is unavailable." };
-    const customers = data.slice(0, CUSTOMER_SEARCH_PAGE_SIZE);
+    const ranked = rankCustomersByRelevance(data, query);
+    const customers = ranked.slice(offset, offset + limit);
     return {
       ok: true as const,
       customers,
-      hasMore: data.length > CUSTOMER_SEARCH_PAGE_SIZE,
+      hasMore: ranked.length > offset + limit,
       nextOffset: offset + customers.length,
     };
   } catch {

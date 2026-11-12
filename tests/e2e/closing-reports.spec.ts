@@ -304,7 +304,7 @@ test("reports show reconciled values for invoices, payments, dues, credit, expen
   const sales = await exportReport();
   expect(sales).toHaveLength(8);
   expect(sales.slice(-4).map((item) => [item[0], item[3]])).toEqual([["Gross sales", 18], ["Invoice corrections", 0], ["Net sales", 18], ["Current state of these invoices", null]]);
-  expect(sales.at(-1)?.slice(7, 11)).toEqual([15.2, 0.5, 2, "2 delivered, 1 not delivered"]);
+  expect(sales.at(-1)?.slice(7, 11)).toEqual([15.2, 0.5, 2, "2 delivered, 0 partially delivered, 1 not delivered"]);
   expect(sales.find((item) => item[2] === c)?.slice(0, 4)).toEqual([date, "Sale", c, 3]);
   expect(sales.find((item) => item[2] === c)?.slice(6, 12)).toEqual([2.7, 0.2, 0.5, 2, "Yes", "ACTIVE"]);
   // The correction appears on its own business date, today; the range from the fixture date to today nets to the current total.

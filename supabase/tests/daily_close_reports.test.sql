@@ -45,7 +45,7 @@ select has_function('public', 'close_business_date', array['jsonb'], 'close RPC 
 select has_function('public', 'reopen_business_date', array['jsonb'], 'reopen RPC exists');
 select has_view('public', 'report_payments', 'payment report projection exists');
 select has_column('public', 'daily_closes', 'note', 'a close event can carry a note');
-select is((select count(*)::int from pg_trigger where tgname like '%\_open\_business\_date' and not tgisinternal), 7, 'every dated financial table enforces the closed-date rule on insert');
+select is((select count(*)::int from pg_trigger where tgname like '%\_open\_business\_date' and not tgisinternal), 9, 'every dated financial table (and invoice_deliveries since 20261112090000, invoice_piece_corrections since 20261112120000) enforces the closed-date rule on insert');
 select ok(not has_function_privilege('anon', 'public.close_business_date(jsonb)', 'EXECUTE') and not has_function_privilege('anon', 'public.reopen_business_date(jsonb)', 'EXECUTE'), 'anon cannot execute close or reopen');
 select ok(not has_function_privilege('authenticated', 'private.record_day_close_event(jsonb,text)', 'EXECUTE'), 'the close worker is not directly callable');
 select ok(not has_table_privilege('authenticated', 'public.daily_closes', 'INSERT'), 'close events cannot be inserted outside the RPC');
@@ -114,7 +114,8 @@ select is((select outstanding_due_dirham + unassigned_due_dirham from public.rep
 select is((select to_jsonb(t) - array['gross_sales_dirham', 'sales_corrections_dirham', 'net_sales_dirham', 'effective_total_dirham'] from public.report_sales_totals(pg_temp.s1(), current_date, current_date) t),
   (select jsonb_build_object('invoice_count', count(*), 'effective_paid_dirham', coalesce(sum(effective_paid_dirham), 0),
     'credit_applied_dirham', coalesce(sum(effective_credit_applied_dirham), 0), 'effective_due_dirham', coalesce(sum(effective_due_dirham), 0),
-    'delivered_count', count(*) filter (where effective_delivered), 'undelivered_count', count(*) filter (where not effective_delivered))
+    'delivered_count', count(*) filter (where delivery_status = 'full'), 'undelivered_count', count(*) filter (where delivery_status = 'none'),
+    'partially_delivered_count', count(*) filter (where delivery_status = 'partial'))
    from public.effective_invoices where shop_id = pg_temp.s1() and business_date = current_date), 'sales report current-state totals equal the effective invoice projection for the same filter');
 select is((select array[gross_sales_dirham, sales_corrections_dirham, net_sales_dirham] from public.report_sales_totals(pg_temp.s1(), current_date, current_date)),
   (select array[gross_invoice_dirham, invoice_corrections_dirham, gross_invoice_dirham + invoice_corrections_dirham] from public.report_daily_summary(pg_temp.s1(), current_date, current_date)),

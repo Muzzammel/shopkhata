@@ -27,24 +27,24 @@ create temp table priv_rpc(sig text);
 insert into priv_rpc values
   ('admin_create_shop(jsonb)'), ('admin_register_account(jsonb)'), ('admin_set_account_status(jsonb)'), ('admin_set_shop_assignment(jsonb)'), ('admin_set_shop_status(jsonb)'),
   ('admin_update_account(jsonb)'), ('admin_update_shop(jsonb)'),
-  ('apply_customer_credit(jsonb)'), ('approve_overpayment(jsonb)'), ('close_business_date(jsonb)'),
+  ('apply_customer_credit(jsonb)'), ('approve_overpayment(jsonb)'), ('close_business_date(jsonb)'), ('correct_invoice_ordered_pieces(jsonb)'),
   ('create_customer(jsonb)'), ('create_expense(jsonb)'), ('decide_expense_correction(jsonb)'),
   ('decide_invoice_correction(jsonb)'), ('decide_invoice_replacement(jsonb)'), ('record_customer_payment(jsonb)'),
-  ('record_payment(jsonb)'), ('register_expense_attachment(jsonb)'), ('reopen_business_date(jsonb)'),
+  ('record_invoice_delivery(jsonb)'), ('record_payment(jsonb)'), ('register_expense_attachment(jsonb)'), ('reopen_business_date(jsonb)'),
   ('report_customer_due_totals(uuid)'), ('report_daily_summary(uuid,date,date)'), ('report_day_pending_requests(uuid,date)'),
   ('report_expense_totals(uuid,date,date)'), ('report_payment_totals(uuid,date,date)'), ('report_sales_totals(uuid,date,date)'),
   ('report_top_customers_by_payments(uuid,date,date,integer)'), ('report_top_customers_by_sales(uuid,date,date,integer)'),
-  ('request_expense_correction(jsonb)'), ('request_invoice_correction(jsonb)'), ('request_invoice_replacement(jsonb)'),
+  ('request_expense_correction(jsonb)'), ('request_invoice_correction(jsonb)'), ('request_invoice_replacement(jsonb)'), ('reverse_invoice_delivery(jsonb)'),
   ('set_maintenance(jsonb)'), ('set_maintenance_bypass(jsonb)'),
   ('submit_batch(jsonb)'), ('void_invoice(jsonb)');
 grant select on priv_rel, priv_all, priv_seq, priv_fn, priv_rpc to public;
 
 select ok((select count(*) from priv_rel) >= 30 and (select count(*) from priv_seq) >= 2 and (select count(*) from priv_fn) >= 27,
   'the catalog scan sees the real public tables, views, sequences and functions');
-select is((select count(*) from priv_rpc), 34::bigint, 'the approved RPC list holds 34 distinct signatures');
+select is((select count(*) from priv_rpc), 37::bigint, 'the approved RPC list holds 37 distinct signatures');
 select is((select array_agg(sig order by sig collate "C") from priv_fn),
   (select array_agg(sig order by sig collate "C") from (select sig from priv_rpc union all select 'reject_append_only_mutation()') u),
-  'the public functions are exactly the 34 approved RPCs plus the append-only trigger function (a new or overloaded function must be classified here)');
+  'the public functions are exactly the 36 approved RPCs plus the append-only trigger function (a new or overloaded function must be classified here)');
 
 -- 1. anon: nothing.
 select is((select count(*) from priv_rel r cross join priv_all a where has_table_privilege('anon', r.oid, a.p)), 0::bigint,
@@ -62,7 +62,7 @@ select is((select count(*) from priv_rel r where not has_table_privilege('authen
 select is((select count(*) from priv_seq s where has_sequence_privilege('authenticated', s.oid, 'USAGE') or has_sequence_privilege('authenticated', s.oid, 'SELECT')
   or has_sequence_privilege('authenticated', s.oid, 'UPDATE')), 0::bigint, 'authenticated has no sequence privilege');
 select is((select array_agg(sig order by sig collate "C") from priv_fn where auth_x), (select array_agg(sig order by sig collate "C") from priv_rpc),
-  'authenticated can execute exactly the 34 approved application RPC signatures and nothing else');
+  'authenticated can execute exactly the 36 approved application RPC signatures and nothing else');
 select ok(not has_function_privilege('authenticated', 'public.reject_append_only_mutation()', 'EXECUTE')
   and not has_function_privilege('service_role', 'public.reject_append_only_mutation()', 'EXECUTE'),
   'the append-only trigger function is not callable through the API');

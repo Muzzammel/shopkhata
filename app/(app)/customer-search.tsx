@@ -63,6 +63,7 @@ export function CustomerSearch({ shopId, disabled, onSelect, initial = null }: {
   }, [query, shopId]);
 
   async function showMore() {
+    if (disabled || loading) return;
     const requestId = ++requestSequence.current;
     const searchTerm = query.trim();
     setLoading(true);

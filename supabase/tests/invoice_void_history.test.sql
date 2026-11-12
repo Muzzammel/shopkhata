@@ -25,7 +25,7 @@ create function pg_temp.day(d date) returns jsonb language sql as $$
   select coalesce((select to_jsonb(x) from public.report_daily_summary(pg_temp.s1(), d, d) x), '{}'::jsonb) $$;
 -- Only the movement half of the sales totals: the current-state half (paid/due) legitimately follows the invoice.
 create function pg_temp.moves(f date, t date) returns jsonb language sql as $$
-  select pg_temp.sales(f, t) - array['effective_paid_dirham', 'credit_applied_dirham', 'effective_due_dirham', 'delivered_count', 'undelivered_count'] $$;
+  select pg_temp.sales(f, t) - array['effective_paid_dirham', 'credit_applied_dirham', 'effective_due_dirham', 'delivered_count', 'undelivered_count', 'partially_delivered_count'] $$;
 
 -- Fixtures (as the database owner). An isolated history window far from the seed and other test files: nothing else is
 -- dated D1 or D2 in shop 1 here except these rows, so every figure below is exact.
@@ -56,7 +56,8 @@ select ok(not has_table_privilege('anon', 'public.sales_movements', 'SELECT'), '
 select hasnt_function('public', 'report_dashboard_snapshot', array['uuid', 'date', 'date', 'uuid[]'], 'O: the dormant snapshot RPC that counted voids as paid is dropped');
 
 -- Snapshot of history before any void. D1 is then CLOSED: a void must leave a closed day exactly as it was.
-create temp table before_void as select pg_temp.day(current_date - 2) d1, pg_temp.day(current_date - 1) d2, pg_temp.moves(current_date - 2, current_date - 2) s1, pg_temp.moves(current_date - 1, current_date - 1) s2;
+create temp table before_void as select pg_temp.day(current_date - 2) d1, pg_temp.day(current_date - 1) d2, pg_temp.moves(current_date - 2, current_date - 2) s1, pg_temp.moves(current_date - 1, current_date - 1) s2,
+  pg_temp.day(current_date) d0, pg_temp.sales(current_date, current_date) t0; -- today may already hold other rows: assert deltas
 grant select on before_void to public;
 insert into public.daily_closes(shop_id, business_date, event_type, actor_id) values (pg_temp.s1(), current_date - 2, 'closed', pg_temp.owner());
 
@@ -71,8 +72,8 @@ select results_eq($$select business_date, movement_type, amount_dirham from publ
 select is(pg_temp.moves(current_date - 2, current_date - 2), (select s1 from before_void), 'CASE 1: Sales report for D1 is unchanged by the void (gross, corrections, net)');
 select is((pg_temp.sales(current_date - 2, current_date - 2) ->> 'gross_sales_dirham')::bigint, 33000::bigint, 'CASE 1: D1 gross sales still include the voided invoice''s QAR 100');
 select is(pg_temp.day(current_date - 2), (select d1 from before_void), 'CASE 1: Daily Close summary for D1 is byte-for-byte unchanged');
-select is((pg_temp.day(current_date) ->> 'invoice_corrections_dirham')::bigint, -10000::bigint, 'CASE 1: Daily Close today shows the -100 invoice correction');
-select is((pg_temp.sales(current_date, current_date) ->> 'sales_corrections_dirham')::bigint, -10000::bigint, 'CASE 1: Sales report today shows the -100 correction');
+select is(coalesce((pg_temp.day(current_date) ->> 'invoice_corrections_dirham')::bigint, 0) - coalesce((select (d0 ->> 'invoice_corrections_dirham')::bigint from before_void), 0), -10000::bigint, 'CASE 1: Daily Close today shows the -100 invoice correction');
+select is(coalesce((pg_temp.sales(current_date, current_date) ->> 'sales_corrections_dirham')::bigint, 0) - coalesce((select (t0 ->> 'sales_corrections_dirham')::bigint from before_void), 0), -10000::bigint, 'CASE 1: Sales report today shows the -100 correction');
 select is((select sum(amount_dirham)::bigint from public.sales_movements where invoice_id = pg_temp.inv(1) and business_date between current_date - 2 and current_date), 0::bigint, 'CASE 1: range D1..today nets to 0 for the invoice');
 select is((select array[original_total_dirham, effective_total_dirham, effective_due_dirham] from public.effective_invoices where canonical_invoice_id = pg_temp.inv(1)), array[10000, 0, 0]::bigint[], 'CASE 1: current state: original 100 kept, effective total and due 0');
 select ok((select is_void from public.effective_invoices where canonical_invoice_id = pg_temp.inv(1)), 'CASE 1: current state: VOID');

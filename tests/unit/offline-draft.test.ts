@@ -45,6 +45,11 @@ describe("local draft serialization", () => {
     expect(isBlankRows([row("a", { invoiceId: "" , total: "" })])).toBe(true);
     expect(isBlankRows([row("a", { invoiceId: "", total: "", note: "x" })])).toBe(false);
     expect(isBlankRows([row("a", { invoiceId: "", total: "" }), row("b", { invoiceId: "", total: "" })])).toBe(false);
+    // An untouched suggested next invoice number is treated as no draft (not persisted)
+    expect(isBlankRows([row("a", { invoiceId: "1051", total: "" })], "1051")).toBe(true);
+    // Editing the number or entering an amount makes it an active draft
+    expect(isBlankRows([row("a", { invoiceId: "1051", total: "10.00" })], "1051")).toBe(false);
+    expect(isBlankRows([row("a", { invoiceId: "1052", total: "" })], "1051")).toBe(false);
   });
 });
 
@@ -248,5 +253,22 @@ describe("local draft payment method", () => {
     expect(normalizeStoredDraft(older, owner)?.rows[0].paymentMethod).toBeUndefined();
     older.rows[0].paymentMethod = "card";
     expect(normalizeStoredDraft(older, owner)).toBeNull();
+  });
+});
+
+describe("piece fields in local drafts", () => {
+  const owner = { userId: userA, shopId: shop1 };
+  it("round-trips piece counts and keeps pre-piece drafts as legacy rows", () => {
+    const tracked = serializeDraft({ ...base, rows: [row("a", { orderedPieces: "4", deliveredPieces: "1" })] });
+    expect(normalizeStoredDraft(JSON.parse(JSON.stringify(tracked)), owner)?.rows[0]).toMatchObject({ orderedPieces: "4", deliveredPieces: "1" });
+    const legacy = normalizeStoredDraft(JSON.parse(JSON.stringify(serializeDraft(base))), owner);
+    expect(legacy?.rows[0]).not.toHaveProperty("orderedPieces");
+    expect(legacy?.rows[0]).not.toHaveProperty("deliveredPieces");
+  });
+
+  it("treats the default 1 ordered / 0 delivered as blank, any other count as content", () => {
+    expect(isBlankRows([row("a", { invoiceId: "", total: "", orderedPieces: "1", deliveredPieces: "0" })])).toBe(true);
+    expect(isBlankRows([row("a", { invoiceId: "", total: "", orderedPieces: "3", deliveredPieces: "0" })])).toBe(false);
+    expect(isBlankRows([row("a", { invoiceId: "", total: "", orderedPieces: "1", deliveredPieces: "1" })])).toBe(false);
   });
 });

@@ -42,7 +42,7 @@ export function SalesTable({ rows, shopId, showCustomer = true }: { rows: Invoic
             <Td className={cn(money, "text-sm max-lg:col-start-2 max-lg:row-start-4 max-lg:mt-2 max-lg:text-xs", row.dueDirham > 0 ? "font-semibold text-warning" : "text-muted-foreground")}><span className="lg:hidden">Due </span>{qar(row.dueDirham)}</Td>
             <Td className="max-lg:col-start-2 max-lg:row-start-2 max-lg:justify-self-end">
               <InvoiceBadges badges={invoiceBadges(row)} />
-              {!row.delivered && <span className="ml-1 text-[11px] font-medium text-muted-foreground">Not delivered</span>}
+              {row.delivery === "none" && <span className="ml-1 text-[11px] font-medium text-muted-foreground">Not delivered</span>}
             </Td>
           </tr>)}
         </tbody>

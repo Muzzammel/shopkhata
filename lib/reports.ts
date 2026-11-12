@@ -5,6 +5,7 @@ import {
   fetchExpenseExport, qar, recordedAt, sheet, type Cell, type ExpenseExportRow, type ExportSheet,
 } from "@/lib/excel/exports";
 import { readAllPages } from "@/lib/read-all-pages";
+import { DELIVERY_EXPORT_CELL, deliveryStatus, type DeliveryStatus } from "@/lib/invoice-delivery";
 import type { Database } from "@/lib/supabase/database.types";
 
 // Reports only read and relabel what the database projections return. No
@@ -123,7 +124,7 @@ export async function fetchDailySummary(supabase: Client, shopId: string, from: 
  */
 export type SalesTotals = {
   invoiceCount: number; grossSalesDirham: number; salesCorrectionsDirham: number; netSalesDirham: number;
-  paidDirham: number; creditAppliedDirham: number; dueDirham: number; deliveredCount: number; undeliveredCount: number;
+  paidDirham: number; creditAppliedDirham: number; dueDirham: number; deliveredCount: number; partiallyDeliveredCount: number; undeliveredCount: number;
 };
 export const SALES_MOVEMENTS = { sale: "Sale", invoice_correction: "Invoice correction", invoice_void: "Invoice void" } as const;
 export type SalesMovement = keyof typeof SALES_MOVEMENTS;
@@ -131,7 +132,7 @@ export type SalesMovement = keyof typeof SALES_MOVEMENTS;
 export type SalesReportRow = {
   movementId: string; movement: SalesMovement; businessDate: string; recordedAt: string | null; amountDirham: number;
   invoiceId: string; invoiceNumber: string; customerName: string;
-  current: { totalDirham: number; paidDirham: number; creditAppliedDirham: number; dueDirham: number; delivered: boolean; isVoid: boolean } | null;
+  current: { totalDirham: number; paidDirham: number; creditAppliedDirham: number; dueDirham: number; delivery: DeliveryStatus; isVoid: boolean } | null;
 };
 export type CustomerDueRow = { customerId: string; publicId: string; name: string; mobile: string; outstandingDueDirham: number; availableCreditDirham: number; invoiceCount: number; lastActivity: string };
 export type CustomerDueTotals = { customersWithDue: number; outstandingDueDirham: number; availableCreditDirham: number; unassignedDueDirham: number };
@@ -186,14 +187,14 @@ export async function fetchSalesReport(supabase: Client, shopId: string, from: s
         invoiceId: row.invoice_id!, invoiceNumber: invoice.effective_invoice_number!, customerName: invoice.effective_customer_id ? names.get(invoice.effective_customer_id) ?? "" : "",
         current: movement !== "sale" ? null : {
           totalDirham: amount(invoice.effective_total_dirham!), paidDirham: amount(invoice.effective_paid_dirham!), creditAppliedDirham: amount(invoice.effective_credit_applied_dirham ?? 0),
-          dueDirham: amount(invoice.effective_due_dirham!), delivered: invoice.effective_delivered === true, isVoid: invoice.is_void === true,
+          dueDirham: amount(invoice.effective_due_dirham!), delivery: deliveryStatus(invoice.delivery_status), isVoid: invoice.is_void === true,
         },
       };
     }),
     totals: {
       invoiceCount: amount(total.invoice_count), grossSalesDirham: amount(total.gross_sales_dirham), salesCorrectionsDirham: amount(total.sales_corrections_dirham),
       netSalesDirham: amount(total.net_sales_dirham), paidDirham: amount(total.effective_paid_dirham), creditAppliedDirham: amount(total.credit_applied_dirham),
-      dueDirham: amount(total.effective_due_dirham), deliveredCount: amount(total.delivered_count), undeliveredCount: amount(total.undelivered_count),
+      dueDirham: amount(total.effective_due_dirham), deliveredCount: amount(total.delivered_count), partiallyDeliveredCount: amount(total.partially_delivered_count), undeliveredCount: amount(total.undelivered_count),
     },
   };
 }
@@ -321,14 +322,14 @@ export function salesReportSheet(rows: readonly SalesReportRow[], totals: SalesT
     ...rows.map((row): Cell[] => [
       row.businessDate, SALES_MOVEMENTS[row.movement], row.invoiceNumber, qar(row.amountDirham), row.customerName, recordedAt(row.recordedAt),
       ...(row.current ? [qar(row.current.totalDirham), qar(row.current.paidDirham), qar(row.current.creditAppliedDirham), qar(row.current.dueDirham),
-        row.current.delivered ? "Yes" : "No", row.current.isVoid ? "VOID" : "ACTIVE"] : blank(6)),
+        DELIVERY_EXPORT_CELL[row.current.delivery], row.current.isVoid ? "VOID" : "ACTIVE"] : blank(6)),
       row.invoiceId,
     ]),
     [bold("Gross sales"), `${totals.invoiceCount} invoices`, null, qar(totals.grossSalesDirham), ...blank(9)],
     [bold("Invoice corrections"), null, null, qar(totals.salesCorrectionsDirham), ...blank(9)],
     [bold("Net sales"), null, null, qar(totals.netSalesDirham), ...blank(9)],
     [bold("Current state of these invoices"), null, null, null, null, null, null, qar(totals.paidDirham), qar(totals.creditAppliedDirham), qar(totals.dueDirham),
-      `${totals.deliveredCount} delivered, ${totals.undeliveredCount} not delivered`, null, null],
+      `${totals.deliveredCount} delivered, ${totals.partiallyDeliveredCount} partially delivered, ${totals.undeliveredCount} not delivered`, null, null],
   ]);
 }
 

@@ -88,7 +88,7 @@ test("payment rows link safely to their invoice and customer", async ({ page }) 
   await row.getByLabel("Invoice ID").fill(number);
   await row.getByLabel("Total QAR").fill("50.00");
   await row.getByLabel("Received QAR").fill("20.00");
-  await row.getByLabel("Delivered").check();
+  await row.getByLabel("Delivered now").fill("1");
   await row.getByLabel("New customer name").fill(customerName);
   await page.getByRole("button", { name: "Review sale" }).click();
   await page.getByRole("button", { name: /^Save (sale|\d+ invoices)$/ }).click();
