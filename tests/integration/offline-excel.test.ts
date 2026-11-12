@@ -288,7 +288,7 @@ describe("offline reconnect, retry and conflicts against real Supabase", () => {
 
       const rows = await fetchInvoiceExport(staff, SHOP1, today, today);
       const exported = rows.find((row) => row.invoiceId === invoiceId);
-      expect(exported).toMatchObject({ invoiceNumber: renamed, originalNumber: original, totalDirham: 10500, paidDirham: 3000, dueDirham: 7500, delivered: true, customerMobile: "55500001" });
+      expect(exported).toMatchObject({ invoiceNumber: renamed, originalNumber: original, totalDirham: 10500, paidDirham: 3000, dueDirham: 7500, delivery: "full", customerMobile: "55500001" });
       expect(rows.some((row) => row.invoiceNumber === original)).toBe(false);
       expect(rows.some((row) => row.invoiceNumber === foreignNumber)).toBe(false);
       const data = await workbook([invoiceExportSheet(rows)]);
