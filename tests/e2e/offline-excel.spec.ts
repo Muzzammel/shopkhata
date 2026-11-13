@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { EXPENSE_EXPORT_HEADERS, INVOICE_EXPORT_HEADERS, LEDGER_EXPORT_HEADERS } from "@/lib/excel/exports";
 import { IMPORT_HEADERS, IMPORT_SHEET_NAME } from "@/lib/excel/invoice-import";
-import { qatarBusinessDate } from "@/lib/invoice-entry";
+import { qatarBusinessDate, suggestNextInvoiceNumber } from "@/lib/invoice-entry";
 
 import {
   MANAGER, MANAGER_ID, OWNER, OWNER_ID, SHOP_1, SHOP_2, STAFF, draftStatus, entryRows, expectStoredRows, fillRow, importFile, invoiceCount,
@@ -146,9 +146,9 @@ test.describe("Excel import", () => {
     await expect(preview.locator("[data-import-row]").first().locator('[aria-invalid="true"]')).toHaveCount(0);
     await expect(preview.getByRole("button", { name: "Add rows to draft" })).toBeDisabled();
 
-    // The draft is untouched and nothing reached the database.
+    // The draft is untouched (only the unsaved next-number suggestion from the earlier save) and nothing reached the database.
     await expect(entryRows(page)).toHaveCount(1);
-    await expect(entryRows(page).nth(0).getByLabel("Invoice ID")).toHaveValue("");
+    await expect(entryRows(page).nth(0).getByLabel("Invoice ID")).toHaveValue(suggestNextInvoiceNumber(`${prefix}-EXISTING`));
     expect(scalar(`select count(*) from public.invoices where invoice_id like '${prefix}-%'`)).toBe("1");
   });
 });
@@ -395,7 +395,9 @@ test.describe("retry and conflicts", () => {
     expect(scalar(`select count(*) from public.batches where shop_id = '${SHOP_1}' and idempotency_key = '${uncertain.idempotencyKey}'`)).toBe("1");
     expect(scalar(`select count(*) from public.audit_events a join public.batches b on a.entity_id = b.id::text where a.action = 'batch.submit' and b.idempotency_key = '${uncertain.idempotencyKey}'`)).toBe("1");
     await expect.poll(async () => (await storedDrafts(page)).length).toBe(0);
-    await expect(entryRows(page).nth(0).getByLabel("Invoice ID")).toHaveValue("");
+    // Only the confirmed receipt advances the number; the suggestion is neither saved nor reserved.
+    await expect(entryRows(page).nth(0).getByLabel("Invoice ID")).toHaveValue(suggestNextInvoiceNumber(invoice));
+    expect(invoiceCount(suggestNextInvoiceNumber(invoice))).toBe("0");
   });
 
   test("an invoice number used by someone else while offline becomes a row conflict linking to the existing invoice", async ({ page, context, browser }) => {
